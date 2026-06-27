@@ -47,20 +47,6 @@ export default {
     // Missing static chunks must not return HTML shell (immutable CDN cache).
     // Valid /assets/* are served from .vercel/output/static before this handler runs.
     if (pathname.startsWith("/assets/")) {
-      // #region agent log
-      fetch("http://127.0.0.1:7887/ingest/d4923940-ca95-41e7-8370-57941aabba7d", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "29ea4c" },
-        body: JSON.stringify({
-          sessionId: "29ea4c",
-          location: "server.ts:assets-404",
-          message: "asset request hit server function",
-          data: { pathname, url: request.url },
-          timestamp: Date.now(),
-          hypothesisId: "H5",
-        }),
-      }).catch(() => {});
-      // #endregion
       return new Response("Not found", {
         status: 404,
         headers: { "cache-control": "no-store" },
