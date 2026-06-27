@@ -76,7 +76,11 @@ async function checkImportable(specifier) {
 	const resolved = checkResolvable(specifier);
 	if (!resolved.ok) return resolved;
 	try {
-		await import(specifier);
+		// @vite-ignore — runtime probe; specifier is not statically analyzable
+		await import(
+			/* @vite-ignore */
+			specifier
+);
 		return resolved;
 	} catch (error) {
 		const err = formatCheckError(error);

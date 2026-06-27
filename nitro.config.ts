@@ -5,5 +5,4 @@ const vercelPreset = process.env.VERCEL === "1" || process.env.NITRO_PRESET === 
 export default defineConfig({
   preset: vercelPreset ? "vercel" : undefined,
   traceDeps: ["tslib*"],
-  noExternals: ["tslib"],
 });
