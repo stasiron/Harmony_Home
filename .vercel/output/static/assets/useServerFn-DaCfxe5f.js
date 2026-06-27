@@ -1,1 +1,0 @@
-import{K as e,Y as t,c as n}from"./useMatch-MJjWZRap.js";import{m as r}from"./index-CkMMU-OL.js";var i=t(e(),1);function a(e){let t=n();return i.useCallback(async(...n)=>{try{let t=await e(...n);if(r(t))throw t;return t}catch(e){if(r(e))return e.options._fromLocation=t.stores.location.get(),t.navigate(t.resolveRedirect(e).options);throw e}},[t,e])}export{a as t};

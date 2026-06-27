@@ -4,7 +4,7 @@ import { a as createSlot, n as Primitive, o as useComposedRefs, s as require_jsx
 import { a as Presence, c as createContextScope, o as useControllableState, r as usePrevious, s as useLayoutEffect2 } from "./react-checkbox+[...].mjs";
 import { t as composeEventHandlers } from "../radix-ui__primitive.mjs";
 import { t as createCollection } from "../radix-ui__react-collection.mjs";
-import { d as useFocusGuards, f as Portal, g as useId, h as useCallbackRef, l as hideOthers, m as DismissableLayer, p as FocusScope, u as ReactRemoveScroll } from "./react-dialog+[...].mjs";
+import { _ as useId, d as ReactRemoveScroll, f as useFocusGuards, g as useCallbackRef, h as DismissableLayer, m as FocusScope, p as Portal, u as hideOthers } from "./react-dialog+[...].mjs";
 import { t as useDirection } from "../radix-ui__react-direction.mjs";
 import { t as clamp } from "../radix-ui__number.mjs";
 import { a as createPopperScope, i as Root2, n as Arrow, r as Content, t as Anchor } from "../radix-ui__react-popper.mjs";

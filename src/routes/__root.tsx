@@ -11,6 +11,11 @@ import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { AppProvider } from "@/context/AppContext";
+import { installChunkReloadGuard } from "@/lib/chunk-reload-guard";
+
+if (typeof window !== "undefined") {
+  installChunkReloadGuard();
+}
 
 function NotFoundComponent() {
   return (
@@ -46,6 +51,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
+        </p>
+        {error?.message ? (
+          <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-muted p-3 text-left text-xs text-muted-foreground">
+            {error.message}
+          </pre>
+        ) : null}
+        <p className="mt-3 text-xs text-muted-foreground">
+          Diagnostyka: <a href="/api/health" className="underline">/api/health</a>
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -99,6 +112,11 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var k="homeharmony-chunk-reload",p=["Failed to fetch dynamically imported module","Loading chunk","Importing a module script failed"];function r(m){if(!p.some(function(x){return String(m||"").indexOf(x)!==-1}))return;var l=sessionStorage.getItem(k),n=Date.now();if(l&&n-Number(l)<15000)return;sessionStorage.setItem(k,String(n));location.reload()}window.addEventListener("unhandledrejection",function(e){r(e.reason&&e.reason.message)});window.addEventListener("vite:preloadError",function(e){e.preventDefault();r("preload")})})();`,
+          }}
+        />
       </head>
       <body>
         {children}
