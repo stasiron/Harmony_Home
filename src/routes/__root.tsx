@@ -46,7 +46,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Coś poszło nie tak. Spróbuj odświeżyć (Ctrl+Shift+R) albo wyczyść dane strony w ustawieniach
+          przeglądarki — stary cache często blokuje wczytanie po aktualizacji.
         </p>
         {error?.message ? (
           <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-muted p-3 text-left text-xs text-muted-foreground">
