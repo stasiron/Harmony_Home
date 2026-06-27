@@ -41,6 +41,17 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const { pathname } = new URL(request.url);
+
+    // Missing static chunks must not return HTML shell (immutable CDN cache).
+    // Valid /assets/* are served from .vercel/output/static before this handler runs.
+    if (pathname.startsWith("/assets/")) {
+      return new Response("Not found", {
+        status: 404,
+        headers: { "cache-control": "no-store" },
+      });
+    }
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

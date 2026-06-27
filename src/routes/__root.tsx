@@ -114,7 +114,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var k="homeharmony-chunk-reload",p=["Failed to fetch dynamically imported module","Loading chunk","Importing a module script failed"];function r(m){if(!p.some(function(x){return String(m||"").indexOf(x)!==-1}))return;var l=sessionStorage.getItem(k),n=Date.now();if(l&&n-Number(l)<15000)return;sessionStorage.setItem(k,String(n));location.reload()}window.addEventListener("unhandledrejection",function(e){r(e.reason&&e.reason.message)});window.addEventListener("vite:preloadError",function(e){e.preventDefault();r("preload")})})();`,
+            __html: `(function(){var k="homeharmony-chunk-reload",p=["Failed to fetch dynamically imported module","Loading chunk","Importing a module script failed","Cannot read properties of undefined (reading 'component')"];function r(m){if(!p.some(function(x){return String(m||"").indexOf(x)!==-1}))return;var l=sessionStorage.getItem(k),n=Date.now();if(l&&n-Number(l)<15000)return;sessionStorage.setItem(k,String(n));location.reload()}window.addEventListener("unhandledrejection",function(e){r(e.reason&&e.reason.message)});window.addEventListener("error",function(e){r(e.message)});window.addEventListener("vite:preloadError",function(e){e.preventDefault();r("preload")})})();`,
           }}
         />
       </head>

@@ -18,7 +18,6 @@ import { Route as KitchenRouteImport } from './routes/kitchen'
 import { Route as ChoresRouteImport } from './routes/chores'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AssetsSplatRouteImport } from './routes/assets/$'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiDebugRouteImport } from './routes/api/debug'
 import { Route as ApiAuthGoogleRouteImport } from './routes/api/auth/google'
@@ -69,11 +68,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AssetsSplatRoute = AssetsSplatRouteImport.update({
-  id: '/assets/$',
-  path: '/assets/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
@@ -107,7 +101,6 @@ export interface FileRoutesByFullPath {
   '/weather': typeof WeatherRoute
   '/api/debug': typeof ApiDebugRoute
   '/api/health': typeof ApiHealthRoute
-  '/assets/$': typeof AssetsSplatRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
@@ -123,7 +116,6 @@ export interface FileRoutesByTo {
   '/weather': typeof WeatherRoute
   '/api/debug': typeof ApiDebugRoute
   '/api/health': typeof ApiHealthRoute
-  '/assets/$': typeof AssetsSplatRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
@@ -140,7 +132,6 @@ export interface FileRoutesById {
   '/weather': typeof WeatherRoute
   '/api/debug': typeof ApiDebugRoute
   '/api/health': typeof ApiHealthRoute
-  '/assets/$': typeof AssetsSplatRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
@@ -158,7 +149,6 @@ export interface FileRouteTypes {
     | '/weather'
     | '/api/debug'
     | '/api/health'
-    | '/assets/$'
     | '/api/auth/google'
     | '/api/auth/google/callback'
   fileRoutesByTo: FileRoutesByTo
@@ -174,7 +164,6 @@ export interface FileRouteTypes {
     | '/weather'
     | '/api/debug'
     | '/api/health'
-    | '/assets/$'
     | '/api/auth/google'
     | '/api/auth/google/callback'
   id:
@@ -190,7 +179,6 @@ export interface FileRouteTypes {
     | '/weather'
     | '/api/debug'
     | '/api/health'
-    | '/assets/$'
     | '/api/auth/google'
     | '/api/auth/google/callback'
   fileRoutesById: FileRoutesById
@@ -207,7 +195,6 @@ export interface RootRouteChildren {
   WeatherRoute: typeof WeatherRoute
   ApiDebugRoute: typeof ApiDebugRoute
   ApiHealthRoute: typeof ApiHealthRoute
-  AssetsSplatRoute: typeof AssetsSplatRoute
   ApiAuthGoogleRoute: typeof ApiAuthGoogleRouteWithChildren
 }
 
@@ -276,13 +263,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/assets/$': {
-      id: '/assets/$'
-      path: '/assets/$'
-      fullPath: '/assets/$'
-      preLoaderRoute: typeof AssetsSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
@@ -338,7 +318,6 @@ const rootRouteChildren: RootRouteChildren = {
   WeatherRoute: WeatherRoute,
   ApiDebugRoute: ApiDebugRoute,
   ApiHealthRoute: ApiHealthRoute,
-  AssetsSplatRoute: AssetsSplatRoute,
   ApiAuthGoogleRoute: ApiAuthGoogleRouteWithChildren,
 }
 export const routeTree = rootRouteImport

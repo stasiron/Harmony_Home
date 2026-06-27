@@ -5,6 +5,7 @@ const CHUNK_ERROR_PATTERNS = [
   "Failed to fetch dynamically imported module",
   "Loading chunk",
   "Importing a module script failed",
+  "Cannot read properties of undefined (reading 'component')",
 ];
 
 function isChunkLoadError(reason: unknown): boolean {

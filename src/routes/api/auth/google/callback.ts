@@ -5,8 +5,10 @@ import {
   getAppOrigin,
   verifyOAuthState,
 } from "@/lib/googleOAuth";
+import { serverOnlyRoute } from "@/lib/server-only-route";
 
 export const Route = createFileRoute("/api/auth/google/callback")({
+  ...serverOnlyRoute,
   server: {
     handlers: {
       GET: async ({ request }) => {

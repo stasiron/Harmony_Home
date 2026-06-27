@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { peekLastCapturedError } from "@/lib/error-capture";
 import { runDiagnostics, verifyDebugToken } from "@/lib/diagnostics";
+import { serverOnlyRoute } from "@/lib/server-only-route";
 
 export const Route = createFileRoute("/api/debug")({
+  ...serverOnlyRoute,
   server: {
     handlers: {
       GET: async ({ request }) => {

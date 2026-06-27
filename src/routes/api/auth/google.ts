@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { buildGoogleAuthUrl, getAppOrigin } from "@/lib/googleOAuth";
+import { serverOnlyRoute } from "@/lib/server-only-route";
 
 export const Route = createFileRoute("/api/auth/google")({
+  ...serverOnlyRoute,
   server: {
     handlers: {
       GET: ({ request }) => {
