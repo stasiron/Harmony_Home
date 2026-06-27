@@ -1,9 +1,9 @@
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].mjs";
-import { n as useApp } from "./AppContext-CSDmHffq.mjs";
+import { n as useApp } from "./AppContext-CsJxkAiS.mjs";
 import { E as Sparkles, m as Cpu } from "../_libs/lucide-react.mjs";
 import { n as Shell } from "./Shell-JV0XcIcI.mjs";
 import { t as Switch } from "./switch-CbqVEryT.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/smart-DNgynwOY.js
+//#region node_modules/.nitro/vite/services/ssr/assets/smart-CbRY-niD.js
 var import_jsx_runtime = require_jsx_runtime();
 function SmartPage() {
 	const { devices, triggerDevice, tasks } = useApp();

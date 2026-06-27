@@ -5,7 +5,7 @@ import { d as su, i as mergeHeaders, l as Pu, n as getNormalizedURL, o as create
 import { a as X_TSS_RAW_RESPONSE, c as createNullProtoObject, d as getDefaultSerovalPlugins, f as getStartContext, i as TSS_SERVER_FUNCTION, m as safeObjectMerge, n as TSS_CONTENT_TYPE_FRAMED_VERSIONED, o as X_TSS_SERIALIZED, p as runWithStartContext, r as TSS_FORMDATA_CONTEXT, s as createCsrfMiddleware, t as FrameType, u as flattenMiddlewares } from "./esm-Dova13aH.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].mjs";
-import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-EuvZNyos.mjs";
+import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-DAm_2cN9.mjs";
 import { n as toResponse, t as H3Event } from "../_libs/h3-v2.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 require_react();
@@ -1023,7 +1023,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-pe3A843f.mjs"),
+		import("./router-BgRbXVdN.mjs"),
 		import("./start-Ok9K6Nid.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

@@ -1,5 +1,5 @@
-import { t as DEFAULT_MEMBERS } from "./googleOAuth-8wiwlTph.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/calendarRules-UOuR3C_E.js
+import { t as DEFAULT_MEMBERS } from "./googleOAuth-CljKW4qe.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/calendarRules-DYAHfY_o.js
 var aniaCalendars = {
 	memberId: "member-2",
 	matchRules: [],

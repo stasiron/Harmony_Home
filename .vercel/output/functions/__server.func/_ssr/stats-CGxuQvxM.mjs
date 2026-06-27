@@ -1,8 +1,8 @@
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].mjs";
-import { n as useApp } from "./AppContext-CSDmHffq.mjs";
+import { n as useApp } from "./AppContext-CsJxkAiS.mjs";
 import { n as Shell } from "./Shell-JV0XcIcI.mjs";
 import { a as XAxis, c as CartesianGrid, d as Tooltip, i as YAxis, l as Bar, n as BarChart, u as ResponsiveContainer } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/stats-F6VJeY89.js
+//#region node_modules/.nitro/vite/services/ssr/assets/stats-CGxuQvxM.js
 var import_jsx_runtime = require_jsx_runtime();
 function StatsPage() {
 	const { users, tasks, daysSince } = useApp();

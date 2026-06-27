@@ -2,13 +2,13 @@ import { i as __toESM } from "../_runtime.mjs";
 import { g as Link, l as useRouterState } from "../_libs/@tanstack/react-router+[...].mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].mjs";
-import { n as useApp } from "./AppContext-CSDmHffq.mjs";
+import { n as useApp } from "./AppContext-CsJxkAiS.mjs";
 import { C as Calendar, D as OctagonAlert, O as House, T as CalendarCheck, a as Timer, c as ShoppingBasket, g as CloudRain, k as ChartColumn, l as Settings, m as Cpu, n as Wind, r as Users, s as Siren, t as X } from "../_libs/lucide-react.mjs";
 import { i as cn, n as Shell, t as Button } from "./Shell-JV0XcIcI.mjs";
 import { a as DialogHeader, i as DialogFooter, n as DialogContent, o as DialogTitle, r as DialogDescription, t as Dialog } from "./dialog-CKbASXWm.mjs";
 import { i as fetchCzestochowaWeather, l as weatherLabel, n as WEATHER_REFRESH_MS, t as WEATHER_CITY } from "./weather-0dinpoNJ.mjs";
 import { t as WeatherIcon } from "./WeatherIcon-DiFpk1fb.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DkV9IpAZ.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-CQlWogeQ.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var navItems = [

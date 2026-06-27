@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-//#region node_modules/.nitro/vite/services/ssr/assets/googleOAuth-8wiwlTph.js
+//#region node_modules/.nitro/vite/services/ssr/assets/googleOAuth-CljKW4qe.js
 /**
 * Domyślni domownicy — edytuj ten plik pod swoją rodzinę.
 *
@@ -58,8 +58,11 @@ async function readFromFile() {
 	}
 }
 async function writeToFile(store) {
-	await mkdir(DATA_DIR, { recursive: true });
-	await writeFile(DATA_FILE, JSON.stringify(store, null, 2), "utf-8");
+	if (process.env.VERCEL) return;
+	try {
+		await mkdir(DATA_DIR, { recursive: true });
+		await writeFile(DATA_FILE, JSON.stringify(store, null, 2), "utf-8");
+	} catch {}
 }
 async function readFromKv() {
 	if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null;

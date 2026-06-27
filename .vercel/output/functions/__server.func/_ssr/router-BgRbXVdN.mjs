@@ -1,12 +1,12 @@
 import { _ as useRouter, c as HeadContent, d as createRouter, f as Outlet, g as Link, h as createRootRouteWithContext, m as createFileRoute, p as lazyRouteComponent, s as Scripts } from "../_libs/@tanstack/react-router+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].mjs";
-import { h as verifyOAuthState, n as buildGoogleAuthUrl, r as exchangeGoogleCode, s as getAppOrigin } from "./googleOAuth-8wiwlTph.mjs";
-import { t as AppProvider } from "./AppContext-CSDmHffq.mjs";
+import { h as verifyOAuthState, n as buildGoogleAuthUrl, r as exchangeGoogleCode, s as getAppOrigin } from "./googleOAuth-CljKW4qe.mjs";
+import { t as AppProvider } from "./AppContext-CsJxkAiS.mjs";
 import { t as WEATHER_CITY } from "./weather-0dinpoNJ.mjs";
-import { r as saveOAuthMemberConnection } from "./calendarSettings-krPAtVHn.mjs";
+import { r as saveOAuthMemberConnection } from "./calendarSettings-BcY5IVht.mjs";
 import { t as QueryClient } from "../_libs/tanstack__query-core.mjs";
 import { t as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-pe3A843f.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-BgRbXVdN.js
 var import_jsx_runtime = require_jsx_runtime();
 var styles_default = "/assets/styles-BBxQbqwd.css";
 function NotFoundComponent() {
@@ -135,7 +135,7 @@ var Route$10 = createFileRoute("/weather")({
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$8, "component")
 });
-var $$splitComponentImporter$7 = () => import("./stats-F6VJeY89.mjs");
+var $$splitComponentImporter$7 = () => import("./stats-CGxuQvxM.mjs");
 var Route$9 = createFileRoute("/stats")({
 	head: () => ({ meta: [{ title: "Stats · Homebase" }, {
 		name: "description",
@@ -143,7 +143,7 @@ var Route$9 = createFileRoute("/stats")({
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$7, "component")
 });
-var $$splitComponentImporter$6 = () => import("./smart-DNgynwOY.mjs");
+var $$splitComponentImporter$6 = () => import("./smart-CbRY-niD.mjs");
 var Route$8 = createFileRoute("/smart")({
 	head: () => ({ meta: [{ title: "Smart Home · Homebase" }, {
 		name: "description",
@@ -151,7 +151,7 @@ var Route$8 = createFileRoute("/smart")({
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$6, "component")
 });
-var $$splitComponentImporter$5 = () => import("./settings-CQiI3BGt.mjs");
+var $$splitComponentImporter$5 = () => import("./settings-BZBsXo7D.mjs");
 var Route$7 = createFileRoute("/settings")({
 	head: () => ({ meta: [{ title: "Ustawienia · Homebase" }, {
 		name: "description",
@@ -159,7 +159,7 @@ var Route$7 = createFileRoute("/settings")({
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$5, "component")
 });
-var $$splitComponentImporter$4 = () => import("./members-DA8v33P5.mjs");
+var $$splitComponentImporter$4 = () => import("./members-w4pennqw.mjs");
 var Route$6 = createFileRoute("/members")({
 	head: () => ({ meta: [{ title: "Members · Homebase" }, {
 		name: "description",
@@ -167,7 +167,7 @@ var Route$6 = createFileRoute("/members")({
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$4, "component")
 });
-var $$splitComponentImporter$3 = () => import("./kitchen-PzXiKuPG.mjs");
+var $$splitComponentImporter$3 = () => import("./kitchen-C5ZL1eeP.mjs");
 var Route$5 = createFileRoute("/kitchen")({
 	head: () => ({ meta: [{ title: "Kitchen · Homebase" }, {
 		name: "description",
@@ -175,7 +175,7 @@ var Route$5 = createFileRoute("/kitchen")({
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$3, "component")
 });
-var $$splitComponentImporter$2 = () => import("./chores-B7Pz_ye5.mjs");
+var $$splitComponentImporter$2 = () => import("./chores-BXxPPQVJ.mjs");
 var Route$4 = createFileRoute("/chores")({
 	head: () => ({ meta: [{ title: "Chores · Homebase" }, {
 		name: "description",
@@ -183,7 +183,7 @@ var Route$4 = createFileRoute("/chores")({
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$2, "component")
 });
-var $$splitComponentImporter$1 = () => import("./calendar-CQAnO3hn.mjs");
+var $$splitComponentImporter$1 = () => import("./calendar-CbpYLXRR.mjs");
 var Route$3 = createFileRoute("/calendar")({
 	head: () => ({ meta: [{ title: "Kalendarz · Homebase" }, {
 		name: "description",
@@ -191,7 +191,7 @@ var Route$3 = createFileRoute("/calendar")({
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$1, "component")
 });
-var $$splitComponentImporter = () => import("./routes-DkV9IpAZ.mjs");
+var $$splitComponentImporter = () => import("./routes-CQlWogeQ.mjs");
 var Route$2 = createFileRoute("/")({
 	head: () => ({ meta: [
 		{ title: "Homebase · Smart Home & Chores" },

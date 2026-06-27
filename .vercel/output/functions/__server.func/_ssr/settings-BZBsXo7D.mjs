@@ -4,9 +4,9 @@ import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].m
 import { t as useServerFn } from "./useServerFn-CrZF2pjq.mjs";
 import { i as cn, n as Shell, t as Button } from "./Shell-JV0XcIcI.mjs";
 import { t as Label } from "./label-BuAXkWMP.mjs";
-import { a as setMemberCalendarEnabled, i as setMemberCalendarDisplay, n as getCalendarConnectionStatus, t as disconnectMemberGoogle } from "./calendarSettings-krPAtVHn.mjs";
+import { a as setMemberCalendarEnabled, i as setMemberCalendarDisplay, n as getCalendarConnectionStatus, t as disconnectMemberGoogle } from "./calendarSettings-BcY5IVht.mjs";
 import { t as Switch } from "./switch-CbqVEryT.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/settings-CQiI3BGt.js
+//#region node_modules/.nitro/vite/services/ssr/assets/settings-BZBsXo7D.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function SettingsPage() {
