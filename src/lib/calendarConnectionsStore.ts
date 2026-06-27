@@ -44,8 +44,13 @@ async function readFromFile(): Promise<CalendarConnectionsStore> {
 }
 
 async function writeToFile(store: CalendarConnectionsStore) {
-  await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(DATA_FILE, JSON.stringify(store, null, 2), "utf-8");
+  if (process.env.VERCEL) return;
+  try {
+    await mkdir(DATA_DIR, { recursive: true });
+    await writeFile(DATA_FILE, JSON.stringify(store, null, 2), "utf-8");
+  } catch {
+    // read-only FS on serverless
+  }
 }
 
 async function readFromKv(): Promise<CalendarConnectionsStore | null> {
