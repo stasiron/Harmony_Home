@@ -10,6 +10,10 @@ export default defineConfig({
   plugins: [
     tanstackStart({
       server: { entry: "server" },
+      router: {
+        // Keep routes in the main bundle — avoids stale lazy-chunk 404 after deploy.
+        autoCodeSplitting: false,
+      },
     }),
     viteReact(),
     tailwindcss(),

@@ -1,39 +1,30 @@
-const RELOAD_KEY = "homeharmony-chunk-reload";
-const RELOAD_COOLDOWN_MS = 15_000;
-
-const CHUNK_ERROR_PATTERNS = [
+/** Inline in document head — must run before app bundles (stale chunk recovery). */
+export const CHUNK_RELOAD_GUARD_SCRIPT = `(function(){
+var k="homeharmony-chunk-reload",cooldown=15000;
+var patterns=[
   "Failed to fetch dynamically imported module",
   "Loading chunk",
-  "Importing a module script failed",
-  "Cannot read properties of undefined (reading 'component')",
+  "Importing a module script failed"
 ];
-
-function isChunkLoadError(reason: unknown): boolean {
-  const message = String(
-    reason instanceof Error ? reason.message : reason ?? "",
-  );
-  return CHUNK_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
+function isChunkError(msg){
+  var s=String(msg||"");
+  return patterns.some(function(p){return s.indexOf(p)!==-1;});
 }
-
-function reloadOnceForStaleChunks(): void {
-  const last = sessionStorage.getItem(RELOAD_KEY);
-  const now = Date.now();
-  if (last && now - Number(last) < RELOAD_COOLDOWN_MS) return;
-  sessionStorage.setItem(RELOAD_KEY, String(now));
-  window.location.reload();
+function reloadOnce(msg){
+  if(!isChunkError(msg))return;
+  var last=sessionStorage.getItem(k),now=Date.now();
+  if(last&&now-Number(last)<cooldown)return;
+  sessionStorage.setItem(k,String(now));
+  var url=new URL(window.location.href);
+  url.searchParams.set("__cr",String(now));
+  window.location.replace(url.toString());
 }
-
-export function installChunkReloadGuard(): void {
-  if (typeof window === "undefined") return;
-
-  window.addEventListener("unhandledrejection", (event) => {
-    if (!isChunkLoadError(event.reason)) return;
-    event.preventDefault();
-    reloadOnceForStaleChunks();
-  });
-
-  window.addEventListener("vite:preloadError", (event) => {
-    event.preventDefault();
-    reloadOnceForStaleChunks();
-  });
-}
+window.addEventListener("unhandledrejection",function(e){
+  var r=e.reason;
+  reloadOnce(r&&r.message?r.message:r);
+});
+window.addEventListener("vite:preloadError",function(e){
+  e.preventDefault();
+  reloadOnce("preload");
+});
+})();`;

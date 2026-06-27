@@ -6,5 +6,16 @@
       "NITRO_PRESET": "vercel",
       "VERCEL": "1"
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/((?!assets/).*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
+    }
+  ]
 }

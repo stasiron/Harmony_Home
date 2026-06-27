@@ -11,11 +11,7 @@ import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { AppProvider } from "@/context/AppContext";
-import { installChunkReloadGuard } from "@/lib/chunk-reload-guard";
-
-if (typeof window !== "undefined") {
-  installChunkReloadGuard();
-}
+import { CHUNK_RELOAD_GUARD_SCRIPT } from "@/lib/chunk-reload-guard";
 
 function NotFoundComponent() {
   return (
@@ -112,11 +108,7 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var k="homeharmony-chunk-reload",p=["Failed to fetch dynamically imported module","Loading chunk","Importing a module script failed","Cannot read properties of undefined (reading 'component')"];function r(m){if(!p.some(function(x){return String(m||"").indexOf(x)!==-1}))return;var l=sessionStorage.getItem(k),n=Date.now();if(l&&n-Number(l)<15000)return;sessionStorage.setItem(k,String(n));location.reload()}window.addEventListener("unhandledrejection",function(e){r(e.reason&&e.reason.message)});window.addEventListener("error",function(e){r(e.message)});window.addEventListener("vite:preloadError",function(e){e.preventDefault();r("preload")})})();`,
-          }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD_GUARD_SCRIPT }} />
       </head>
       <body>
         {children}
