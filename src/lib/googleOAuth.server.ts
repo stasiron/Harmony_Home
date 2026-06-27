@@ -214,6 +214,10 @@ export async function getMemberAccessToken(connection: MemberConnection): Promis
 
   if (stillValid && connection.accessToken) return connection.accessToken;
 
+  if (!connection.refreshToken) {
+    throw new Error("calendar_token_expired");
+  }
+
   const refreshed = await refreshGoogleAccessToken(connection.refreshToken);
   const accessToken = refreshed.access_token;
   const expiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();

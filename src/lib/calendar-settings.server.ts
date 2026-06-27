@@ -15,10 +15,11 @@ import {
 
 export async function getCalendarConnectionStatusImpl() {
   const store = await readCalendarConnectionsStore();
-  const oauthReady = Boolean(getGoogleOAuthConfig());
+  const oauthServerConfigured = Boolean(getGoogleOAuthConfig());
 
   return {
-    oauthReady,
+    oauthReady: true,
+    oauthServerConfigured,
     members: DEFAULT_MEMBERS.map((member) => {
       const connection = store.members[member.id];
       return {
@@ -41,7 +42,9 @@ export async function setMemberCalendarEnabledImpl(data: {
     return {
       ...current,
       calendars: current.calendars.map((c) =>
-        c.googleCalendarId === data.googleCalendarId ? { ...c, enabled: data.enabled } : c,
+        c.googleCalendarId === data.googleCalendarId
+          ? { ...c, enabled: data.enabled }
+          : c,
       ),
     };
   });
@@ -58,7 +61,9 @@ export async function setMemberCalendarDisplayImpl(data: {
     return {
       ...current,
       calendars: current.calendars.map((c) =>
-        c.googleCalendarId === data.googleCalendarId ? { ...c, display: data.display } : c,
+        c.googleCalendarId === data.googleCalendarId
+          ? { ...c, display: data.display }
+          : c,
       ),
     };
   });
@@ -76,7 +81,9 @@ export async function saveOAuthMemberConnection(input: {
   accessToken: string;
   expiresIn: number;
 }) {
-  const accessTokenExpiresAt = new Date(Date.now() + input.expiresIn * 1000).toISOString();
+  const accessTokenExpiresAt = new Date(
+    Date.now() + input.expiresIn * 1000,
+  ).toISOString();
   const googleEmail = await fetchGoogleUserEmail(input.accessToken);
   const list = await fetchGoogleCalendarList(input.accessToken);
 
@@ -96,6 +103,41 @@ export async function saveOAuthMemberConnection(input: {
     memberId: input.memberId,
     googleEmail,
     refreshToken: input.refreshToken,
+    accessToken: input.accessToken,
+    accessTokenExpiresAt,
+    connectedAt: new Date().toISOString(),
+    calendars,
+  });
+}
+
+export async function saveFirebaseCalendarConnection(input: {
+  memberId: string;
+  accessToken: string;
+  expiresIn?: number;
+}) {
+  const expiresIn = input.expiresIn ?? 3600;
+  const accessTokenExpiresAt = new Date(
+    Date.now() + expiresIn * 1000,
+  ).toISOString();
+  const googleEmail = await fetchGoogleUserEmail(input.accessToken);
+  const list = await fetchGoogleCalendarList(input.accessToken);
+
+  const calendars: StoredCalendar[] = list.map((item) => {
+    const classified = classifyGoogleCalendar(input.memberId, item.summary);
+    return {
+      googleCalendarId: item.id,
+      summary: item.summary,
+      enabled: true,
+      display: classified.display,
+      color: classified.color,
+      label: classified.label,
+    };
+  });
+
+  await upsertMemberConnection({
+    memberId: input.memberId,
+    googleEmail,
+    refreshToken: "",
     accessToken: input.accessToken,
     accessTokenExpiresAt,
     connectedAt: new Date().toISOString(),

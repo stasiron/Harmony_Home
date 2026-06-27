@@ -49,3 +49,13 @@ export const disconnectMemberGoogle = createServerFn({ method: "POST" })
     const { disconnectMemberGoogleImpl } = await import("@/lib/calendar-settings.server");
     return disconnectMemberGoogleImpl(data);
   });
+
+export const connectCalendarFromFirebase = createServerFn({ method: "POST" })
+  .validator(
+    (data: { memberId: string; accessToken: string; expiresIn?: number }) => data,
+  )
+  .handler(async ({ data }) => {
+    const { saveFirebaseCalendarConnection } = await import("@/lib/calendar-settings.server");
+    await saveFirebaseCalendarConnection(data);
+    return { ok: true as const };
+  });

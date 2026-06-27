@@ -8,8 +8,41 @@ import type { User } from "@/types";
  * id zostaw stabilne jeśli później przypiszesz obowiązki w plikach.
  */
 export const DEFAULT_MEMBERS: User[] = [
-  { id: "member-1", name: "Maciek", avatar: "M", color: "chart-1", active: true, heavyDay: false },
-  { id: "member-2", name: "Ania", avatar: "A", color: "chart-2", active: true, heavyDay: false },
-  { id: "member-3", name: "Stas", avatar: "S", color: "chart-3", active: true, heavyDay: false },
-  { id: "member-4", name: "Tymek", avatar: "T", color: "chart-4", active: true, heavyDay: false },
+  {
+    id: "member-1",
+    name: "Maciek",
+    avatar: "M",
+    color: "chart-1",
+    active: true,
+    heavyDay: false,
+  },
+  {
+    id: "member-2",
+    name: "Ania",
+    avatar: "A",
+    color: "chart-2",
+    active: true,
+    heavyDay: false,
+  },
+  {
+    id: "member-3",
+    name: "Stas",
+    avatar: "S",
+    color: "chart-3",
+    active: true,
+    heavyDay: false,
+  },
+  {
+    id: "member-4",
+    name: "Tymek",
+    avatar: "T",
+    color: "chart-4",
+    active: true,
+    heavyDay: false,
+  },
 ];
+
+/** Google / Firebase email → id domownika (priorytet nad zgadywaniem po imieniu). */
+export const MEMBER_EMAIL_LINKS: Record<string, string> = {
+  "stasiron9102@gmail.com": "member-3",
+};

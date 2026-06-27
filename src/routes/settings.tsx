@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Shell } from "@/components/Shell";
+import { GoogleAccountCard } from "@/components/settings/GoogleAccountCard";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -17,7 +19,10 @@ export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
       { title: "Ustawienia · Homebase" },
-      { name: "description", content: "Połączenia Google Calendar domowników." },
+      {
+        name: "description",
+        content: "Połączenia Google Calendar domowników.",
+      },
     ],
   }),
   component: () => (
@@ -30,6 +35,7 @@ export const Route = createFileRoute("/settings")({
 type Status = Awaited<ReturnType<typeof getCalendarConnectionStatus>>;
 
 function SettingsPage() {
+  const queryClient = useQueryClient();
   const loadStatus = useServerFn(getCalendarConnectionStatus);
   const toggleEnabled = useServerFn(setMemberCalendarEnabled);
   const toggleDisplay = useServerFn(setMemberCalendarDisplay);
@@ -54,7 +60,12 @@ function SettingsPage() {
     const error = params.get("error");
     const connected = params.get("connected");
     if (error) setBanner(`Błąd połączenia: ${error}`);
-    if (connected) setBanner("Kalendarz Google połączony. Wszystkie kalendarze włączone — wyłącz tu te, które mają zniknąć.");
+    if (connected) {
+      setBanner(
+        "Kalendarz Google połączony. Wszystkie kalendarze włączone — wyłącz tu te, które mają zniknąć.",
+      );
+      void queryClient.invalidateQueries({ queryKey: ["calendar-feed"] });
+    }
     if (error || connected) {
       window.history.replaceState({}, "", "/settings");
     }
@@ -69,25 +80,22 @@ function SettingsPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Ustawienia</h1>
+        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+          Ustawienia
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Każdy domownik loguje się Google — kalendarze widoczne dla wszystkich. Tu wyłączasz te,
-          które mają zniknąć z widoku.
+          Zaloguj się Google u góry i zsynchronizuj swój kalendarz. Poniżej
+          zarządzasz kalendarzami wszystkich domowników.
         </p>
       </header>
 
       {banner && (
-        <p className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm">{banner}</p>
+        <p className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm">
+          {banner}
+        </p>
       )}
 
-      {!status.oauthReady && (
-        <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-4 py-4 text-sm text-muted-foreground">
-          Ustaw <code className="text-foreground">GOOGLE_CLIENT_ID</code>,{" "}
-          <code className="text-foreground">GOOGLE_CLIENT_SECRET</code> i{" "}
-          <code className="text-foreground">AUTH_SECRET</code> w env. Redirect URI w Google Cloud:{" "}
-          <code className="text-foreground">https://twoja-domena/api/auth/google/callback</code>
-        </div>
-      )}
+      <GoogleAccountCard />
 
       <div className="space-y-4">
         {status.members.map((member) => (
@@ -100,17 +108,22 @@ function SettingsPage() {
                 <h2 className="text-xl font-semibold">{member.memberName}</h2>
                 {member.connected && member.connection ? (
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {member.connection.googleEmail} · {member.connection.calendars.length}{" "}
-                    kalendarzy
+                    {member.connection.googleEmail} ·{" "}
+                    {member.connection.calendars.length} kalendarzy
                   </p>
                 ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">Nie połączono z Google</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Nie połączono z Google
+                  </p>
                 )}
               </div>
 
               <div className="flex shrink-0 gap-2">
-                {status.oauthReady && (
-                  <Button asChild variant={member.connected ? "outline" : "default"}>
+                {status.oauthServerConfigured && (
+                  <Button
+                    asChild
+                    variant={member.connected ? "outline" : "default"}
+                  >
                     <a href={`/api/auth/google?memberId=${member.memberId}`}>
                       {member.connected ? "Połącz ponownie" : "Połącz Google"}
                     </a>
@@ -142,7 +155,9 @@ function SettingsPage() {
                       <p className="font-medium">{calendar.summary}</p>
                       <p className="text-xs text-muted-foreground">
                         {calendar.label}
-                        {calendar.display === "busy" ? " · tylko zajęty/wolny" : " · pełne szczegóły"}
+                        {calendar.display === "busy"
+                          ? " · tylko zajęty/wolny"
+                          : " · pełne szczegóły"}
                       </p>
                     </div>
 
