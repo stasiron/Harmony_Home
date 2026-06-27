@@ -3,6 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { shouldExposeErrors } from "./lib/diagnostics";
+import { handleApiRequest } from "./server/api-routes";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -51,6 +52,9 @@ export default {
         headers: { "cache-control": "no-store" },
       });
     }
+
+    const apiResponse = await handleApiRequest(request);
+    if (apiResponse) return apiResponse;
 
     try {
       const handler = await getServerEntry();

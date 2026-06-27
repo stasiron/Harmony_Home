@@ -18,10 +18,6 @@ import { Route as KitchenRouteImport } from './routes/kitchen'
 import { Route as ChoresRouteImport } from './routes/chores'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiHealthRouteImport } from './routes/api/health'
-import { Route as ApiDebugRouteImport } from './routes/api/debug'
-import { Route as ApiAuthGoogleRouteImport } from './routes/api/auth/google'
-import { Route as ApiAuthGoogleCallbackRouteImport } from './routes/api/auth/google/callback'
 
 const WeatherRoute = WeatherRouteImport.update({
   id: '/weather',
@@ -68,26 +64,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiHealthRoute = ApiHealthRouteImport.update({
-  id: '/api/health',
-  path: '/api/health',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDebugRoute = ApiDebugRouteImport.update({
-  id: '/api/debug',
-  path: '/api/debug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthGoogleRoute = ApiAuthGoogleRouteImport.update({
-  id: '/api/auth/google',
-  path: '/api/auth/google',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthGoogleCallbackRoute = ApiAuthGoogleCallbackRouteImport.update({
-  id: '/callback',
-  path: '/callback',
-  getParentRoute: () => ApiAuthGoogleRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -99,10 +75,6 @@ export interface FileRoutesByFullPath {
   '/smart': typeof SmartRoute
   '/stats': typeof StatsRoute
   '/weather': typeof WeatherRoute
-  '/api/debug': typeof ApiDebugRoute
-  '/api/health': typeof ApiHealthRoute
-  '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
-  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -114,10 +86,6 @@ export interface FileRoutesByTo {
   '/smart': typeof SmartRoute
   '/stats': typeof StatsRoute
   '/weather': typeof WeatherRoute
-  '/api/debug': typeof ApiDebugRoute
-  '/api/health': typeof ApiHealthRoute
-  '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
-  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -130,10 +98,6 @@ export interface FileRoutesById {
   '/smart': typeof SmartRoute
   '/stats': typeof StatsRoute
   '/weather': typeof WeatherRoute
-  '/api/debug': typeof ApiDebugRoute
-  '/api/health': typeof ApiHealthRoute
-  '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
-  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,10 +111,6 @@ export interface FileRouteTypes {
     | '/smart'
     | '/stats'
     | '/weather'
-    | '/api/debug'
-    | '/api/health'
-    | '/api/auth/google'
-    | '/api/auth/google/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -162,10 +122,6 @@ export interface FileRouteTypes {
     | '/smart'
     | '/stats'
     | '/weather'
-    | '/api/debug'
-    | '/api/health'
-    | '/api/auth/google'
-    | '/api/auth/google/callback'
   id:
     | '__root__'
     | '/'
@@ -177,10 +133,6 @@ export interface FileRouteTypes {
     | '/smart'
     | '/stats'
     | '/weather'
-    | '/api/debug'
-    | '/api/health'
-    | '/api/auth/google'
-    | '/api/auth/google/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -193,9 +145,6 @@ export interface RootRouteChildren {
   SmartRoute: typeof SmartRoute
   StatsRoute: typeof StatsRoute
   WeatherRoute: typeof WeatherRoute
-  ApiDebugRoute: typeof ApiDebugRoute
-  ApiHealthRoute: typeof ApiHealthRoute
-  ApiAuthGoogleRoute: typeof ApiAuthGoogleRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -263,48 +212,8 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/health': {
-      id: '/api/health'
-      path: '/api/health'
-      fullPath: '/api/health'
-      preLoaderRoute: typeof ApiHealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/debug': {
-      id: '/api/debug'
-      path: '/api/debug'
-      fullPath: '/api/debug'
-      preLoaderRoute: typeof ApiDebugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/google': {
-      id: '/api/auth/google'
-      path: '/api/auth/google'
-      fullPath: '/api/auth/google'
-      preLoaderRoute: typeof ApiAuthGoogleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/google/callback': {
-      id: '/api/auth/google/callback'
-      path: '/callback'
-      fullPath: '/api/auth/google/callback'
-      preLoaderRoute: typeof ApiAuthGoogleCallbackRouteImport
-      parentRoute: typeof ApiAuthGoogleRoute
-    }
   }
 }
-
-interface ApiAuthGoogleRouteChildren {
-  ApiAuthGoogleCallbackRoute: typeof ApiAuthGoogleCallbackRoute
-}
-
-const ApiAuthGoogleRouteChildren: ApiAuthGoogleRouteChildren = {
-  ApiAuthGoogleCallbackRoute: ApiAuthGoogleCallbackRoute,
-}
-
-const ApiAuthGoogleRouteWithChildren = ApiAuthGoogleRoute._addFileChildren(
-  ApiAuthGoogleRouteChildren,
-)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -316,9 +225,6 @@ const rootRouteChildren: RootRouteChildren = {
   SmartRoute: SmartRoute,
   StatsRoute: StatsRoute,
   WeatherRoute: WeatherRoute,
-  ApiDebugRoute: ApiDebugRoute,
-  ApiHealthRoute: ApiHealthRoute,
-  ApiAuthGoogleRoute: ApiAuthGoogleRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
