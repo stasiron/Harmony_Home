@@ -65,8 +65,64 @@ function checkResolvable(specifier: string): CheckResult {
 }
 
 async function checkImportable(specifier: string): Promise<CheckResult> {
-  const resolved = checkResolvable(specifier);
-  if (!resolved.ok) return resolved;
+  const useBundledProbe = process.env.VERCEL === "1";
+  const resolved = useBundledProbe ? { ok: false as const } : checkResolvable(specifier);
+  // #region agent log
+  fetch("http://127.0.0.1:7887/ingest/d4923940-ca95-41e7-8370-57941aabba7d", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "29ea4c" },
+    body: JSON.stringify({
+      sessionId: "29ea4c",
+      location: "diagnostics.ts:checkImportable",
+      message: "module probe",
+      data: {
+        specifier,
+        useBundledProbe,
+        requireOk: useBundledProbe ? null : resolved.ok,
+        requireError: useBundledProbe ? null : (resolved.ok ? null : resolved.error ?? null),
+        cwd: process.cwd(),
+      },
+      timestamp: Date.now(),
+      hypothesisId: "H4",
+    }),
+  }).catch(() => {});
+  // #endregion
+
+  if (!resolved.ok) {
+    try {
+      await import(/* @vite-ignore */ specifier);
+      // #region agent log
+      fetch("http://127.0.0.1:7887/ingest/d4923940-ca95-41e7-8370-57941aabba7d", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "29ea4c" },
+        body: JSON.stringify({
+          sessionId: "29ea4c",
+          location: "diagnostics.ts:checkImportable",
+          message: "dynamic import ok",
+          data: { specifier, useBundledProbe },
+          timestamp: Date.now(),
+          hypothesisId: "H4",
+        }),
+      }).catch(() => {});
+      // #endregion
+      return {
+        ok: true,
+        detail: useBundledProbe
+          ? `vercel bundled import ok (${specifier})`
+          : `bundled import ok (${specifier})`,
+      };
+    } catch (importError) {
+      return {
+        ...formatCheckError(importError),
+        detail: [
+          useBundledProbe ? "vercel bundled probe" : resolved.detail,
+          formatCheckError(importError).error,
+        ]
+          .filter(Boolean)
+          .join(" | "),
+      };
+    }
+  }
 
   try {
     // @vite-ignore — runtime probe; specifier is not statically analyzable
