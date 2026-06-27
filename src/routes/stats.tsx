@@ -1,5 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useApp } from "@/context/AppContext";
 import { Shell } from "@/components/Shell";
 
@@ -10,7 +18,11 @@ export const Route = createFileRoute("/stats")({
       { name: "description", content: "Household chores analytics." },
     ],
   }),
-  component: () => (<Shell><StatsPage /></Shell>),
+  component: () => (
+    <Shell>
+      <StatsPage />
+    </Shell>
+  ),
 });
 
 function StatsPage() {
@@ -20,11 +32,16 @@ function StatsPage() {
 
   const data = users.map((u, idx) => {
     const userTasks = tasks.filter((t) => t.assignedTo === u.id);
-    const completedThisWeek = userTasks.filter((t) => daysSince(t.lastCompleted) <= 7).length;
+    const completedThisWeek = userTasks.filter(
+      (t) => daysSince(t.lastCompleted) <= 7,
+    ).length;
     const minutes = userTasks
       .filter((t) => daysSince(t.lastCompleted) <= 7)
       .reduce((acc, t) => acc + t.estimatedMinutes, 0);
-    const completion = userTasks.length === 0 ? 0 : Math.round((completedThisWeek / userTasks.length) * 100);
+    const completion =
+      userTasks.length === 0
+        ? 0
+        : Math.round((completedThisWeek / userTasks.length) * 100);
     return {
       name: u.name,
       Completed: completedThisWeek,
@@ -37,8 +54,12 @@ function StatsPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Household stats</h1>
-        <p className="mt-1 text-sm text-muted-foreground">A weekly look at who's pulling weight.</p>
+        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+          Household stats
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          A weekly look at who's pulling weight.
+        </p>
       </header>
 
       {!hasData ? (
@@ -52,8 +73,13 @@ function StatsPage() {
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {data.map((d) => (
-              <div key={d.name} className="rounded-2xl border border-border bg-surface p-5">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">{d.name}</div>
+              <div
+                key={d.name}
+                className="rounded-2xl border border-border bg-surface p-5"
+              >
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {d.name}
+                </div>
                 <div className="mt-2 grid grid-cols-3 gap-3">
                   <Stat label="Done" value={d.Completed} />
                   <Stat label="Min" value={d.Minutes} />
@@ -70,8 +96,16 @@ function StatsPage() {
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data}>
-                  <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={12} />
+                  <CartesianGrid
+                    stroke="var(--color-border)"
+                    strokeDasharray="3 3"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--color-muted-foreground)"
+                    fontSize={12}
+                  />
                   <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
                   <Tooltip
                     contentStyle={{
@@ -81,7 +115,11 @@ function StatsPage() {
                       fontSize: 12,
                     }}
                   />
-                  <Bar dataKey="Minutes" radius={[8, 8, 0, 0]} fill="var(--color-primary)" />
+                  <Bar
+                    dataKey="Minutes"
+                    radius={[8, 8, 0, 0]}
+                    fill="var(--color-primary)"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -96,7 +134,9 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
       <div className="tabular-clock text-2xl font-light">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
     </div>
   );
 }

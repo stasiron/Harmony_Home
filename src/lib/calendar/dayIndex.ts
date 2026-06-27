@@ -5,7 +5,9 @@ export function dayKey(date: Date): string {
   return format(startOfDay(date), "yyyy-MM-dd");
 }
 
-export function buildEventDayIndex(events: CalendarFeedEvent[]): Map<string, CalendarFeedEvent[]> {
+export function buildEventDayIndex(
+  events: CalendarFeedEvent[],
+): Map<string, CalendarFeedEvent[]> {
   const index = new Map<string, CalendarFeedEvent[]>();
   for (const event of events) {
     const key = dayKey(new Date(event.start));

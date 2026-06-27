@@ -7,7 +7,11 @@ export function daysSinceOnDate(task: Task, date: Date): number {
   return Math.floor((day - completed) / (1000 * 60 * 60 * 24));
 }
 
-export function statusOfTaskOnDate(task: Task, date: Date, guestsMode = false): Status {
+export function statusOfTaskOnDate(
+  task: Task,
+  date: Date,
+  guestsMode = false,
+): Status {
   const d = daysSinceOnDate(task, date);
   if (guestsMode && task.isGuestPriority) return "must";
   if (d < task.tMin) return "done";
@@ -16,14 +20,22 @@ export function statusOfTaskOnDate(task: Task, date: Date, guestsMode = false): 
   return "safe";
 }
 
-export function choresDueOnDate(tasks: Task[], date: Date, guestsMode = false): Task[] {
+export function choresDueOnDate(
+  tasks: Task[],
+  date: Date,
+  guestsMode = false,
+): Task[] {
   return tasks.filter((task) => {
     const status = statusOfTaskOnDate(task, date, guestsMode);
     return status === "must" || status === "suggested";
   });
 }
 
-export function dateHasChoreDue(tasks: Task[], date: Date, guestsMode = false): boolean {
+export function dateHasChoreDue(
+  tasks: Task[],
+  date: Date,
+  guestsMode = false,
+): boolean {
   return choresDueOnDate(tasks, date, guestsMode).length > 0;
 }
 

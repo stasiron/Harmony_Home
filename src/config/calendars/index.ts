@@ -3,10 +3,17 @@ import { householdCalendar } from "@/config/calendars/dom";
 import { maciekCalendars } from "@/config/calendars/maciek";
 import { stasCalendars } from "@/config/calendars/stas";
 import { tymekCalendars } from "@/config/calendars/tymek";
-import type { MemberCalendarSource, MemberCalendarsConfig } from "@/config/calendars/types";
+import type {
+  MemberCalendarSource,
+  MemberCalendarsConfig,
+} from "@/config/calendars/types";
 import { DEFAULT_MEMBERS } from "@/config/household";
 
-export type { CalendarDisplayMode, MemberCalendarSource, MemberCalendarsConfig } from "@/config/calendars/types";
+export type {
+  CalendarDisplayMode,
+  MemberCalendarSource,
+  MemberCalendarsConfig,
+} from "@/config/calendars/types";
 
 export { householdCalendar, stasCalendars };
 
@@ -44,6 +51,8 @@ export function getIcalFallbackSources(): RegisteredCalendar[] {
   ];
 }
 
-export function getMemberConfig(memberId: string): MemberCalendarsConfig | undefined {
+export function getMemberConfig(
+  memberId: string,
+): MemberCalendarsConfig | undefined {
   return MEMBER_CALENDAR_CONFIGS.find((c) => c.memberId === memberId);
 }

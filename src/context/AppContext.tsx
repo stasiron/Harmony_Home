@@ -70,7 +70,13 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null);
 
-const USER_COLORS = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"] as const;
+const USER_COLORS = [
+  "chart-1",
+  "chart-2",
+  "chart-3",
+  "chart-4",
+  "chart-5",
+] as const;
 
 function roomToCategory(room: ChoreRoom): Task["category"] {
   if (room === "whole") return "general";
@@ -97,8 +103,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [recipes] = useState<Recipe[]>([]);
   const [devices, setDevices] = useState<SmartHomeDevice[]>([]);
   const [guestsMode, setGuestsMode] = useState(false);
-  const [guestCalendarHint, setGuestCalendarHint] = useState<string | null>(null);
-  const [guestPlans, setGuestPlans] = useState<GuestPlan[]>(loadInitialGuestPlans);
+  const [guestCalendarHint, setGuestCalendarHint] = useState<string | null>(
+    null,
+  );
+  const [guestPlans, setGuestPlans] = useState<GuestPlan[]>(
+    loadInitialGuestPlans,
+  );
   const [panic, setPanic] = useState<PanicState | null>(null);
 
   useGuestCalendarSync(setGuestsMode, setGuestCalendarHint);
@@ -131,7 +141,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const visibleTasks = useMemo(() => {
     if (panic?.active) return tasks.filter((t) => t.isExpressBlitz);
-    const heavyDayUserIds = new Set(users.filter((u) => u.heavyDay).map((u) => u.id));
+    const heavyDayUserIds = new Set(
+      users.filter((u) => u.heavyDay).map((u) => u.id),
+    );
     return tasks.filter((t) => {
       if (!t.assignedTo || !heavyDayUserIds.has(t.assignedTo)) return true;
       return statusOf(t) === "must";
@@ -173,62 +185,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const endPanic = useCallback(() => setPanic(null), []);
 
   const toggleShopping = useCallback((id: string) => {
-    setShopping((prev) => prev.map((s) => (s.id === id ? { ...s, checked: !s.checked } : s)));
+    setShopping((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, checked: !s.checked } : s)),
+    );
   }, []);
 
-  const addShopping = useCallback((items: Omit<ShoppingItem, "id" | "checked">[]) => {
-    setShopping((prev) => {
-      const next = [...prev];
-      items.forEach((it) => {
-        if (!next.some((s) => s.name.toLowerCase() === it.name.toLowerCase())) {
-          next.push({ ...it, id: crypto.randomUUID(), checked: false });
-        }
-      });
-      return next;
-    });
-  }, []);
-
-  const triggerDevice = useCallback((id: string) => {
-    setDevices((prev) => {
-      const dev = prev.find((d) => d.id === id);
-      if (!dev) return prev;
-      const nowTriggered = !dev.triggered;
-
-      if (nowTriggered && dev.linkedTaskId) {
-        setTasks((tprev) =>
-          tprev.map((t) =>
-            t.id === dev.linkedTaskId
-              ? { ...t, lastCompleted: new Date().toISOString() }
-              : t,
-          ),
-        );
-      }
-      if (nowTriggered && dev.generatesTask) {
-        setTasks((tprev) => {
-          if (tprev.some((t) => t.name === dev.generatesTask)) return tprev;
-          const newTask: Task = {
-            id: crypto.randomUUID(),
-            name: dev.generatesTask!,
-            room: "hallway",
-            category: "general",
-            estimatedMinutes: 5,
-            assignedTo: users[0]?.id ?? "",
-            recurrence: "once",
-            source: "user",
-            lastCompleted: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
-            tMin: 0,
-            tSuggested: 0,
-            tMax: 0,
-            isGuestPriority: false,
-            isExpressBlitz: false,
-          };
-          return [newTask, ...tprev];
+  const addShopping = useCallback(
+    (items: Omit<ShoppingItem, "id" | "checked">[]) => {
+      setShopping((prev) => {
+        const next = [...prev];
+        items.forEach((it) => {
+          if (
+            !next.some((s) => s.name.toLowerCase() === it.name.toLowerCase())
+          ) {
+            next.push({ ...it, id: crypto.randomUUID(), checked: false });
+          }
         });
-      }
+        return next;
+      });
+    },
+    [],
+  );
 
-      return prev.map((d) => (d.id === id ? { ...d, triggered: nowTriggered } : d));
-    });
-  }, [users]);
+  const triggerDevice = useCallback(
+    (id: string) => {
+      setDevices((prev) => {
+        const dev = prev.find((d) => d.id === id);
+        if (!dev) return prev;
+        const nowTriggered = !dev.triggered;
+
+        if (nowTriggered && dev.linkedTaskId) {
+          setTasks((tprev) =>
+            tprev.map((t) =>
+              t.id === dev.linkedTaskId
+                ? { ...t, lastCompleted: new Date().toISOString() }
+                : t,
+            ),
+          );
+        }
+        if (nowTriggered && dev.generatesTask) {
+          setTasks((tprev) => {
+            if (tprev.some((t) => t.name === dev.generatesTask)) return tprev;
+            const newTask: Task = {
+              id: crypto.randomUUID(),
+              name: dev.generatesTask!,
+              room: "hallway",
+              category: "general",
+              estimatedMinutes: 5,
+              assignedTo: users[0]?.id ?? "",
+              recurrence: "once",
+              source: "user",
+              lastCompleted: new Date(
+                Date.now() - 1000 * 60 * 60 * 24 * 10,
+              ).toISOString(),
+              tMin: 0,
+              tSuggested: 0,
+              tMax: 0,
+              isGuestPriority: false,
+              isExpressBlitz: false,
+            };
+            return [newTask, ...tprev];
+          });
+        }
+
+        return prev.map((d) =>
+          d.id === id ? { ...d, triggered: nowTriggered } : d,
+        );
+      });
+    },
+    [users],
+  );
 
   const addUser = useCallback((name: string) => {
     const trimmed = name.trim();
@@ -271,7 +297,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           mapPins: input.mapPins,
           recurrence: input.recurrence ?? "recurring",
           source: "user",
-          lastCompleted: new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString(),
+          lastCompleted: new Date(
+            Date.now() - 1000 * 60 * 60 * 24 * 14,
+          ).toISOString(),
           tMin: 3,
           tSuggested: 5,
           tMax: 7,

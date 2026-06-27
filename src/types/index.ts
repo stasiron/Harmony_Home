@@ -30,7 +30,8 @@ export interface Task {
   name: string;
   description?: string;
   room: ChoreRoom;
-  category: "kitchen" | "bathroom" | "living" | "bedroom" | "outdoor" | "general";
+  category:
+    "kitchen" | "bathroom" | "living" | "bedroom" | "outdoor" | "general";
   estimatedMinutes: number;
   /** User.id — puste = nikt nie przypisany */
   assignedTo: string;
@@ -59,12 +60,7 @@ export interface Recipe {
 }
 
 export type ShoppingCategory =
-  | "produce"
-  | "dairy"
-  | "bakery"
-  | "pantry"
-  | "frozen"
-  | "household";
+  "produce" | "dairy" | "bakery" | "pantry" | "frozen" | "household";
 
 export interface ShoppingItem {
   id: string;

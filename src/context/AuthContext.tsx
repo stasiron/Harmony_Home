@@ -17,8 +17,16 @@ import {
   type User,
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { connectCalendarFromFirebase } from "@/lib/calendar/api";
+import {
+  connectCalendarFromFirebase,
+  getCalendarConnectionStatus,
+} from "@/lib/calendar/api";
 import { guessMemberId } from "@/lib/memberLink";
+import {
+  clearStoredMemberId,
+  readStoredMemberId,
+  writeStoredMemberId,
+} from "@/lib/memberStorage";
 import {
   getFirebaseAuth,
   getFirestoreDb,
@@ -39,6 +47,7 @@ type AuthContextValue = {
   configured: boolean;
   signInWithGoogle: () => Promise<void>;
   syncCalendar: () => Promise<void>;
+  connectPersistentCalendar: () => void;
   signOut: () => Promise<void>;
   linkMember: (memberId: string) => Promise<void>;
   clearError: () => void;
@@ -72,16 +81,18 @@ function authErrorMessage(err: unknown): string {
 }
 
 async function loadAndSyncUserProfile(user: User): Promise<string | null> {
+  const fromEmail = guessMemberId(user);
+  const fromStorage = readStoredMemberId();
+
   const db = getFirestoreDb();
-  if (!db) return guessMemberId(user);
+  if (!db) return fromEmail ?? fromStorage;
 
   try {
     const ref = doc(db, "users", user.uid);
     const snap = await getDoc(ref);
     const existingMemberId =
       typeof snap.data()?.memberId === "string" ? snap.data()!.memberId : null;
-    const linkedMemberId = guessMemberId(user);
-    const memberId = linkedMemberId ?? existingMemberId;
+    const memberId = fromEmail ?? existingMemberId ?? fromStorage;
 
     await setDoc(
       ref,
@@ -96,20 +107,31 @@ async function loadAndSyncUserProfile(user: User): Promise<string | null> {
       { merge: true },
     );
 
+    if (memberId) writeStoredMemberId(memberId);
     return memberId;
   } catch (err) {
     console.error("Firestore profile sync failed:", err);
-    return guessMemberId(user);
+    const memberId = fromEmail ?? fromStorage;
+    if (memberId) writeStoredMemberId(memberId);
+    return memberId;
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const configured = isFirebaseConfigured();
   const saveCalendarConnection = useServerFn(connectCalendarFromFirebase);
+  const loadCalendarStatus = useServerFn(getCalendarConnectionStatus);
   const pendingAccessTokenRef = useRef<string | null>(null);
+  const saveCalendarConnectionRef = useRef(saveCalendarConnection);
+  const loadCalendarStatusRef = useRef(loadCalendarStatus);
+
+  saveCalendarConnectionRef.current = saveCalendarConnection;
+  loadCalendarStatusRef.current = loadCalendarStatus;
 
   const [user, setUser] = useState<User | null>(null);
-  const [memberId, setMemberId] = useState<string | null>(null);
+  const [memberId, setMemberId] = useState<string | null>(() =>
+    readStoredMemberId(),
+  );
   const [loading, setLoading] = useState(configured);
   const [syncingCalendar, setSyncingCalendar] = useState(false);
   const [calendarSyncTick, setCalendarSyncTick] = useState(0);
@@ -123,11 +145,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       const targetMemberId = pendingMemberId ?? linkedMemberId;
 
-      if (!accessToken || !targetMemberId) return;
+      if (!accessToken || !targetMemberId) return false;
 
       setSyncingCalendar(true);
       try {
-        await saveCalendarConnection({
+        await saveCalendarConnectionRef.current({
           data: {
             memberId: targetMemberId,
             accessToken,
@@ -137,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         pendingAccessTokenRef.current = null;
         sessionStorage.removeItem("pendingCalendarSyncMemberId");
         setCalendarSyncTick((tick) => tick + 1);
+        return true;
       } catch (err) {
         console.error("Calendar sync failed:", err);
         setError(
@@ -144,11 +167,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? err.message
             : "Nie udało się połączyć kalendarza. Włącz Google Calendar API w Google Cloud (projekt harmony-home-95c3b).",
         );
+        return false;
       } finally {
         setSyncingCalendar(false);
       }
     },
-    [saveCalendarConnection],
+    [],
+  );
+
+  const ensurePersistentCalendar = useCallback(
+    async (linkedMemberId: string | null) => {
+      if (!linkedMemberId) return;
+
+      const status = await loadCalendarStatusRef.current();
+      const mine = status.members.find(
+        (member) => member.memberId === linkedMemberId,
+      );
+      if (mine?.connected) {
+        sessionStorage.removeItem("calendarOAuthAttempted");
+        return;
+      }
+
+      if (status.oauthServerConfigured) {
+        const attempted = sessionStorage.getItem("calendarOAuthAttempted");
+        if (attempted === linkedMemberId) return;
+        sessionStorage.setItem("calendarOAuthAttempted", linkedMemberId);
+        sessionStorage.setItem("authReturnTo", window.location.pathname);
+        window.location.assign(
+          `/api/auth/google?memberId=${encodeURIComponent(linkedMemberId)}`,
+        );
+      }
+    },
+    [],
   );
 
   useEffect(() => {
@@ -184,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (!nextUser) {
           setMemberId(null);
+          clearStoredMemberId();
           setLoading(false);
           return;
         }
@@ -192,7 +243,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .then(async (linkedMemberId) => {
             if (cancelled) return;
             setMemberId(linkedMemberId);
-            await connectCalendarIfPending(linkedMemberId);
+            const synced = await connectCalendarIfPending(linkedMemberId);
+            if (!synced) {
+              await ensurePersistentCalendar(linkedMemberId);
+            }
           })
           .finally(() => {
             if (!cancelled) setLoading(false);
@@ -204,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       unsubscribe();
     };
-  }, [configured, connectCalendarIfPending]);
+  }, [configured, connectCalendarIfPending, ensurePersistentCalendar]);
 
   const signInWithGoogle = useCallback(async () => {
     const auth = getFirebaseAuth();
@@ -224,6 +278,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const connectPersistentCalendar = useCallback(() => {
+    if (!memberId) {
+      setError("Wybierz profil domownika przed synchronizacją kalendarza.");
+      return;
+    }
+    sessionStorage.removeItem("calendarOAuthAttempted");
+    sessionStorage.setItem("authReturnTo", window.location.pathname);
+    window.location.assign(
+      `/api/auth/google?memberId=${encodeURIComponent(memberId)}`,
+    );
+  }, [memberId]);
+
   const syncCalendar = useCallback(async () => {
     const auth = getFirebaseAuth();
     if (!auth) {
@@ -237,18 +303,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setError(null);
     try {
+      const status = await loadCalendarStatusRef.current();
+      if (status.oauthServerConfigured) {
+        connectPersistentCalendar();
+        return;
+      }
+
       sessionStorage.setItem("pendingCalendarSyncMemberId", memberId);
       sessionStorage.setItem("authReturnTo", window.location.pathname);
       await signInWithRedirect(auth, googleProvider());
     } catch (err) {
       setError(authErrorMessage(err));
     }
-  }, [memberId]);
+  }, [memberId, connectPersistentCalendar]);
 
   const signOut = useCallback(async () => {
     const auth = getFirebaseAuth();
     if (!auth) return;
     setError(null);
+    sessionStorage.removeItem("calendarOAuthAttempted");
+    clearStoredMemberId();
     await firebaseSignOut(auth);
   }, []);
 
@@ -256,10 +330,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     const currentUser = auth?.currentUser;
     const db = getFirestoreDb();
-    if (!currentUser || !db) {
-      setMemberId(nextMemberId);
-      return;
-    }
+    writeStoredMemberId(nextMemberId);
+    setMemberId(nextMemberId);
+
+    if (!currentUser || !db) return;
 
     try {
       await setDoc(
@@ -270,7 +344,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Firestore member link failed:", err);
     }
-    setMemberId(nextMemberId);
   }, []);
 
   const clearError = useCallback(() => setError(null), []);
@@ -286,6 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured,
       signInWithGoogle,
       syncCalendar,
+      connectPersistentCalendar,
       signOut,
       linkMember,
       clearError,
@@ -300,6 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured,
       signInWithGoogle,
       syncCalendar,
+      connectPersistentCalendar,
       signOut,
       linkMember,
       clearError,

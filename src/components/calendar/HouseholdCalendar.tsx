@@ -1,7 +1,13 @@
 import { useServerFn } from "@tanstack/react-start";
 import { format, isSameDay } from "date-fns";
 import { pl } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Users } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Users,
+} from "lucide-react";
 import { type ReactNode } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { DayColumn } from "@/components/calendar/DayColumn";
@@ -72,7 +78,12 @@ export function HouseholdCalendar() {
 
       {cal.isMonthView ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-          <CalendarPanel configured={cal.configured} loading={cal.loading} error={cal.error} errorDetail={cal.errorDetail}>
+          <CalendarPanel
+            configured={cal.configured}
+            loading={cal.loading}
+            error={cal.error}
+            errorDetail={cal.errorDetail}
+          >
             <Calendar
               mode="single"
               selected={cal.selected}
@@ -100,7 +111,8 @@ export function HouseholdCalendar() {
           className={cn(
             "grid items-start gap-3",
             cal.viewMode === "3" && "grid-cols-1 md:grid-cols-3",
-            cal.viewMode === "7" && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7",
+            cal.viewMode === "7" &&
+              "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7",
             cal.viewMode === "14" &&
               "grid-flow-col auto-cols-[minmax(220px,1fr)] grid-cols-none overflow-x-auto pb-2",
           )}
@@ -137,7 +149,8 @@ export function HouseholdCalendar() {
 const MODIFIERS_CLASS_NAMES = {
   google:
     "[&_button]:relative [&_button]:after:absolute [&_button]:after:bottom-1 [&_button]:after:left-1/2 [&_button]:after:size-1.5 [&_button]:after:-translate-x-1/2 [&_button]:after:rounded-full [&_button]:after:bg-primary",
-  guest: "[&_button]:ring-1 [&_button]:ring-accent/50 [&_button]:after:bg-accent",
+  guest:
+    "[&_button]:ring-1 [&_button]:ring-accent/50 [&_button]:after:bg-accent",
   chore:
     "[&_button]:before:absolute [&_button]:before:bottom-1 [&_button]:before:right-1/2 [&_button]:before:mr-2 [&_button]:before:size-1.5 [&_button]:before:rounded-full [&_button]:before:bg-warn [&_button]:before:content-['']",
   plan: "[&_button]:bg-accent/10",
@@ -184,17 +197,26 @@ function CalendarFooter({
     <>
       <div className="mt-4 flex flex-wrap gap-4 border-t border-border pt-4 text-xs text-muted-foreground">
         <LegendDot className="bg-primary" label="Google Calendar" />
-        <LegendDot className="bg-accent ring-1 ring-accent/40" label="Goście (auto)" />
+        <LegendDot
+          className="bg-accent ring-1 ring-accent/40"
+          label="Goście (auto)"
+        />
         <LegendDot className="bg-warn" label="Obowiązki" />
-        <LegendDot className="bg-accent/30 ring-1 ring-accent/30" label="Plan gości" />
+        <LegendDot
+          className="bg-accent/30 ring-1 ring-accent/30"
+          label="Plan gości"
+        />
       </div>
 
       {!configured && !loading && (
         <div className="mt-4 space-y-2 rounded-2xl border border-dashed border-border bg-surface/50 px-4 py-3 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">Brak połączeń kalendarza</p>
+          <p className="font-medium text-foreground">
+            Brak połączeń kalendarza
+          </p>
           <p>
-            Idź do <strong>Ustawienia</strong> → Połącz Google dla każdego domownika. Albo ustaw
-            iCal w <code className="text-foreground">.env</code> (fallback).
+            Idź do <strong>Ustawienia</strong> → Połącz Google dla każdego
+            domownika. Albo ustaw iCal w{" "}
+            <code className="text-foreground">.env</code> (fallback).
           </p>
         </div>
       )}
@@ -202,12 +224,16 @@ function CalendarFooter({
         <p className="mt-4 rounded-2xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-alert">
           Nie udało się pobrać kalendarza.
           {errorDetail && (
-            <span className="mt-1 block font-mono text-xs opacity-80">{errorDetail}</span>
+            <span className="mt-1 block font-mono text-xs opacity-80">
+              {errorDetail}
+            </span>
           )}
         </p>
       )}
       {loading && (
-        <p className="mt-4 text-center text-xs text-muted-foreground">Ładowanie wydarzeń…</p>
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          Ładowanie wydarzeń…
+        </p>
       )}
     </>
   );
@@ -240,7 +266,11 @@ function DayDetailPanel({
         </h2>
       </header>
 
-      <DaySection title="Wydarzenia" count={events.length} empty="Brak wydarzeń w kalendarzu.">
+      <DaySection
+        title="Wydarzenia"
+        count={events.length}
+        empty="Brak wydarzeń w kalendarzu."
+      >
         {events.map((event) => (
           <article
             key={event.id}
@@ -275,7 +305,11 @@ function DayDetailPanel({
         ))}
       </DaySection>
 
-      <DaySection title="Obowiązki" count={chores.length} empty="Na ten dzień nic pilnego.">
+      <DaySection
+        title="Obowiązki"
+        count={chores.length}
+        empty="Na ten dzień nic pilnego."
+      >
         {chores.map((task) => {
           const status = statusOfTaskOnDate(task, day, guestsMode);
           const assignee = users.find((u) => u.id === task.assignedTo);
@@ -292,14 +326,18 @@ function DayDetailPanel({
                 <span
                   className={cn(
                     "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                    status === "must" ? "bg-alert/15 text-alert" : "bg-warn/15 text-warn",
+                    status === "must"
+                      ? "bg-alert/15 text-alert"
+                      : "bg-warn/15 text-warn",
                   )}
                 >
                   {status === "must" ? "pilne" : "sugerowane"}
                 </span>
               </div>
               {assignee && (
-                <p className="mt-1 text-xs text-muted-foreground">{assignee.name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {assignee.name}
+                </p>
               )}
             </article>
           );

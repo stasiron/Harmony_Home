@@ -25,8 +25,12 @@ export function SubpageHeader() {
   return (
     <header className="flex items-end justify-between gap-4">
       <div>
-        <div className="tabular-clock text-5xl font-extralight leading-none md:text-6xl">{time}</div>
-        <div className="mt-1 text-sm text-muted-foreground md:text-base">{date}</div>
+        <div className="tabular-clock text-5xl font-extralight leading-none md:text-6xl">
+          {time}
+        </div>
+        <div className="mt-1 text-sm text-muted-foreground md:text-base">
+          {date}
+        </div>
       </div>
       <Button
         variant="outline"

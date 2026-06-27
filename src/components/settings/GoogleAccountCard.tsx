@@ -1,6 +1,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarSync, LogIn, LogOut, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ export function GoogleAccountCard() {
     configured,
     signInWithGoogle,
     syncCalendar,
+    connectPersistentCalendar,
     signOut,
     linkMember,
     clearError,
@@ -38,18 +39,18 @@ export function GoogleAccountCard() {
   const [status, setStatus] = useState<Status | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
 
-  const refreshStatus = async () => {
+  const refreshStatus = useCallback(async () => {
     setStatusLoading(true);
     try {
       setStatus(await loadStatus());
     } finally {
       setStatusLoading(false);
     }
-  };
+  }, [loadStatus]);
 
   useEffect(() => {
     void refreshStatus();
-  }, [calendarSyncTick]);
+  }, [calendarSyncTick, refreshStatus]);
 
   useEffect(() => {
     if (!user || memberId || !status) return;
@@ -69,6 +70,7 @@ export function GoogleAccountCard() {
     (member) => member.memberId === memberId,
   );
   const memberLabel = memberId ? memberNameById(memberId) : null;
+  const persistentMode = status?.oauthServerConfigured ?? false;
 
   return (
     <section className="rounded-3xl border border-border bg-gradient-to-br from-surface-elevated via-surface to-card p-5 shadow-elevated">
@@ -76,8 +78,8 @@ export function GoogleAccountCard() {
         <div>
           <h2 className="text-xl font-semibold">Konto Google</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Zaloguj się kontem Google — potem zsynchronizuj swój kalendarz z
-            widokiem domowym.
+            Zaloguj się raz — aplikacja zapamięta konto i kalendarz na serwerze
+            (działa też gdy nie masz telefonu przy sobie).
           </p>
         </div>
 
@@ -124,6 +126,11 @@ export function GoogleAccountCard() {
                 <p className="truncate text-sm text-muted-foreground">
                   {user.email}
                 </p>
+                {memberLabel ? (
+                  <p className="truncate text-xs text-primary">
+                    Profil: {memberLabel}
+                  </p>
+                ) : null}
               </div>
             </div>
             <Button
@@ -145,10 +152,6 @@ export function GoogleAccountCard() {
               <LogIn />
               Zaloguj przez Google
             </Button>
-            <p className="text-xs text-muted-foreground">
-              Otworzy stronę Google (bez popup — działa też gdy przeglądarka
-              blokuje okna).
-            </p>
           </>
         )}
       </div>
@@ -191,13 +194,15 @@ export function GoogleAccountCard() {
 
           {!memberId ? (
             <p className="text-sm text-muted-foreground">
-              Wybierz domownika, żeby powiązać kalendarz z kontem Google.
+              Wybierz domownika — dla{" "}
+              <code className="text-foreground">stasiron9102@gmail.com</code>{" "}
+              ustawiamy automatycznie Stas.
             </p>
           ) : myMember?.connected && myMember.connection ? (
             <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium">
-                  Kalendarz zsynchronizowany
+                  Kalendarz zapamiętany na serwerze
                   {memberLabel ? ` · ${memberLabel}` : ""}
                 </p>
                 <p className="text-sm text-muted-foreground">
@@ -207,16 +212,20 @@ export function GoogleAccountCard() {
                       (calendar) => calendar.enabled,
                     ).length
                   }{" "}
-                  aktywnych kalendarzy
+                  aktywnych kalendarzy · widoczny w całej aplikacji
                 </p>
               </div>
               <Button
                 variant="outline"
-                onClick={() => void syncCalendar()}
+                onClick={() =>
+                  persistentMode
+                    ? connectPersistentCalendar()
+                    : void syncCalendar()
+                }
                 disabled={syncingCalendar}
               >
                 <CalendarSync />
-                Odśwież połączenie
+                Połącz ponownie
               </Button>
             </div>
           ) : (
@@ -224,8 +233,9 @@ export function GoogleAccountCard() {
               <div>
                 <p className="font-medium">Synchronizacja kalendarza</p>
                 <p className="text-sm text-muted-foreground">
-                  Google poprosi o dostęp do kalendarza — wydarzenia pojawią się
-                  w zakładce Kalendarz. Co ~1 h kliknij „Odśwież połączenie”.
+                  {persistentMode
+                    ? "Połączenie zapisze refresh token na serwerze — kalendarz działa 24/7 bez telefonu."
+                    : "Ustaw GOOGLE_CLIENT_ID/SECRET w .env albo STAS_GOOGLE_CALENDAR_ICAL_URL dla stałego iCal."}
                 </p>
               </div>
               <Button

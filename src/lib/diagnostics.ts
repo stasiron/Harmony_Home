@@ -54,12 +54,23 @@ function checkResolvable(specifier: string): CheckResult {
     return { ok: true, detail: resolved };
   } catch (error) {
     const pkgRoot = specifier.startsWith("@")
-      ? join(process.cwd(), "node_modules", specifier.split("/")[0], specifier.split("/")[1] ?? "")
-      : join(process.cwd(), "node_modules", specifier.split("/")[0] ?? specifier);
+      ? join(
+          process.cwd(),
+          "node_modules",
+          specifier.split("/")[0],
+          specifier.split("/")[1] ?? "",
+        )
+      : join(
+          process.cwd(),
+          "node_modules",
+          specifier.split("/")[0] ?? specifier,
+        );
 
     return {
       ...formatCheckError(error),
-      detail: existsSync(pkgRoot) ? `dir exists: ${pkgRoot}` : `missing dir: ${pkgRoot}`,
+      detail: existsSync(pkgRoot)
+        ? `dir exists: ${pkgRoot}`
+        : `missing dir: ${pkgRoot}`,
     };
   }
 }
@@ -74,7 +85,9 @@ const MODULE_PROBES = [
 type ModuleProbe = (typeof MODULE_PROBES)[number];
 
 /** Static imports only — bundler traces into _libs on Vercel. Variable + @vite-ignore skips tracing and fails serverless. */
-async function checkBundledImport(specifier: ModuleProbe): Promise<CheckResult> {
+async function checkBundledImport(
+  specifier: ModuleProbe,
+): Promise<CheckResult> {
   try {
     switch (specifier) {
       case "tslib":
@@ -139,11 +152,15 @@ export function formatErrorForDisplay(error: unknown): string {
   }
 }
 
-export async function runDiagnostics(lastError?: unknown): Promise<DiagnosticsReport> {
+export async function runDiagnostics(
+  lastError?: unknown,
+): Promise<DiagnosticsReport> {
   const moduleNames = MODULE_PROBES;
 
   const moduleEntries = await Promise.all(
-    moduleNames.map(async (name) => [name, await checkImportable(name)] as const),
+    moduleNames.map(
+      async (name) => [name, await checkImportable(name)] as const,
+    ),
   );
 
   const ssrChecks: [string, CheckResult][] = [
@@ -153,7 +170,10 @@ export async function runDiagnostics(lastError?: unknown): Promise<DiagnosticsRe
       await (async (): Promise<CheckResult> => {
         try {
           const mod = await import("@radix-ui/react-dialog");
-          return { ok: true, detail: `exports: ${Object.keys(mod).slice(0, 5).join(", ")}` };
+          return {
+            ok: true,
+            detail: `exports: ${Object.keys(mod).slice(0, 5).join(", ")}`,
+          };
         } catch (error) {
           return formatCheckError(error);
         }
@@ -165,7 +185,10 @@ export async function runDiagnostics(lastError?: unknown): Promise<DiagnosticsRe
         try {
           const mod = await import("@tanstack/react-start/server-entry");
           const entry = (mod.default ?? mod) as { fetch?: unknown };
-          return { ok: typeof entry.fetch === "function", detail: "fetch handler present" };
+          return {
+            ok: typeof entry.fetch === "function",
+            detail: "fetch handler present",
+          };
         } catch (error) {
           // Health route already running — treat as soft warning, not hard fail.
           return {
@@ -180,15 +203,21 @@ export async function runDiagnostics(lastError?: unknown): Promise<DiagnosticsRe
       {
         ok: existsSync(join(process.cwd(), "node_modules")),
         detail: join(process.cwd(), "node_modules"),
-        error: existsSync(join(process.cwd(), "node_modules")) ? undefined : "node_modules missing",
+        error: existsSync(join(process.cwd(), "node_modules"))
+          ? undefined
+          : "node_modules missing",
       },
     ],
     [
       "tslib-package-json",
       {
-        ok: existsSync(join(process.cwd(), "node_modules", "tslib", "package.json")),
+        ok: existsSync(
+          join(process.cwd(), "node_modules", "tslib", "package.json"),
+        ),
         detail: join(process.cwd(), "node_modules", "tslib", "package.json"),
-        error: existsSync(join(process.cwd(), "node_modules", "tslib", "package.json"))
+        error: existsSync(
+          join(process.cwd(), "node_modules", "tslib", "package.json"),
+        )
           ? undefined
           : "tslib not traced into function bundle",
       },
@@ -197,9 +226,13 @@ export async function runDiagnostics(lastError?: unknown): Promise<DiagnosticsRe
 
   const modules = Object.fromEntries(moduleEntries);
   const ssr = Object.fromEntries(ssrChecks);
-  const env = Object.fromEntries(ENV_KEYS.map((key) => [key, Boolean(process.env[key]?.trim())]));
+  const env = Object.fromEntries(
+    ENV_KEYS.map((key) => [key, Boolean(process.env[key]?.trim())]),
+  );
 
-  const failed = [...Object.values(modules), ...Object.values(ssr)].some((c) => !c.ok);
+  const failed = [...Object.values(modules), ...Object.values(ssr)].some(
+    (c) => !c.ok,
+  );
 
   return {
     ok: !failed,

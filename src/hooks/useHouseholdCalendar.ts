@@ -23,16 +23,29 @@ function startOfToday(): Date {
   return d;
 }
 
-export function useHouseholdCalendar(tasks: Task[], guestPlans: GuestPlan[], guestsMode: boolean) {
+export function useHouseholdCalendar(
+  tasks: Task[],
+  guestPlans: GuestPlan[],
+  guestsMode: boolean,
+) {
   const loadEvents = useServerFn(fetchCalendarEvents);
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>("3");
   const [anchor, setAnchor] = useState(startOfToday);
   const [selected, setSelected] = useState<Date | undefined>(() => new Date());
 
-  const range = useMemo(() => getViewRange(viewMode, anchor), [viewMode, anchor]);
-  const daysInView = useMemo(() => getDaysInView(viewMode, anchor), [viewMode, anchor]);
-  const rangeLabel = useMemo(() => formatRangeLabel(viewMode, anchor), [viewMode, anchor]);
+  const range = useMemo(
+    () => getViewRange(viewMode, anchor),
+    [viewMode, anchor],
+  );
+  const daysInView = useMemo(
+    () => getDaysInView(viewMode, anchor),
+    [viewMode, anchor],
+  );
+  const rangeLabel = useMemo(
+    () => formatRangeLabel(viewMode, anchor),
+    [viewMode, anchor],
+  );
 
   const rangeKey = `${range.from.toISOString()}|${range.to.toISOString()}`;
 
@@ -63,7 +76,8 @@ export function useHouseholdCalendar(tasks: Task[], guestPlans: GuestPlan[], gue
   const modifiers = useMemo(
     () => ({
       google: (day: Date) => eventsForDay(eventIndex, day).length > 0,
-      guest: (day: Date) => eventsForDay(eventIndex, day).some((e) => e.isGuest),
+      guest: (day: Date) =>
+        eventsForDay(eventIndex, day).some((e) => e.isGuest),
       chore: (day: Date) => dateHasChoreDue(tasks, day, guestsMode),
       plan: (day: Date) => guestPlansOnDate(guestPlans, day).length > 0,
     }),
@@ -84,7 +98,8 @@ export function useHouseholdCalendar(tasks: Task[], guestPlans: GuestPlan[], gue
   }, []);
 
   const shiftPeriod = useCallback(
-    (direction: -1 | 1) => setAnchor((prev) => shiftAnchor(viewMode, prev, direction)),
+    (direction: -1 | 1) =>
+      setAnchor((prev) => shiftAnchor(viewMode, prev, direction)),
     [viewMode],
   );
 
@@ -108,7 +123,8 @@ export function useHouseholdCalendar(tasks: Task[], guestPlans: GuestPlan[], gue
     configured,
     loading: feedQuery.isLoading,
     error: feedQuery.isError,
-    errorDetail: feedQuery.error instanceof Error ? feedQuery.error.message : null,
+    errorDetail:
+      feedQuery.error instanceof Error ? feedQuery.error.message : null,
     refresh: feedQuery.refetch,
     modifiers,
     selectedDay,

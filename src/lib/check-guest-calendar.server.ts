@@ -7,7 +7,11 @@ import {
   parseGoogleCalendarEvents,
 } from "@/lib/googleCalendar";
 
-function isGuestWindowActive(start: Date, end: Date | null, now: number): boolean {
+function isGuestWindowActive(
+  start: Date,
+  end: Date | null,
+  now: number,
+): boolean {
   const leadMs = GUEST_LEAD_HOURS * 60 * 60 * 1000;
   const tailMs = GUEST_TAIL_HOURS * 60 * 60 * 1000;
   const startMs = start.getTime();
@@ -21,11 +25,21 @@ export async function runCheckGuestCalendar(): Promise<GuestCalendarStatus> {
     ical = await fetchGoogleCalendarIcal();
   } catch (error) {
     logServerWarn("guest-calendar", error);
-    return { active: false, eventTitle: null, eventStart: null, configured: true };
+    return {
+      active: false,
+      eventTitle: null,
+      eventStart: null,
+      configured: true,
+    };
   }
 
   if (!ical) {
-    return { active: false, eventTitle: null, eventStart: null, configured: false };
+    return {
+      active: false,
+      eventTitle: null,
+      eventStart: null,
+      configured: false,
+    };
   }
 
   const now = Date.now();

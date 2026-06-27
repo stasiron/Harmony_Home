@@ -8,7 +8,9 @@ import {
   verifyOAuthState,
 } from "@/lib/googleOAuth.server";
 
-export async function handleApiRequest(request: Request): Promise<Response | null> {
+export async function handleApiRequest(
+  request: Request,
+): Promise<Response | null> {
   const { pathname } = new URL(request.url);
   if (!pathname.startsWith("/api/")) return null;
 
@@ -62,7 +64,10 @@ export async function handleApiRequest(request: Request): Promise<Response | nul
     const origin = getAppOrigin(request.url);
     const authUrl = buildGoogleAuthUrl(origin, memberId);
     if (!authUrl) {
-      return Response.redirect(`${origin}/settings?error=oauth_not_configured`, 302);
+      return Response.redirect(
+        `${origin}/settings?error=oauth_not_configured`,
+        302,
+      );
     }
 
     return Response.redirect(authUrl, 302);
@@ -73,7 +78,10 @@ export async function handleApiRequest(request: Request): Promise<Response | nul
     const url = new URL(request.url);
     const error = url.searchParams.get("error");
     if (error) {
-      return Response.redirect(`${origin}/settings?error=${encodeURIComponent(error)}`, 302);
+      return Response.redirect(
+        `${origin}/settings?error=${encodeURIComponent(error)}`,
+        302,
+      );
     }
 
     const code = url.searchParams.get("code");
@@ -90,7 +98,10 @@ export async function handleApiRequest(request: Request): Promise<Response | nul
     try {
       const tokens = await exchangeGoogleCode(code, origin);
       if (!tokens.refresh_token) {
-        return Response.redirect(`${origin}/settings?error=no_refresh_token`, 302);
+        return Response.redirect(
+          `${origin}/settings?error=no_refresh_token`,
+          302,
+        );
       }
 
       await saveOAuthMemberConnection({
@@ -100,7 +111,10 @@ export async function handleApiRequest(request: Request): Promise<Response | nul
         expiresIn: tokens.expires_in,
       });
 
-      return Response.redirect(`${origin}/settings?connected=${parsed.memberId}`, 302);
+      return Response.redirect(
+        `${origin}/settings?connected=${parsed.memberId}`,
+        302,
+      );
     } catch {
       return Response.redirect(`${origin}/settings?error=connect_failed`, 302);
     }

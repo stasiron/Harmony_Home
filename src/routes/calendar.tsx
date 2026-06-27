@@ -8,7 +8,8 @@ export const Route = createFileRoute("/calendar")({
       { title: "Kalendarz · Homebase" },
       {
         name: "description",
-        content: "Google Calendar, obowiązki domowe i plany gości w jednym widoku.",
+        content:
+          "Google Calendar, obowiązki domowe i plany gości w jednym widoku.",
       },
     ],
   }),
@@ -23,10 +24,12 @@ function CalendarPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Kalendarz</h1>
+        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+          Kalendarz
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Domyślnie 3 dni — przełącz na 7, 14 lub cały miesiąc. Google Calendar, obowiązki i plany
-          gości.
+          Domyślnie 3 dni — przełącz na 7, 14 lub cały miesiąc. Google Calendar,
+          obowiązki i plany gości.
         </p>
       </header>
 

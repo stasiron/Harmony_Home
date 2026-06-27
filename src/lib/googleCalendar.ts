@@ -2,17 +2,20 @@ import { GUEST_TITLE_KEYWORDS } from "@/config/guests";
 import { parseIcalEvents, type IcalEvent } from "@/lib/ical";
 
 export function normalizeCalendarText(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase();
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
-export function isGuestCalendarEvent(summary: string, location: string): boolean {
+export function isGuestCalendarEvent(
+  summary: string,
+  location: string,
+): boolean {
   const title = normalizeCalendarText(summary);
   const loc = normalizeCalendarText(location);
 
-  if (GUEST_TITLE_KEYWORDS.some((k) => title.includes(normalizeCalendarText(k)))) return true;
+  if (
+    GUEST_TITLE_KEYWORDS.some((k) => title.includes(normalizeCalendarText(k)))
+  )
+    return true;
 
   const hasAndersa = loc.includes("andersa");
   const hasCzestochowa = loc.includes("czestochowa");
@@ -45,7 +48,10 @@ export function eventOverlapsRange(
   rangeEnd: Date,
 ): boolean {
   const eventEnd = end ?? new Date(start.getTime() + 2 * 60 * 60 * 1000);
-  return start.getTime() <= rangeEnd.getTime() && eventEnd.getTime() >= rangeStart.getTime();
+  return (
+    start.getTime() <= rangeEnd.getTime() &&
+    eventEnd.getTime() >= rangeStart.getTime()
+  );
 }
 
 export function calendarEventId(summary: string, start: Date): string {

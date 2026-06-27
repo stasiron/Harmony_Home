@@ -4,7 +4,8 @@ import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
-const vercelPreset = process.env.VERCEL === "1" || process.env.NITRO_PRESET === "vercel";
+const vercelPreset =
+  process.env.VERCEL === "1" || process.env.NITRO_PRESET === "vercel";
 
 export default defineConfig({
   plugins: [
@@ -31,6 +32,11 @@ export default defineConfig({
   },
   resolve: {
     tsconfigPaths: true,
-    dedupe: ["react", "react-dom", "@tanstack/react-router", "@tanstack/react-start"],
+    dedupe: [
+      "react",
+      "react-dom",
+      "@tanstack/react-router",
+      "@tanstack/react-start",
+    ],
   },
 });

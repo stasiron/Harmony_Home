@@ -61,7 +61,8 @@ export function AddChoreDialog() {
   };
 
   const minutes = Number.parseInt(form.estimatedMinutes, 10);
-  const canSubmit = form.name.trim().length > 0 && !Number.isNaN(minutes) && minutes >= 1;
+  const canSubmit =
+    form.name.trim().length > 0 && !Number.isNaN(minutes) && minutes >= 1;
 
   return (
     <Dialog
@@ -99,7 +100,9 @@ export function AddChoreDialog() {
               placeholder="Szczegóły, co dokładnie zrobić…"
               rows={2}
               value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, description: e.target.value }))
+              }
             />
           </div>
 
@@ -108,7 +111,9 @@ export function AddChoreDialog() {
               <Label>Pokój</Label>
               <Select
                 value={form.room}
-                onValueChange={(v) => setForm((f) => ({ ...f, room: v as ChoreRoom }))}
+                onValueChange={(v) =>
+                  setForm((f) => ({ ...f, room: v as ChoreRoom }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -131,7 +136,9 @@ export function AddChoreDialog() {
                 min={1}
                 max={480}
                 value={form.estimatedMinutes}
-                onChange={(e) => setForm((f) => ({ ...f, estimatedMinutes: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, estimatedMinutes: e.target.value }))
+                }
               />
             </div>
           </div>
@@ -140,7 +147,9 @@ export function AddChoreDialog() {
             <Label>Powtarzalność</Label>
             <Select
               value={form.recurrence}
-              onValueChange={(v) => setForm((f) => ({ ...f, recurrence: v as TaskRecurrence }))}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, recurrence: v as TaskRecurrence }))
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -177,7 +186,11 @@ export function AddChoreDialog() {
             onChange={(mapPins) => setForm((f) => ({ ...f, mapPins }))}
           />
 
-          <Button className="w-full" onClick={handleSubmit} disabled={!canSubmit}>
+          <Button
+            className="w-full"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+          >
             Dodaj
           </Button>
         </div>

@@ -1,16 +1,28 @@
-import { addDays, endOfMonth, format, startOfDay, startOfMonth } from "date-fns";
+import {
+  addDays,
+  endOfMonth,
+  format,
+  startOfDay,
+  startOfMonth,
+} from "date-fns";
 import { pl } from "date-fns/locale";
 
 export type CalendarViewMode = "3" | "7" | "14" | "month";
 
-export const CALENDAR_VIEW_OPTIONS: { value: CalendarViewMode; label: string }[] = [
+export const CALENDAR_VIEW_OPTIONS: {
+  value: CalendarViewMode;
+  label: string;
+}[] = [
   { value: "3", label: "3 dni" },
   { value: "7", label: "7 dni" },
   { value: "14", label: "14 dni" },
   { value: "month", label: "Miesiąc" },
 ];
 
-export function getViewRange(mode: CalendarViewMode, anchor: Date): { from: Date; to: Date } {
+export function getViewRange(
+  mode: CalendarViewMode,
+  anchor: Date,
+): { from: Date; to: Date } {
   if (mode === "month") {
     const from = startOfMonth(anchor);
     from.setDate(from.getDate() - 7);
@@ -32,7 +44,11 @@ export function getDaysInView(mode: CalendarViewMode, anchor: Date): Date[] {
   return Array.from({ length: Number(mode) }, (_, i) => addDays(from, i));
 }
 
-export function shiftAnchor(mode: CalendarViewMode, anchor: Date, direction: -1 | 1): Date {
+export function shiftAnchor(
+  mode: CalendarViewMode,
+  anchor: Date,
+  direction: -1 | 1,
+): Date {
   if (mode === "month") {
     const next = new Date(anchor);
     next.setMonth(next.getMonth() + direction);
@@ -46,7 +62,9 @@ export function formatRangeLabel(mode: CalendarViewMode, anchor: Date): string {
     return format(anchor, "LLLL yyyy", { locale: pl });
   }
   const { from, to } = getViewRange(mode, anchor);
-  const sameMonth = from.getMonth() === to.getMonth() && from.getFullYear() === to.getFullYear();
+  const sameMonth =
+    from.getMonth() === to.getMonth() &&
+    from.getFullYear() === to.getFullYear();
   if (sameMonth) {
     return `${format(from, "d", { locale: pl })}–${format(to, "d MMMM yyyy", { locale: pl })}`;
   }

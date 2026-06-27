@@ -12,7 +12,10 @@ export const Route = createFileRoute("/chores")({
   head: () => ({
     meta: [
       { title: "Chores · Homebase" },
-      { name: "description", content: "Flexible chore intervals — safe, suggested, must-do." },
+      {
+        name: "description",
+        content: "Flexible chore intervals — safe, suggested, must-do.",
+      },
     ],
   }),
   component: () => (
@@ -23,17 +26,40 @@ export const Route = createFileRoute("/chores")({
 });
 
 function ChoresPage() {
-  const { visibleTasks, statusOf, guestsMode, guestCalendarHint, panic, users } = useApp();
+  const {
+    visibleTasks,
+    statusOf,
+    guestsMode,
+    guestCalendarHint,
+    panic,
+    users,
+  } = useApp();
 
   const heavyDayNames = users.filter((u) => u.heavyDay).map((u) => u.name);
 
   const sortedGuestTasks = sortTasksByImportance(visibleTasks, statusOf, true);
 
   const groups = [
-    { key: "must", label: "Must do today", tasks: visibleTasks.filter((t) => statusOf(t) === "must") },
-    { key: "suggested", label: "Suggested", tasks: visibleTasks.filter((t) => statusOf(t) === "suggested") },
-    { key: "safe", label: "On track", tasks: visibleTasks.filter((t) => statusOf(t) === "safe") },
-    { key: "done", label: "Recently done", tasks: visibleTasks.filter((t) => statusOf(t) === "done") },
+    {
+      key: "must",
+      label: "Must do today",
+      tasks: visibleTasks.filter((t) => statusOf(t) === "must"),
+    },
+    {
+      key: "suggested",
+      label: "Suggested",
+      tasks: visibleTasks.filter((t) => statusOf(t) === "suggested"),
+    },
+    {
+      key: "safe",
+      label: "On track",
+      tasks: visibleTasks.filter((t) => statusOf(t) === "safe"),
+    },
+    {
+      key: "done",
+      label: "Recently done",
+      tasks: visibleTasks.filter((t) => statusOf(t) === "done"),
+    },
   ];
 
   return (
@@ -42,10 +68,13 @@ function ChoresPage() {
 
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
         <div className="min-w-0">
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Chores</h1>
+          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+            Chores
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Dynamic intervals based on last completed.
-            {heavyDayNames.length > 0 && ` · Heavy Day: ${heavyDayNames.join(", ")}`}
+            {heavyDayNames.length > 0 &&
+              ` · Heavy Day: ${heavyDayNames.join(", ")}`}
             {panic?.active && " · Express blitz mode"}
           </p>
           {guestsMode && (
@@ -98,7 +127,13 @@ function ChoresPage() {
   );
 }
 
-function EmptyPanel({ title, description }: { title: string; description: string }) {
+function EmptyPanel({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center">
       <h2 className="text-lg font-semibold">{title}</h2>

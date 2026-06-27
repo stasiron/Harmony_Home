@@ -1,5 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BarChart3, Calendar, CalendarCheck, Cpu, Home, Settings, ShoppingBasket, Users } from "lucide-react";
+import {
+  BarChart3,
+  Calendar,
+  CalendarCheck,
+  Cpu,
+  Home,
+  Settings,
+  ShoppingBasket,
+  Users,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +91,12 @@ function NavButton({
       >
         <Icon className={cn(compact ? "size-5" : "size-7")} strokeWidth={1.6} />
       </div>
-      <span className={cn("font-semibold tracking-tight", compact ? "text-sm" : "text-lg md:text-xl")}>
+      <span
+        className={cn(
+          "font-semibold tracking-tight",
+          compact ? "text-sm" : "text-lg md:text-xl",
+        )}
+      >
         {label}
       </span>
     </Link>

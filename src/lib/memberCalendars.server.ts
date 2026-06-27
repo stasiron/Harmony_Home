@@ -33,7 +33,10 @@ export async function fetchIcalText(url: string): Promise<string> {
   return res.text();
 }
 
-export function displaySummary(summary: string, display: "full" | "busy"): string {
+export function displaySummary(
+  summary: string,
+  display: "full" | "busy",
+): string {
   if (display === "busy") return "Zajęty";
   return summary || "Wydarzenie";
 }
@@ -62,7 +65,8 @@ function mapIcalSourceEvents(
       start: e.start.toISOString(),
       end: e.end?.toISOString() ?? null,
       isGuest:
-        source.memberId === "household" && isGuestCalendarEvent(e.summary, e.location),
+        source.memberId === "household" &&
+        isGuestCalendarEvent(e.summary, e.location),
       memberId: source.memberId,
       memberName: source.memberName,
       calendarId: source.id,
@@ -89,7 +93,11 @@ async function fetchIcalSources(
         const ical = await fetchIcalText(url);
         events.push(...mapIcalSourceEvents(source, ical, rangeStart, rangeEnd));
       } catch (error) {
-        logServerWarn("calendar:ical", { source: source.id, envKey: source.envKey, error });
+        logServerWarn("calendar:ical", {
+          source: source.id,
+          envKey: source.envKey,
+          error,
+        });
       }
     }),
   );
@@ -106,7 +114,12 @@ function mapGoogleApiEvent(
 ): CalendarFeedEvent {
   const summary = item.summary ?? "Wydarzenie";
   return {
-    id: feedEventId(connection.memberId, calendar.googleCalendarId, summary, new Date(start)),
+    id: feedEventId(
+      connection.memberId,
+      calendar.googleCalendarId,
+      summary,
+      new Date(start),
+    ),
     summary: displaySummary(summary, calendar.display),
     location: calendar.display === "busy" ? "" : (item.location ?? ""),
     start,
@@ -161,20 +174,32 @@ export async function fetchAllMemberCalendarEvents(
 
   for (const connection of oauthMembers) {
     try {
-      const memberEvents = await fetchOAuthMemberEvents(connection, rangeStart, rangeEnd);
+      const memberEvents = await fetchOAuthMemberEvents(
+        connection,
+        rangeStart,
+        rangeEnd,
+      );
       events.push(...memberEvents);
     } catch (error) {
       logServerWarn("calendar:oauth", { memberId: connection.memberId, error });
     }
   }
 
-  const icalEvents = await fetchIcalSources(rangeStart, rangeEnd, getIcalFallbackSources());
+  const icalEvents = await fetchIcalSources(
+    rangeStart,
+    rangeEnd,
+    getIcalFallbackSources(),
+  );
   events.push(...icalEvents);
 
-  const hasIcalEnv = getIcalFallbackSources().some((s) => resolveEnvCalendarUrl(s.envKey));
+  const hasIcalEnv = getIcalFallbackSources().some((s) =>
+    resolveEnvCalendarUrl(s.envKey),
+  );
   const configured = oauthMembers.length > 0 || hasIcalEnv;
 
-  events.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  events.sort(
+    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+  );
   return { configured, events };
 }
 

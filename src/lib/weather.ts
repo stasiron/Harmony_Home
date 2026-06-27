@@ -83,7 +83,8 @@ export async function fetchCzestochowaForecast(): Promise<WeatherForecast> {
   const params = new URLSearchParams({
     latitude: String(CZESTOCHOWA.latitude),
     longitude: String(CZESTOCHOWA.longitude),
-    current: "temperature_2m,weather_code,wind_speed_10m,precipitation_probability",
+    current:
+      "temperature_2m,weather_code,wind_speed_10m,precipitation_probability",
     hourly:
       "temperature_2m,precipitation_probability,precipitation,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_direction_10m,relative_humidity_2m,visibility",
     daily:
@@ -116,7 +117,9 @@ export async function fetchCzestochowaForecast(): Promise<WeatherForecast> {
   const hourly = data.hourly.time.map((time, i) => ({
     time,
     temperature: Math.round(data.hourly.temperature_2m[i]!),
-    precipitationProbability: Math.round(data.hourly.precipitation_probability[i] ?? 0),
+    precipitationProbability: Math.round(
+      data.hourly.precipitation_probability[i] ?? 0,
+    ),
     precipitation: Math.round((data.hourly.precipitation[i] ?? 0) * 10) / 10,
     cloudCover: Math.round(data.hourly.cloud_cover[i] ?? 0),
     cloudCoverLow: Math.round(data.hourly.cloud_cover_low[i] ?? 0),
@@ -133,7 +136,11 @@ export async function fetchCzestochowaForecast(): Promise<WeatherForecast> {
 
 export function formatHourlyChartLabel(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString("pl-PL", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString("pl-PL", {
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function formatHourlyTooltip(iso: string): string {
@@ -155,7 +162,11 @@ export function windDirectionLabel(degrees: number): string {
 export function formatForecastDay(dateIso: string, index: number): string {
   if (index === 0) return "Dziś";
   if (index === 1) return "Jutro";
-  return new Date(dateIso).toLocaleDateString("pl-PL", { weekday: "long", day: "numeric", month: "long" });
+  return new Date(dateIso).toLocaleDateString("pl-PL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 }
 
 /** WMO weather interpretation codes (Open-Meteo). */
@@ -178,7 +189,8 @@ export function weatherIconKind(code: number): WeatherIconKind {
   if (code === 0) return "sun";
   if (code <= 3) return "cloud";
   if (code <= 48) return "cloud";
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return "rain";
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95)
+    return "rain";
   return "cloud";
 }
 

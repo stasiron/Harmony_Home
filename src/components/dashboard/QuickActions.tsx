@@ -20,7 +20,8 @@ export function QuickActions() {
   useEffect(() => {
     if (!panic?.active) return;
     const end = new Date(panic.startedAt).getTime() + panic.minutes * 60 * 1000;
-    const tick = () => setRemaining(Math.max(0, Math.floor((end - Date.now()) / 1000)));
+    const tick = () =>
+      setRemaining(Math.max(0, Math.floor((end - Date.now()) / 1000)));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -41,13 +42,21 @@ export function QuickActions() {
               <Siren className="size-5" />
             </div>
             <div>
-              <div className="font-semibold text-alert">Guests Panic Button</div>
+              <div className="font-semibold text-alert">
+                Guests Panic Button
+              </div>
               <div className="text-xs text-muted-foreground">
-                {panic?.active ? `${fmt(remaining)} · ${visibleTasks.length} blitz tasks` : "Surprise guests incoming?"}
+                {panic?.active
+                  ? `${fmt(remaining)} · ${visibleTasks.length} blitz tasks`
+                  : "Surprise guests incoming?"}
               </div>
             </div>
           </div>
-          {panic?.active ? <Timer className="size-5 text-alert" /> : <Siren className="size-5 text-alert" />}
+          {panic?.active ? (
+            <Timer className="size-5 text-alert" />
+          ) : (
+            <Siren className="size-5 text-alert" />
+          )}
         </button>
       </div>
 
@@ -58,7 +67,8 @@ export function QuickActions() {
               <Siren className="size-5 text-alert" /> Express Blitzkrieg
             </DialogTitle>
             <DialogDescription>
-              How long until guests arrive? We'll surface only the absolute essentials and split them across active members.
+              How long until guests arrive? We'll surface only the absolute
+              essentials and split them across active members.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-3 gap-3 py-2">
@@ -78,7 +88,13 @@ export function QuickActions() {
           </div>
           {panic?.active && (
             <DialogFooter>
-              <Button variant="ghost" onClick={() => { endPanic(); setOpen(false); }}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  endPanic();
+                  setOpen(false);
+                }}
+              >
                 <X className="size-4" /> Cancel active panic
               </Button>
             </DialogFooter>

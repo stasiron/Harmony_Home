@@ -3,7 +3,8 @@ import type { CalendarDisplayMode } from "@/config/calendars/types";
 import type { MemberConnection } from "@/lib/calendarConnectionsStore.server";
 import { updateMemberConnection } from "@/lib/calendarConnectionsStore.server";
 
-export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
+export const GOOGLE_CALENDAR_SCOPE =
+  "https://www.googleapis.com/auth/calendar.readonly";
 export const GOOGLE_EMAIL_SCOPE = "email";
 
 type GoogleTokenResponse = {
@@ -52,7 +53,9 @@ export function getAppOrigin(requestUrl?: string): string {
     process.env.VERCEL_URL?.trim() ||
     process.env.NITRO_APP_BASE_URL?.trim();
   if (fromEnv) {
-    return fromEnv.startsWith("http") ? fromEnv.replace(/\/$/, "") : `https://${fromEnv}`;
+    return fromEnv.startsWith("http")
+      ? fromEnv.replace(/\/$/, "")
+      : `https://${fromEnv}`;
   }
   if (requestUrl) {
     const url = new URL(requestUrl);
@@ -67,16 +70,25 @@ function authSecret(): string {
   return secret;
 }
 
-export function signOAuthState(payload: { memberId: string; nonce: string }): string {
+export function signOAuthState(payload: {
+  memberId: string;
+  nonce: string;
+}): string {
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const sig = createHmac("sha256", authSecret()).update(data).digest("base64url");
+  const sig = createHmac("sha256", authSecret())
+    .update(data)
+    .digest("base64url");
   return `${data}.${sig}`;
 }
 
-export function verifyOAuthState(state: string): { memberId: string; nonce: string } | null {
+export function verifyOAuthState(
+  state: string,
+): { memberId: string; nonce: string } | null {
   const [data, sig] = state.split(".");
   if (!data || !sig) return null;
-  const expected = createHmac("sha256", authSecret()).update(data).digest("base64url");
+  const expected = createHmac("sha256", authSecret())
+    .update(data)
+    .digest("base64url");
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
@@ -90,7 +102,10 @@ export function verifyOAuthState(state: string): { memberId: string; nonce: stri
   }
 }
 
-export function buildGoogleAuthUrl(origin: string, memberId: string): string | null {
+export function buildGoogleAuthUrl(
+  origin: string,
+  memberId: string,
+): string | null {
   const cfg = getGoogleOAuthConfig();
   if (!cfg) return null;
 
@@ -158,7 +173,9 @@ export async function refreshGoogleAccessToken(
   return (await res.json()) as GoogleTokenResponse;
 }
 
-export async function fetchGoogleUserEmail(accessToken: string): Promise<string> {
+export async function fetchGoogleUserEmail(
+  accessToken: string,
+): Promise<string> {
   const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -167,16 +184,24 @@ export async function fetchGoogleUserEmail(accessToken: string): Promise<string>
   return data.email ?? "unknown@gmail.com";
 }
 
-export async function fetchGoogleCalendarList(accessToken: string): Promise<GoogleCalendarListItem[]> {
-  const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+export async function fetchGoogleCalendarList(
+  accessToken: string,
+): Promise<GoogleCalendarListItem[]> {
+  const res = await fetch(
+    "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
   if (!res.ok) throw new Error("google calendar list failed");
   const data = (await res.json()) as GoogleCalendarListResponse;
   return data.items ?? [];
 }
 
-function parseGoogleEventDate(value?: { dateTime?: string; date?: string }): Date | null {
+function parseGoogleEventDate(value?: {
+  dateTime?: string;
+  date?: string;
+}): Date | null {
   if (!value) return null;
   if (value.dateTime) return new Date(value.dateTime);
   if (value.date) return new Date(`${value.date}T00:00:00`);
@@ -206,7 +231,9 @@ export async function fetchGoogleCalendarEvents(
   return data.items ?? [];
 }
 
-export async function getMemberAccessToken(connection: MemberConnection): Promise<string> {
+export async function getMemberAccessToken(
+  connection: MemberConnection,
+): Promise<string> {
   const stillValid =
     connection.accessToken &&
     connection.accessTokenExpiresAt &&
@@ -220,7 +247,9 @@ export async function getMemberAccessToken(connection: MemberConnection): Promis
 
   const refreshed = await refreshGoogleAccessToken(connection.refreshToken);
   const accessToken = refreshed.access_token;
-  const expiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + refreshed.expires_in * 1000,
+  ).toISOString();
 
   await updateMemberConnection(connection.memberId, (current) => {
     if (!current) return current;

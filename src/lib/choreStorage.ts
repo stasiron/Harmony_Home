@@ -40,7 +40,8 @@ export function buildInitialTasks(): Task[] {
 
   const custom = userTasks.map((task) => ({
     ...task,
-    lastCompleted: progress[task.id] ?? task.lastCompleted ?? defaultLastCompleted(),
+    lastCompleted:
+      progress[task.id] ?? task.lastCompleted ?? defaultLastCompleted(),
   }));
 
   return [...permanent, ...custom];
@@ -49,7 +50,9 @@ export function buildInitialTasks(): Task[] {
 export function persistTasks(tasks: Task[]) {
   if (typeof window === "undefined") return;
 
-  const progress = Object.fromEntries(tasks.map((t) => [t.id, t.lastCompleted]));
+  const progress = Object.fromEntries(
+    tasks.map((t) => [t.id, t.lastCompleted]),
+  );
   const userTasks = tasks.filter((t) => !PERMANENT_CHORE_IDS.has(t.id));
 
   localStorage.setItem(

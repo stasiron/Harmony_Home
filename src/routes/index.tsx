@@ -9,12 +9,23 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Homebase · Smart Home & Chores" },
-      { name: "description", content: "A warm, minimalist kitchen-kiosk dashboard for chores, guests and smart-home automations." },
+      {
+        name: "description",
+        content:
+          "A warm, minimalist kitchen-kiosk dashboard for chores, guests and smart-home automations.",
+      },
       { property: "og:title", content: "Homebase · Smart Home & Chores" },
-      { property: "og:description", content: "Kiosk-ready chores & smart-home dashboard." },
+      {
+        property: "og:description",
+        content: "Kiosk-ready chores & smart-home dashboard.",
+      },
     ],
   }),
-  component: () => (<Shell><Dashboard /></Shell>),
+  component: () => (
+    <Shell>
+      <Dashboard />
+    </Shell>
+  ),
 });
 
 function Dashboard() {

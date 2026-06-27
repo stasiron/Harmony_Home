@@ -64,7 +64,13 @@ function toChartRows(hourly: WeatherHourPoint[]): ChartRow[] {
   }));
 }
 
-function ChartCard({ title, children }: { title: string; children: ReactNode }) {
+function ChartCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <div className="rounded-3xl border border-border bg-surface p-5 shadow-elevated">
       <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -89,15 +95,20 @@ function HourlyTooltip({
       <div className="font-medium">{formatHourlyTooltip(row.time)}</div>
       <div className="mt-1 space-y-0.5 text-muted-foreground">
         <div>Temp: {row.temperature}°C</div>
-        <div>Opady: {row.precipitationProbability}% · {row.precipitation} mm</div>
         <div>
-          Chmury: {row.cloudCover}% (n.{row.cloudCoverLow} / ś.{row.cloudCoverMid} / w.
+          Opady: {row.precipitationProbability}% · {row.precipitation} mm
+        </div>
+        <div>
+          Chmury: {row.cloudCover}% (n.{row.cloudCoverLow} / ś.
+          {row.cloudCoverMid} / w.
           {row.cloudCoverHigh})
         </div>
         <div>
           Wiatr: {row.windSpeed} km/h · {row.windLabel} ({row.windDirection}°)
         </div>
-        <div>Wilgotność: {row.humidity}% · Widoczność: {row.visibility} km</div>
+        <div>
+          Wilgotność: {row.humidity}% · Widoczność: {row.visibility} km
+        </div>
       </div>
     </div>
   );
@@ -132,7 +143,11 @@ export function WeatherForecastCharts({
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={hourlyData}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid
+                stroke="var(--color-border)"
+                strokeDasharray="3 3"
+                vertical={false}
+              />
               <XAxis {...xAxisProps} />
               <YAxis
                 stroke="var(--color-muted-foreground)"
@@ -158,7 +173,11 @@ export function WeatherForecastCharts({
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={hourlyData}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid
+                stroke="var(--color-border)"
+                strokeDasharray="3 3"
+                vertical={false}
+              />
               <XAxis {...xAxisProps} />
               <YAxis
                 yAxisId="pct"
@@ -202,9 +221,18 @@ export function WeatherForecastCharts({
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={hourlyData}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid
+                stroke="var(--color-border)"
+                strokeDasharray="3 3"
+                vertical={false}
+              />
               <XAxis {...xAxisProps} />
-              <YAxis stroke="var(--color-muted-foreground)" fontSize={12} unit="%" domain={[0, 100]} />
+              <YAxis
+                stroke="var(--color-muted-foreground)"
+                fontSize={12}
+                unit="%"
+                domain={[0, 100]}
+              />
               <Tooltip content={<HourlyTooltip />} />
               <Legend />
               <Line
@@ -251,9 +279,17 @@ export function WeatherForecastCharts({
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={hourlyData}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid
+                stroke="var(--color-border)"
+                strokeDasharray="3 3"
+                vertical={false}
+              />
               <XAxis {...xAxisProps} />
-              <YAxis stroke="var(--color-muted-foreground)" fontSize={12} unit=" km/h" />
+              <YAxis
+                stroke="var(--color-muted-foreground)"
+                fontSize={12}
+                unit=" km/h"
+              />
               <Tooltip content={<HourlyTooltip />} />
               <Area
                 type="monotone"
@@ -276,9 +312,19 @@ export function WeatherForecastCharts({
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={hourlyData}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid
+                stroke="var(--color-border)"
+                strokeDasharray="3 3"
+                vertical={false}
+              />
               <XAxis {...xAxisProps} />
-              <YAxis yAxisId="hum" stroke="var(--color-chart-2)" fontSize={12} unit="%" domain={[0, 100]} />
+              <YAxis
+                yAxisId="hum"
+                stroke="var(--color-chart-2)"
+                fontSize={12}
+                unit="%"
+                domain={[0, 100]}
+              />
               <YAxis
                 yAxisId="vis"
                 orientation="right"
@@ -315,13 +361,38 @@ export function WeatherForecastCharts({
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={dailyData}>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={12} />
-              <YAxis stroke="var(--color-muted-foreground)" fontSize={12} unit="°" />
-              <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${value}°C`]} />
+              <CartesianGrid
+                stroke="var(--color-border)"
+                strokeDasharray="3 3"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="name"
+                stroke="var(--color-muted-foreground)"
+                fontSize={12}
+              />
+              <YAxis
+                stroke="var(--color-muted-foreground)"
+                fontSize={12}
+                unit="°"
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                formatter={(value) => [`${value}°C`]}
+              />
               <Legend />
-              <Bar dataKey="max" name="Maks." fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="min" name="Min." fill="var(--color-muted-foreground)" radius={[6, 6, 0, 0]} />
+              <Bar
+                dataKey="max"
+                name="Maks."
+                fill="var(--color-primary)"
+                radius={[6, 6, 0, 0]}
+              />
+              <Bar
+                dataKey="min"
+                name="Min."
+                fill="var(--color-muted-foreground)"
+                radius={[6, 6, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -4,10 +4,25 @@ import { useApp } from "@/context/AppContext";
 export function StatusBanner() {
   const { guestsMode, alertCount, panic } = useApp();
 
-  const items: { key: string; text: string; tone: "alert" | "warn" | "accent" }[] = [];
-  if (panic?.active) items.push({ key: "panic", text: `PANIC · guests in ${panic.minutes} min`, tone: "alert" });
-  if (guestsMode) items.push({ key: "guests", text: "Guests Mode Active", tone: "accent" });
-  if (alertCount > 0) items.push({ key: "alert", text: `${alertCount} Red Alert${alertCount > 1 ? "s" : ""}`, tone: "alert" });
+  const items: {
+    key: string;
+    text: string;
+    tone: "alert" | "warn" | "accent";
+  }[] = [];
+  if (panic?.active)
+    items.push({
+      key: "panic",
+      text: `PANIC · guests in ${panic.minutes} min`,
+      tone: "alert",
+    });
+  if (guestsMode)
+    items.push({ key: "guests", text: "Guests Mode Active", tone: "accent" });
+  if (alertCount > 0)
+    items.push({
+      key: "alert",
+      text: `${alertCount} Red Alert${alertCount > 1 ? "s" : ""}`,
+      tone: "alert",
+    });
 
   if (items.length === 0) return null;
 
@@ -25,7 +40,11 @@ export function StatusBanner() {
                 : "bg-accent/20 text-accent")
           }
         >
-          {it.key === "guests" ? <Users className="size-4" /> : <AlertOctagon className="size-4" />}
+          {it.key === "guests" ? (
+            <Users className="size-4" />
+          ) : (
+            <AlertOctagon className="size-4" />
+          )}
           {it.text}
         </div>
       ))}

@@ -54,7 +54,8 @@ async function writeToFile(store: CalendarConnectionsStore) {
 }
 
 async function readFromKv(): Promise<CalendarConnectionsStore | null> {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) return null;
+  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN)
+    return null;
   try {
     const { kv } = await import("@vercel/kv");
     const value = await kv.get<CalendarConnectionsStore>(STORE_KEY);
@@ -76,7 +77,9 @@ export async function readCalendarConnectionsStore(): Promise<CalendarConnection
   return readFromFile();
 }
 
-export async function writeCalendarConnectionsStore(store: CalendarConnectionsStore) {
+export async function writeCalendarConnectionsStore(
+  store: CalendarConnectionsStore,
+) {
   await writeToFile(store);
   await writeToKv(store);
 }
@@ -89,7 +92,9 @@ export async function upsertMemberConnection(connection: MemberConnection) {
 
 export async function updateMemberConnection(
   memberId: string,
-  updater: (current: MemberConnection | undefined) => MemberConnection | undefined,
+  updater: (
+    current: MemberConnection | undefined,
+  ) => MemberConnection | undefined,
 ) {
   const store = await readCalendarConnectionsStore();
   const next = updater(store.members[memberId]);

@@ -15,10 +15,21 @@ export const Route = createFileRoute("/kitchen")({
       { name: "description", content: "Shopping list and household recipes." },
     ],
   }),
-  component: () => (<Shell><KitchenPage /></Shell>),
+  component: () => (
+    <Shell>
+      <KitchenPage />
+    </Shell>
+  ),
 });
 
-const CATEGORY_ORDER: ShoppingCategory[] = ["produce", "dairy", "bakery", "pantry", "frozen", "household"];
+const CATEGORY_ORDER: ShoppingCategory[] = [
+  "produce",
+  "dairy",
+  "bakery",
+  "pantry",
+  "frozen",
+  "household",
+];
 
 function KitchenPage() {
   const { shopping, toggleShopping, recipes, addShopping } = useApp();
@@ -26,8 +37,12 @@ function KitchenPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Kitchen</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Shopping list and favorite recipes.</p>
+        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+          Kitchen
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Shopping list and favorite recipes.
+        </p>
       </header>
 
       <Tabs defaultValue="shopping">
@@ -60,11 +75,21 @@ function KitchenPage() {
                           idx > 0 && "border-t border-border",
                         )}
                       >
-                        <Checkbox checked={s.checked} onCheckedChange={() => toggleShopping(s.id)} />
-                        <span className={cn("flex-1 min-w-0 truncate", s.checked && "text-muted-foreground line-through")}>
+                        <Checkbox
+                          checked={s.checked}
+                          onCheckedChange={() => toggleShopping(s.id)}
+                        />
+                        <span
+                          className={cn(
+                            "flex-1 min-w-0 truncate",
+                            s.checked && "text-muted-foreground line-through",
+                          )}
+                        >
                           {s.name}
                         </span>
-                        <span className="shrink-0 text-xs text-muted-foreground">{s.qty}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {s.qty}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -91,7 +116,9 @@ function KitchenPage() {
                     <div className="min-w-0">
                       <div className="text-3xl">{r.emoji}</div>
                       <div className="mt-2 text-lg font-semibold">{r.name}</div>
-                      <div className="text-xs text-muted-foreground">{r.timeMinutes} min</div>
+                      <div className="text-xs text-muted-foreground">
+                        {r.timeMinutes} min
+                      </div>
                     </div>
                   </div>
                   <ul className="space-y-1 text-sm text-muted-foreground">
@@ -119,7 +146,13 @@ function KitchenPage() {
   );
 }
 
-function EmptyPanel({ title, description }: { title: string; description: string }) {
+function EmptyPanel({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center">
       <h2 className="text-lg font-semibold">{title}</h2>

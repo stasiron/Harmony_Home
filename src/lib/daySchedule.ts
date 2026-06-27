@@ -43,7 +43,11 @@ export function formatHourLabel(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
-export function isAllDayEvent(startIso: string, endIso: string | null, day: Date): boolean {
+export function isAllDayEvent(
+  startIso: string,
+  endIso: string | null,
+  day: Date,
+): boolean {
   const start = new Date(startIso);
   if (!endIso) return start.getHours() < DAY_START_HOUR;
   const end = new Date(endIso);
@@ -51,7 +55,10 @@ export function isAllDayEvent(startIso: string, endIso: string | null, day: Date
   return durationMins >= 12 * 60 || start.getHours() < DAY_START_HOUR;
 }
 
-export function eventDurationMinutes(startIso: string, endIso: string | null): number {
+export function eventDurationMinutes(
+  startIso: string,
+  endIso: string | null,
+): number {
   const start = new Date(startIso);
   if (!endIso) return 60;
   const end = new Date(endIso);

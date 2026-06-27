@@ -11,7 +11,14 @@ interface Props {
   tone?: "default" | "alert" | "accent";
 }
 
-export function Tile({ to, title, subtitle, icon: Icon, meta, tone = "default" }: Props) {
+export function Tile({
+  to,
+  title,
+  subtitle,
+  icon: Icon,
+  meta,
+  tone = "default",
+}: Props) {
   const toneClass =
     tone === "alert"
       ? "from-alert/20 via-surface to-card border-alert/30"
@@ -31,9 +38,15 @@ export function Tile({ to, title, subtitle, icon: Icon, meta, tone = "default" }
         <ArrowUpRight className="size-5 text-muted-foreground transition-transform group-hover:rotate-45" />
       </div>
       <div>
-        <div className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</div>
+        <div className="text-2xl font-semibold tracking-tight md:text-3xl">
+          {title}
+        </div>
         <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div>
-        {meta && <div className="mt-3 text-xs font-medium uppercase tracking-wider text-primary">{meta}</div>}
+        {meta && (
+          <div className="mt-3 text-xs font-medium uppercase tracking-wider text-primary">
+            {meta}
+          </div>
+        )}
       </div>
     </Link>
   );

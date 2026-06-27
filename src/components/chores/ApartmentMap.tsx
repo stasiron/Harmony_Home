@@ -75,7 +75,11 @@ export function ApartmentMap({
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-elevated">
       <div className="relative w-full">
-        <img src={FLOOR_PLAN_SRC} alt="Plan mieszkania" className="block h-auto w-full" />
+        <img
+          src={FLOOR_PLAN_SRC}
+          alt="Plan mieszkania"
+          className="block h-auto w-full"
+        />
         <div className="absolute inset-0">
           {pins.map(({ key, task, x, y, status }) => (
             <div

@@ -6,7 +6,11 @@ import { shouldExposeErrors } from "./lib/diagnostics";
 import { handleApiRequest } from "./server/api-routes";
 
 type ServerEntry = {
-  fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
+  fetch: (
+    request: Request,
+    env: unknown,
+    ctx: unknown,
+  ) => Promise<Response> | Response;
 };
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
@@ -22,22 +26,31 @@ async function getServerEntry(): Promise<ServerEntry> {
 
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
-async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
+async function normalizeCatastrophicSsrResponse(
+  response: Response,
+): Promise<Response> {
   if (response.status < 500) return response;
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) return response;
 
   const body = await response.clone().text();
-  if (!body.includes('"unhandled":true') || !body.includes('"message":"HTTPError"')) {
+  if (
+    !body.includes('"unhandled":true') ||
+    !body.includes('"message":"HTTPError"')
+  ) {
     return response;
   }
 
-  const swallowed = consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`);
+  const swallowed =
+    consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`);
   console.error(swallowed);
-  return new Response(renderErrorPage(shouldExposeErrors() ? swallowed : undefined), {
-    status: 500,
-    headers: { "content-type": "text/html; charset=utf-8" },
-  });
+  return new Response(
+    renderErrorPage(shouldExposeErrors() ? swallowed : undefined),
+    {
+      status: 500,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    },
+  );
 }
 
 export default {
@@ -62,10 +75,13 @@ export default {
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(shouldExposeErrors() ? error : undefined), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      return new Response(
+        renderErrorPage(shouldExposeErrors() ? error : undefined),
+        {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        },
+      );
     }
   },
 };

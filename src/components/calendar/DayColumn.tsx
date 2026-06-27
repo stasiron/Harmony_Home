@@ -60,8 +60,11 @@ export function DayColumn({
     };
   }, [events, guestPlans, day]);
 
-  const allDayPlans = guestPlans.filter((p) => isAllDayEvent(p.when, null, day));
-  const hasAllDay = allDayEvents.length > 0 || chores.length > 0 || allDayPlans.length > 0;
+  const allDayPlans = guestPlans.filter((p) =>
+    isAllDayEvent(p.when, null, day),
+  );
+  const hasAllDay =
+    allDayEvents.length > 0 || chores.length > 0 || allDayPlans.length > 0;
   const nowLineTop = currentTimeTopPx(day, now);
 
   const hasAnything =
@@ -78,7 +81,12 @@ export function DayColumn({
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           {format(day, "EEE", { locale: pl })}
         </p>
-        <p className={cn("text-2xl font-semibold tabular-nums", today && "text-primary")}>
+        <p
+          className={cn(
+            "text-2xl font-semibold tabular-nums",
+            today && "text-primary",
+          )}
+        >
           {format(day, "d MMM", { locale: pl })}
         </p>
       </header>
@@ -101,7 +109,11 @@ export function DayColumn({
               />
             ))}
             {allDayPlans.map((plan) => (
-              <AllDayChoreChip key={plan.id} label={plan.notes || "Plan gości"} tone="guest" />
+              <AllDayChoreChip
+                key={plan.id}
+                label={plan.notes || "Plan gości"}
+                tone="guest"
+              />
             ))}
           </div>
         </div>
@@ -117,19 +129,30 @@ export function DayColumn({
               <div
                 key={hour}
                 className="absolute right-2 -translate-y-1/2 text-[10px] tabular-nums text-muted-foreground"
-                style={{ top: (hour - DAY_START_HOUR) * (DAY_GRID_HEIGHT_PX / DAY_HOUR_LABELS.length) }}
+                style={{
+                  top:
+                    (hour - DAY_START_HOUR) *
+                    (DAY_GRID_HEIGHT_PX / DAY_HOUR_LABELS.length),
+                }}
               >
                 {formatHourLabel(hour)}
               </div>
             ))}
           </div>
 
-          <div className="relative min-w-0 flex-1" style={{ height: DAY_GRID_HEIGHT_PX }}>
+          <div
+            className="relative min-w-0 flex-1"
+            style={{ height: DAY_GRID_HEIGHT_PX }}
+          >
             {DAY_HOUR_LABELS.map((hour) => (
               <div
                 key={hour}
                 className="absolute inset-x-0 border-t border-border/40"
-                style={{ top: (hour - DAY_START_HOUR) * (DAY_GRID_HEIGHT_PX / DAY_HOUR_LABELS.length) }}
+                style={{
+                  top:
+                    (hour - DAY_START_HOUR) *
+                    (DAY_GRID_HEIGHT_PX / DAY_HOUR_LABELS.length),
+                }}
               />
             ))}
             <div
@@ -273,12 +296,16 @@ function TimedBlock({
           : {}),
       }}
     >
-      <time className="text-[10px] tabular-nums text-muted-foreground">{time}</time>
+      <time className="text-[10px] tabular-nums text-muted-foreground">
+        {time}
+      </time>
       <p className="font-medium">{summary}</p>
       {event && (
         <p className="truncate text-[10px] text-muted-foreground">
           {event.calendarLabel}
-          {!isBusy && event.memberName !== "Dom" ? ` · ${event.memberName}` : ""}
+          {!isBusy && event.memberName !== "Dom"
+            ? ` · ${event.memberName}`
+            : ""}
         </p>
       )}
     </div>

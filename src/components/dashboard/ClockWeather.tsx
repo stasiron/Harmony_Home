@@ -44,7 +44,11 @@ export function ClockWeather() {
     };
   }, []);
 
-  const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  const time = now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
   const date = now.toLocaleDateString([], {
     weekday: "long",
     month: "long",
@@ -57,21 +61,26 @@ export function ClockWeather() {
         <div className="tabular-clock text-7xl font-extralight leading-none md:text-8xl lg:text-9xl">
           {time}
         </div>
-        <div className="mt-2 text-sm text-muted-foreground md:text-base">{date}</div>
+        <div className="mt-2 text-sm text-muted-foreground md:text-base">
+          {date}
+        </div>
       </div>
 
       <Link
         to="/weather"
         className={cn(
           "flex items-center gap-5 self-end rounded-3xl bg-surface px-6 py-4 transition-colors lg:justify-self-end",
-          weather && "hover:bg-surface-elevated hover:ring-1 hover:ring-primary/20",
+          weather &&
+            "hover:bg-surface-elevated hover:ring-1 hover:ring-primary/20",
         )}
       >
         {weather ? (
           <>
             <WeatherIcon code={weather.weatherCode} />
             <div>
-              <div className="text-3xl font-light tabular-clock">{weather.temperature}°</div>
+              <div className="text-3xl font-light tabular-clock">
+                {weather.temperature}°
+              </div>
               <div className="text-xs text-muted-foreground">
                 {weatherLabel(weather.weatherCode)} · {WEATHER_CITY}
               </div>
@@ -80,7 +89,8 @@ export function ClockWeather() {
                   <Wind className="size-3" /> {weather.windSpeed} km/h
                 </span>
                 <span className="flex items-center gap-1">
-                  <CloudRain className="size-3" /> {weather.precipitationProbability}%
+                  <CloudRain className="size-3" />{" "}
+                  {weather.precipitationProbability}%
                 </span>
               </div>
             </div>

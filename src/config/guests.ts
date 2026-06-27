@@ -13,7 +13,11 @@ export const GUEST_TITLE_KEYWORDS = [
 ] as const;
 
 /** Lokalizacja — wystarczy fragment „Andersa” + Częstochowa. */
-export const GUEST_LOCATION_MARKERS = ["andersa", "częstochowa", "czestochowa"] as const;
+export const GUEST_LOCATION_MARKERS = [
+  "andersa",
+  "częstochowa",
+  "czestochowa",
+] as const;
 
 /** Po starcie wydarzenia tryb gości trzyma się jeszcze tyle godzin. */
 export const GUEST_TAIL_HOURS = 3;

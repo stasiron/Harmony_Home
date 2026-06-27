@@ -21,7 +21,10 @@ export const Route = createFileRoute("/members")({
   head: () => ({
     meta: [
       { title: "Members · Homebase" },
-      { name: "description", content: "Household members and their assigned chores." },
+      {
+        name: "description",
+        content: "Household members and their assigned chores.",
+      },
     ],
   }),
   component: () => (
@@ -57,7 +60,9 @@ function MembersPage() {
     <div className="space-y-8">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
         <div className="min-w-0">
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Household members</h1>
+          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+            Household members
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Tap a person to see chores assigned to them.
           </p>
@@ -84,7 +89,11 @@ function MembersPage() {
                   onKeyDown={(e) => e.key === "Enter" && handleAddMember()}
                 />
               </div>
-              <Button className="w-full" onClick={handleAddMember} disabled={!name.trim()}>
+              <Button
+                className="w-full"
+                onClick={handleAddMember}
+                disabled={!name.trim()}
+              >
                 Dodaj
               </Button>
             </div>
@@ -108,7 +117,9 @@ function MembersPage() {
                 user={user}
                 taskCount={tasks.filter((t) => t.assignedTo === user.id).length}
                 selected={selectedId === user.id}
-                onSelect={() => setSelectedId((id) => (id === user.id ? null : user.id))}
+                onSelect={() =>
+                  setSelectedId((id) => (id === user.id ? null : user.id))
+                }
               />
             ))}
           </section>
@@ -124,7 +135,9 @@ function MembersPage() {
               </h2>
               {memberTasks.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-12 text-center">
-                  <p className="text-sm text-muted-foreground">No chores assigned to {selected.name}.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No chores assigned to {selected.name}.
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -186,7 +199,13 @@ function MemberCard({
   );
 }
 
-function HeavyDayToggle({ user, onToggle }: { user: User; onToggle: () => void }) {
+function HeavyDayToggle({
+  user,
+  onToggle,
+}: {
+  user: User;
+  onToggle: () => void;
+}) {
   return (
     <button
       type="button"

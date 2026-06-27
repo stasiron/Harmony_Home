@@ -36,7 +36,11 @@ export function MapPinPicker({ pins, onChange, className }: Props) {
         onKeyDown={() => {}}
         className="relative cursor-crosshair overflow-hidden rounded-2xl border border-dashed border-primary/40 bg-surface"
       >
-        <img src={FLOOR_PLAN_SRC} alt="" className="pointer-events-none block h-auto w-full select-none" />
+        <img
+          src={FLOOR_PLAN_SRC}
+          alt=""
+          className="pointer-events-none block h-auto w-full select-none"
+        />
         <div className="pointer-events-none absolute inset-0">
           {pins.map((pin, index) => (
             <div

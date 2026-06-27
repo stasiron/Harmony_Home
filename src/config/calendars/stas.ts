@@ -28,6 +28,13 @@ export const stasCalendars: MemberCalendarsConfig = {
   ],
   calendars: [
     {
+      id: "google-primary",
+      label: "Google Calendar",
+      display: "full",
+      color: "chart-3",
+      envKey: "STAS_GOOGLE_CALENDAR_ICAL_URL",
+    },
+    {
       id: "extra-classes",
       label: "Zajęcia dodatkowe",
       display: "full",

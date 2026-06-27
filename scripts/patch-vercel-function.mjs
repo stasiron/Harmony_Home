@@ -1,4 +1,10 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -19,7 +25,8 @@ cpSync(tslibRoot, targetDir, { recursive: true });
 
 const pkgPath = join(funcDir, "package.json");
 const tslibVersion =
-  JSON.parse(readFileSync(join(tslibRoot, "package.json"), "utf8")).version ?? "2.8.1";
+  JSON.parse(readFileSync(join(tslibRoot, "package.json"), "utf8")).version ??
+  "2.8.1";
 
 writeFileSync(
   pkgPath,
@@ -36,4 +43,6 @@ writeFileSync(
   ) + "\n",
 );
 
-console.log(`[patch-vercel-function] copied tslib@${tslibVersion} -> ${targetDir}`);
+console.log(
+  `[patch-vercel-function] copied tslib@${tslibVersion} -> ${targetDir}`,
+);
