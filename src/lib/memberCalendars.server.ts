@@ -1,4 +1,6 @@
 import { getIcalFallbackSources } from "@/config/calendars";
+import type { CalendarFeedResult } from "@/lib/calendar-feed-types";
+import { logServerWarn } from "@/lib/serverLog";
 import {
   readCalendarConnectionsStore,
   type MemberConnection,
@@ -86,8 +88,8 @@ async function fetchIcalSources(
       try {
         const ical = await fetchIcalText(url);
         events.push(...mapIcalSourceEvents(source, ical, rangeStart, rangeEnd));
-      } catch {
-        // skip broken feed
+      } catch (error) {
+        logServerWarn("calendar:ical", { source: source.id, envKey: source.envKey, error });
       }
     }),
   );
@@ -161,8 +163,8 @@ export async function fetchAllMemberCalendarEvents(
     try {
       const memberEvents = await fetchOAuthMemberEvents(connection, rangeStart, rangeEnd);
       events.push(...memberEvents);
-    } catch {
-      // skip member with invalid token
+    } catch (error) {
+      logServerWarn("calendar:oauth", { memberId: connection.memberId, error });
     }
   }
 
@@ -174,4 +176,11 @@ export async function fetchAllMemberCalendarEvents(
 
   events.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   return { configured, events };
+}
+
+export async function fetchCalendarEventsImpl(data: {
+  from: string;
+  to: string;
+}): Promise<CalendarFeedResult> {
+  return fetchAllMemberCalendarEvents(new Date(data.from), new Date(data.to));
 }

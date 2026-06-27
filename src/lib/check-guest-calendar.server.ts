@@ -1,4 +1,5 @@
 import { GUEST_LEAD_HOURS, GUEST_TAIL_HOURS } from "@/config/guests";
+import { logServerWarn } from "@/lib/serverLog";
 import type { GuestCalendarStatus } from "@/lib/calendar-feed-types";
 import {
   fetchGoogleCalendarIcal,
@@ -15,7 +16,14 @@ function isGuestWindowActive(start: Date, end: Date | null, now: number): boolea
 }
 
 export async function runCheckGuestCalendar(): Promise<GuestCalendarStatus> {
-  const ical = await fetchGoogleCalendarIcal();
+  let ical: string | null;
+  try {
+    ical = await fetchGoogleCalendarIcal();
+  } catch (error) {
+    logServerWarn("guest-calendar", error);
+    return { active: false, eventTitle: null, eventStart: null, configured: true };
+  }
+
   if (!ical) {
     return { active: false, eventTitle: null, eventStart: null, configured: false };
   }

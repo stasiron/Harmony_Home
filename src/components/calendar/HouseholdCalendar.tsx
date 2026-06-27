@@ -2,33 +2,18 @@ import { useServerFn } from "@tanstack/react-start";
 import { format, isSameDay } from "date-fns";
 import { pl } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { DayColumn } from "@/components/calendar/DayColumn";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useApp } from "@/context/AppContext";
-import {
-  choresDueOnDate,
-  dateHasChoreDue,
-  guestPlansOnDate,
-  statusOfTaskOnDate,
-} from "@/lib/choreCalendar";
-import {
-  CALENDAR_VIEW_OPTIONS,
-  formatRangeLabel,
-  getDaysInView,
-  getViewRange,
-  shiftAnchor,
-  type CalendarViewMode,
-} from "@/lib/calendarView";
-import { fetchCalendarEvents } from "@/lib/fetchCalendarEvents";
+import { statusOfTaskOnDate } from "@/lib/choreCalendar";
+import type { GuestPlan, Task } from "@/types";
+import { CALENDAR_VIEW_OPTIONS } from "@/lib/calendarView";
 import type { CalendarFeedEvent } from "@/lib/calendar-feed-types";
+import { useHouseholdCalendar } from "@/hooks/useHouseholdCalendar";
 import { cn } from "@/lib/utils";
-
-function eventsOnDay(events: CalendarFeedEvent[], day: Date) {
-  return events.filter((e) => isSameDay(new Date(e.start), day));
-}
 
 function formatEventTime(iso: string) {
   return format(new Date(iso), "HH:mm", { locale: pl });
@@ -36,90 +21,7 @@ function formatEventTime(iso: string) {
 
 export function HouseholdCalendar() {
   const { tasks, guestPlans, guestsMode, users } = useApp();
-  const loadEvents = useServerFn(fetchCalendarEvents);
-
-  const [viewMode, setViewMode] = useState<CalendarViewMode>("3");
-  const [anchor, setAnchor] = useState(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-  const [selected, setSelected] = useState<Date | undefined>(() => new Date());
-  const [events, setEvents] = useState<CalendarFeedEvent[]>([]);
-  const [configured, setConfigured] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  const range = useMemo(() => getViewRange(viewMode, anchor), [viewMode, anchor]);
-  const daysInView = useMemo(() => getDaysInView(viewMode, anchor), [viewMode, anchor]);
-  const rangeLabel = useMemo(() => formatRangeLabel(viewMode, anchor), [viewMode, anchor]);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const result = await loadEvents({
-        data: { from: range.from.toISOString(), to: range.to.toISOString() },
-      });
-      setEvents(result.events);
-      setConfigured(result.configured);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [loadEvents, range.from, range.to]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const handleViewChange = (value: string) => {
-    if (!value) return;
-    const mode = value as CalendarViewMode;
-    setViewMode(mode);
-    if (mode === "month") {
-      setAnchor(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
-    } else {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      setAnchor(today);
-      setSelected(today);
-    }
-  };
-
-  const selectedDay = selected ?? new Date();
-  const dayEvents = useMemo(() => eventsOnDay(events, selectedDay), [events, selectedDay]);
-  const dayChores = useMemo(
-    () => choresDueOnDate(tasks, selectedDay, guestsMode),
-    [tasks, selectedDay, guestsMode],
-  );
-  const dayGuestPlans = useMemo(
-    () => guestPlansOnDate(guestPlans, selectedDay),
-    [guestPlans, selectedDay],
-  );
-
-  const modifiers = useMemo(
-    () => ({
-      google: (day: Date) => eventsOnDay(events, day).length > 0,
-      guest: (day: Date) => eventsOnDay(events, day).some((e) => e.isGuest),
-      chore: (day: Date) => dateHasChoreDue(tasks, day, guestsMode),
-      plan: (day: Date) => guestPlansOnDate(guestPlans, day).length > 0,
-    }),
-    [events, tasks, guestPlans, guestsMode],
-  );
-
-  const modifiersClassNames = {
-    google:
-      "[&_button]:relative [&_button]:after:absolute [&_button]:after:bottom-1 [&_button]:after:left-1/2 [&_button]:after:size-1.5 [&_button]:after:-translate-x-1/2 [&_button]:after:rounded-full [&_button]:after:bg-primary",
-    guest:
-      "[&_button]:ring-1 [&_button]:ring-accent/50 [&_button]:after:bg-accent",
-    chore:
-      "[&_button]:before:absolute [&_button]:before:bottom-1 [&_button]:before:right-1/2 [&_button]:before:mr-2 [&_button]:before:size-1.5 [&_button]:before:rounded-full [&_button]:before:bg-warn [&_button]:before:content-['']",
-    plan: "[&_button]:bg-accent/10",
-  };
-
-  const isMonthView = viewMode === "month";
+  const cal = useHouseholdCalendar(tasks, guestPlans, guestsMode);
 
   return (
     <div className="space-y-4">
@@ -130,20 +32,20 @@ export function HouseholdCalendar() {
             variant="outline"
             size="icon"
             className="shrink-0 rounded-xl"
-            onClick={() => setAnchor((prev) => shiftAnchor(viewMode, prev, -1))}
+            onClick={() => cal.shiftPeriod(-1)}
             aria-label="Poprzedni okres"
           >
             <ChevronLeft className="size-4" />
           </Button>
           <h2 className="min-w-[10rem] text-center text-lg font-semibold capitalize tracking-tight">
-            {rangeLabel}
+            {cal.rangeLabel}
           </h2>
           <Button
             type="button"
             variant="outline"
             size="icon"
             className="shrink-0 rounded-xl"
-            onClick={() => setAnchor((prev) => shiftAnchor(viewMode, prev, 1))}
+            onClick={() => cal.shiftPeriod(1)}
             aria-label="Następny okres"
           >
             <ChevronRight className="size-4" />
@@ -152,8 +54,8 @@ export function HouseholdCalendar() {
 
         <ToggleGroup
           type="single"
-          value={viewMode}
-          onValueChange={handleViewChange}
+          value={cal.viewMode}
+          onValueChange={cal.handleViewChange}
           className="rounded-2xl border border-border bg-surface p-1"
         >
           {CALENDAR_VIEW_OPTIONS.map((opt) => (
@@ -168,31 +70,27 @@ export function HouseholdCalendar() {
         </ToggleGroup>
       </div>
 
-      {isMonthView ? (
+      {cal.isMonthView ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-          <CalendarPanel
-            configured={configured}
-            loading={loading}
-            error={error}
-          >
+          <CalendarPanel configured={cal.configured} loading={cal.loading} error={cal.error} errorDetail={cal.errorDetail}>
             <Calendar
               mode="single"
-              selected={selected}
-              onSelect={setSelected}
-              month={anchor}
-              onMonthChange={setAnchor}
+              selected={cal.selected}
+              onSelect={cal.setSelected}
+              month={cal.anchor}
+              onMonthChange={cal.setAnchor}
               locale={pl}
-              modifiers={modifiers}
-              modifiersClassNames={modifiersClassNames}
+              modifiers={cal.modifiers}
+              modifiersClassNames={MODIFIERS_CLASS_NAMES}
               className="mx-auto w-full [--cell-size:2.75rem] sm:[--cell-size:3rem]"
             />
           </CalendarPanel>
 
           <DayDetailPanel
-            day={selectedDay}
-            events={dayEvents}
-            chores={dayChores}
-            guestPlans={dayGuestPlans}
+            day={cal.selectedDay}
+            events={cal.dayBundle.events}
+            chores={cal.dayBundle.chores}
+            guestPlans={cal.dayBundle.guestPlans}
             guestsMode={guestsMode}
             users={users}
           />
@@ -201,48 +99,72 @@ export function HouseholdCalendar() {
         <div
           className={cn(
             "grid items-start gap-3",
-            viewMode === "3" && "grid-cols-1 md:grid-cols-3",
-            viewMode === "7" && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7",
-            viewMode === "14" &&
+            cal.viewMode === "3" && "grid-cols-1 md:grid-cols-3",
+            cal.viewMode === "7" && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7",
+            cal.viewMode === "14" &&
               "grid-flow-col auto-cols-[minmax(220px,1fr)] grid-cols-none overflow-x-auto pb-2",
           )}
         >
-          {daysInView.map((day) => (
-            <DayColumn
-              key={day.toISOString()}
-              day={day}
-              events={eventsOnDay(events, day)}
-              chores={choresDueOnDate(tasks, day, guestsMode)}
-              guestPlans={guestPlansOnDate(guestPlans, day)}
-              guestsMode={guestsMode}
-              users={users}
-            />
-          ))}
+          {cal.daysInView.map((day) => {
+            const bundle = cal.getDayBundle(day);
+            return (
+              <DayColumn
+                key={day.toISOString()}
+                day={day}
+                events={bundle.events}
+                chores={bundle.chores}
+                guestPlans={bundle.guestPlans}
+                guestsMode={guestsMode}
+                users={users}
+              />
+            );
+          })}
         </div>
       )}
 
-      {!isMonthView && (
-        <CalendarFooter configured={configured} loading={loading} error={error} />
+      {!cal.isMonthView && (
+        <CalendarFooter
+          configured={cal.configured}
+          loading={cal.loading}
+          error={cal.error}
+          errorDetail={cal.errorDetail}
+        />
       )}
     </div>
   );
 }
+
+const MODIFIERS_CLASS_NAMES = {
+  google:
+    "[&_button]:relative [&_button]:after:absolute [&_button]:after:bottom-1 [&_button]:after:left-1/2 [&_button]:after:size-1.5 [&_button]:after:-translate-x-1/2 [&_button]:after:rounded-full [&_button]:after:bg-primary",
+  guest: "[&_button]:ring-1 [&_button]:ring-accent/50 [&_button]:after:bg-accent",
+  chore:
+    "[&_button]:before:absolute [&_button]:before:bottom-1 [&_button]:before:right-1/2 [&_button]:before:mr-2 [&_button]:before:size-1.5 [&_button]:before:rounded-full [&_button]:before:bg-warn [&_button]:before:content-['']",
+  plan: "[&_button]:bg-accent/10",
+};
 
 function CalendarPanel({
   children,
   configured,
   loading,
   error,
+  errorDetail,
 }: {
   children: ReactNode;
   configured: boolean;
   loading: boolean;
   error: boolean;
+  errorDetail: string | null;
 }) {
   return (
     <section className="rounded-3xl border border-border bg-gradient-to-br from-surface-elevated via-surface to-card p-4 shadow-elevated sm:p-6">
       {children}
-      <CalendarFooter configured={configured} loading={loading} error={error} />
+      <CalendarFooter
+        configured={configured}
+        loading={loading}
+        error={error}
+        errorDetail={errorDetail}
+      />
     </section>
   );
 }
@@ -251,10 +173,12 @@ function CalendarFooter({
   configured,
   loading,
   error,
+  errorDetail,
 }: {
   configured: boolean;
   loading: boolean;
   error: boolean;
+  errorDetail: string | null;
 }) {
   return (
     <>
@@ -274,9 +198,12 @@ function CalendarFooter({
           </p>
         </div>
       )}
-      {error && configured && (
+      {error && (
         <p className="mt-4 rounded-2xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-alert">
-          Nie udało się pobrać kalendarza. Sprawdź URL iCal.
+          Nie udało się pobrać kalendarza.
+          {errorDetail && (
+            <span className="mt-1 block font-mono text-xs opacity-80">{errorDetail}</span>
+          )}
         </p>
       )}
       {loading && (
@@ -296,8 +223,8 @@ function DayDetailPanel({
 }: {
   day: Date;
   events: CalendarFeedEvent[];
-  chores: ReturnType<typeof choresDueOnDate>;
-  guestPlans: ReturnType<typeof guestPlansOnDate>;
+  chores: Task[];
+  guestPlans: GuestPlan[];
   guestsMode: boolean;
   users: { id: string; name: string }[];
 }) {

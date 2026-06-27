@@ -10,7 +10,7 @@ import {
   getCalendarConnectionStatus,
   setMemberCalendarDisplay,
   setMemberCalendarEnabled,
-} from "@/lib/calendarSettings";
+} from "@/lib/calendar/api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({

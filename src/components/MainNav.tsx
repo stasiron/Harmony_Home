@@ -3,7 +3,14 @@ import { BarChart3, Calendar, CalendarCheck, Cpu, Home, Settings, ShoppingBasket
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const navItems = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  wide?: boolean;
+};
+
+export const navItems: NavItem[] = [
   { to: "/", label: "Home", icon: Home },
   { to: "/calendar", label: "Kalendarz", icon: Calendar },
   { to: "/chores", label: "Chores", icon: CalendarCheck },
@@ -12,7 +19,7 @@ export const navItems = [
   { to: "/stats", label: "Stats", icon: BarChart3 },
   { to: "/settings", label: "Ustawienia", icon: Settings },
   { to: "/members", label: "Members", icon: Users, wide: true },
-] as const;
+];
 
 const navGridClass = "grid-cols-2 sm:grid-cols-2 md:grid-cols-4";
 

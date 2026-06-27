@@ -237,24 +237,30 @@ function AllDayChip({ event }: { event: CalendarFeedEvent }) {
 
 function TimedBlock({
   event,
+  title,
+  tone,
   top,
   height,
   time,
 }: {
-  event: CalendarFeedEvent;
+  event?: CalendarFeedEvent;
+  title?: string;
+  tone?: "guest";
   top: number;
   height: number;
   time: string;
 }) {
-  const isBusy = event.display === "busy";
+  const summary = title ?? event?.summary ?? "Wydarzenie";
+  const isBusy = event?.display === "busy";
+  const isGuest = tone === "guest" || event?.isGuest;
 
   return (
     <div
       className={cn(
         "absolute right-1 left-1 z-10 overflow-hidden rounded-lg border px-2 py-1 text-[11px] leading-tight shadow-sm",
         isBusy && "border-border/70 bg-muted/35",
-        !isBusy && event.isGuest && "border-accent/40 bg-accent/20",
-        !isBusy && !event.isGuest && "border-primary/30 bg-primary/20",
+        !isBusy && isGuest && "border-accent/40 bg-accent/20",
+        !isBusy && !isGuest && "border-primary/30 bg-primary/20",
       )}
       style={{
         top,
@@ -268,11 +274,13 @@ function TimedBlock({
       }}
     >
       <time className="text-[10px] tabular-nums text-muted-foreground">{time}</time>
-      <p className="font-medium">{event.summary}</p>
-      <p className="truncate text-[10px] text-muted-foreground">
-        {event.calendarLabel}
-        {!isBusy && event.memberName !== "Dom" ? ` · ${event.memberName}` : ""}
-      </p>
+      <p className="font-medium">{summary}</p>
+      {event && (
+        <p className="truncate text-[10px] text-muted-foreground">
+          {event.calendarLabel}
+          {!isBusy && event.memberName !== "Dom" ? ` · ${event.memberName}` : ""}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { checkGuestCalendar } from "@/lib/checkGuestCalendar";
+import { useServerFn } from "@tanstack/react-start";
+import { checkGuestCalendar } from "@/lib/calendar/api";
 
 const GUEST_CALENDAR_REFRESH_MS = 15 * 60 * 1000;
 
@@ -7,12 +8,14 @@ export function useGuestCalendarSync(
   setGuestsMode: (v: boolean) => void,
   setGuestCalendarHint: (v: string | null) => void,
 ) {
+  const runCheck = useServerFn(checkGuestCalendar);
+
   useEffect(() => {
     let cancelled = false;
 
     const sync = async () => {
       try {
-        const status = await checkGuestCalendar();
+        const status = await runCheck();
         if (cancelled) return;
         setGuestsMode(status.active);
         setGuestCalendarHint(status.active ? status.eventTitle : null);
@@ -27,5 +30,5 @@ export function useGuestCalendarSync(
       cancelled = true;
       clearInterval(id);
     };
-  }, [setGuestsMode, setGuestCalendarHint]);
+  }, [runCheck, setGuestsMode, setGuestCalendarHint]);
 }

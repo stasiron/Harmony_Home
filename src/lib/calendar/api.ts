@@ -1,5 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 
+export type {
+  CalendarFeedEvent,
+  CalendarFeedResult,
+  GuestCalendarStatus,
+} from "@/lib/calendar-feed-types";
+
+export const fetchCalendarEvents = createServerFn({ method: "POST" })
+  .validator((data: { from: string; to: string }) => data)
+  .handler(async ({ data }) => {
+    const { fetchCalendarEventsImpl } = await import("@/lib/memberCalendars.server");
+    return fetchCalendarEventsImpl(data);
+  });
+
+export const checkGuestCalendar = createServerFn({ method: "GET" }).handler(async () => {
+  const { runCheckGuestCalendar } = await import("@/lib/check-guest-calendar.server");
+  return runCheckGuestCalendar();
+});
+
 export const getCalendarConnectionStatus = createServerFn({ method: "GET" }).handler(async () => {
   const { getCalendarConnectionStatusImpl } = await import("@/lib/calendar-settings.server");
   return getCalendarConnectionStatusImpl();
