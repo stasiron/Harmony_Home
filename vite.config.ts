@@ -17,6 +17,7 @@ export default defineConfig({
   ],
   nitro: {
     preset: vercelPreset ? "vercel" : undefined,
+    traceDeps: ["tslib*"],
     runtimeConfig: {
       googleCalendarIcalUrl: "",
     },
