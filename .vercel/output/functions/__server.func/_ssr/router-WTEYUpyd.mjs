@@ -7,7 +7,7 @@ import { t as WEATHER_CITY } from "./weather-0dinpoNJ.mjs";
 import { r as saveOAuthMemberConnection } from "./calendarSettings-BqIBmHve.mjs";
 import { t as QueryClient } from "../_libs/tanstack__query-core.mjs";
 import { t as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-DCVvi_c1.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-WTEYUpyd.js
 var import_jsx_runtime = require_jsx_runtime();
 var styles_default = "/assets/styles-DcTqn4RA.css";
 var RELOAD_KEY = "homeharmony-chunk-reload";
@@ -171,71 +171,71 @@ function RootComponent() {
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppProvider, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Outlet, {}) })
 	});
 }
-var $$splitComponentImporter$8 = () => import("./weather-DTvUvk_j.mjs");
+var $$splitComponentImporter$9 = () => import("./weather-DTvUvk_j.mjs");
 var Route$13 = createFileRoute("/weather")({
 	head: () => ({ meta: [{ title: `Pogoda · ${WEATHER_CITY}` }, {
 		name: "description",
 		content: "Prognoza pogody na 3 dni — Częstochowa."
 	}] }),
-	component: lazyRouteComponent($$splitComponentImporter$8, "component")
+	component: lazyRouteComponent($$splitComponentImporter$9, "component")
 });
-var $$splitComponentImporter$7 = () => import("./stats-D7Y4no2I.mjs");
+var $$splitComponentImporter$8 = () => import("./stats-D7Y4no2I.mjs");
 var Route$12 = createFileRoute("/stats")({
 	head: () => ({ meta: [{ title: "Stats · Homebase" }, {
 		name: "description",
 		content: "Household chores analytics."
 	}] }),
-	component: lazyRouteComponent($$splitComponentImporter$7, "component")
+	component: lazyRouteComponent($$splitComponentImporter$8, "component")
 });
-var $$splitComponentImporter$6 = () => import("./smart-DHTmxVxF.mjs");
+var $$splitComponentImporter$7 = () => import("./smart-DHTmxVxF.mjs");
 var Route$11 = createFileRoute("/smart")({
 	head: () => ({ meta: [{ title: "Smart Home · Homebase" }, {
 		name: "description",
 		content: "Home Assistant devices linked to household chores."
 	}] }),
-	component: lazyRouteComponent($$splitComponentImporter$6, "component")
+	component: lazyRouteComponent($$splitComponentImporter$7, "component")
 });
-var $$splitComponentImporter$5 = () => import("./settings-D5Zb8biT.mjs");
+var $$splitComponentImporter$6 = () => import("./settings-D5Zb8biT.mjs");
 var Route$10 = createFileRoute("/settings")({
 	head: () => ({ meta: [{ title: "Ustawienia · Homebase" }, {
 		name: "description",
 		content: "Połączenia Google Calendar domowników."
 	}] }),
-	component: lazyRouteComponent($$splitComponentImporter$5, "component")
+	component: lazyRouteComponent($$splitComponentImporter$6, "component")
 });
-var $$splitComponentImporter$4 = () => import("./members-BG6Dr94l.mjs");
+var $$splitComponentImporter$5 = () => import("./members-BG6Dr94l.mjs");
 var Route$9 = createFileRoute("/members")({
 	head: () => ({ meta: [{ title: "Members · Homebase" }, {
 		name: "description",
 		content: "Household members and their assigned chores."
 	}] }),
-	component: lazyRouteComponent($$splitComponentImporter$4, "component")
+	component: lazyRouteComponent($$splitComponentImporter$5, "component")
 });
-var $$splitComponentImporter$3 = () => import("./kitchen-CWq-2kKs.mjs");
+var $$splitComponentImporter$4 = () => import("./kitchen-CWq-2kKs.mjs");
 var Route$8 = createFileRoute("/kitchen")({
 	head: () => ({ meta: [{ title: "Kitchen · Homebase" }, {
 		name: "description",
 		content: "Shopping list and household recipes."
 	}] }),
-	component: lazyRouteComponent($$splitComponentImporter$3, "component")
+	component: lazyRouteComponent($$splitComponentImporter$4, "component")
 });
-var $$splitComponentImporter$2 = () => import("./chores-uIl7Eq8i.mjs");
+var $$splitComponentImporter$3 = () => import("./chores-uIl7Eq8i.mjs");
 var Route$7 = createFileRoute("/chores")({
 	head: () => ({ meta: [{ title: "Chores · Homebase" }, {
 		name: "description",
 		content: "Flexible chore intervals — safe, suggested, must-do."
 	}] }),
-	component: lazyRouteComponent($$splitComponentImporter$2, "component")
+	component: lazyRouteComponent($$splitComponentImporter$3, "component")
 });
-var $$splitComponentImporter$1 = () => import("./calendar-DDSClTcL.mjs");
+var $$splitComponentImporter$2 = () => import("./calendar-DDSClTcL.mjs");
 var Route$6 = createFileRoute("/calendar")({
 	head: () => ({ meta: [{ title: "Kalendarz · Homebase" }, {
 		name: "description",
 		content: "Google Calendar, obowiązki domowe i plany gości w jednym widoku."
 	}] }),
-	component: lazyRouteComponent($$splitComponentImporter$1, "component")
+	component: lazyRouteComponent($$splitComponentImporter$2, "component")
 });
-var $$splitComponentImporter = () => import("./routes-CN-sgUtd.mjs");
+var $$splitComponentImporter$1 = () => import("./routes-CN-sgUtd.mjs");
 var Route$5 = createFileRoute("/")({
 	head: () => ({ meta: [
 		{ title: "Homebase · Smart Home & Chores" },
@@ -252,12 +252,16 @@ var Route$5 = createFileRoute("/")({
 			content: "Kiosk-ready chores & smart-home dashboard."
 		}
 	] }),
-	component: lazyRouteComponent($$splitComponentImporter, "component")
+	component: lazyRouteComponent($$splitComponentImporter$1, "component")
 });
-var Route$4 = createFileRoute("/assets/$")({ server: { handlers: { GET: () => new Response("Not found", {
-	status: 404,
-	headers: { "cache-control": "no-store" }
-}) } } });
+var $$splitComponentImporter = () => import("../_-DyRkPrxN.mjs");
+var Route$4 = createFileRoute("/assets/$")({
+	component: lazyRouteComponent($$splitComponentImporter, "component"),
+	server: { handlers: { GET: () => new Response("Not found", {
+		status: 404,
+		headers: { "cache-control": "no-store" }
+	}) } }
+});
 var Route$3 = createFileRoute("/api/health")({ server: { handlers: { GET: async () => {
 	const report = await runDiagnostics();
 	const status = report.ok ? 200 : 503;

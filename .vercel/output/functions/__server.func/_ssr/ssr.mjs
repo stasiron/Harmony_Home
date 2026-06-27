@@ -127,7 +127,7 @@ async function runDiagnostics(lastError) {
 		})()],
 		["server-entry", await (async () => {
 			try {
-				const mod = await import("./server-DZDLFY57.mjs");
+				const mod = await import("./server-C_78S_En.mjs");
 				return {
 					ok: typeof (mod.default ?? mod).fetch === "function",
 					detail: "fetch handler present"
@@ -211,7 +211,7 @@ function renderErrorPage(error) {
 }
 var serverEntryPromise;
 async function getServerEntry() {
-	if (!serverEntryPromise) serverEntryPromise = import("./server-DZDLFY57.mjs").then((m) => m.default ?? m);
+	if (!serverEntryPromise) serverEntryPromise = import("./server-C_78S_En.mjs").then((m) => m.default ?? m);
 	return serverEntryPromise;
 }
 async function normalizeCatastrophicSsrResponse(response) {
