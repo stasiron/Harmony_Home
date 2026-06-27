@@ -64,78 +64,50 @@ function checkResolvable(specifier: string): CheckResult {
   }
 }
 
-async function checkImportable(specifier: string): Promise<CheckResult> {
-  const useBundledProbe = process.env.VERCEL === "1";
-  const resolved = useBundledProbe ? { ok: false as const } : checkResolvable(specifier);
-  // #region agent log
-  fetch("http://127.0.0.1:7887/ingest/d4923940-ca95-41e7-8370-57941aabba7d", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "29ea4c" },
-    body: JSON.stringify({
-      sessionId: "29ea4c",
-      location: "diagnostics.ts:checkImportable",
-      message: "module probe",
-      data: {
-        specifier,
-        useBundledProbe,
-        requireOk: useBundledProbe ? null : resolved.ok,
-        requireError: useBundledProbe ? null : (resolved.ok ? null : resolved.error ?? null),
-        cwd: process.cwd(),
-      },
-      timestamp: Date.now(),
-      hypothesisId: "H4",
-    }),
-  }).catch(() => {});
-  // #endregion
+const MODULE_PROBES = [
+  "tslib",
+  "react",
+  "react-dom/server",
+  "@radix-ui/react-dialog",
+] as const;
 
-  if (!resolved.ok) {
-    try {
-      await import(/* @vite-ignore */ specifier);
-      // #region agent log
-      fetch("http://127.0.0.1:7887/ingest/d4923940-ca95-41e7-8370-57941aabba7d", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "29ea4c" },
-        body: JSON.stringify({
-          sessionId: "29ea4c",
-          location: "diagnostics.ts:checkImportable",
-          message: "dynamic import ok",
-          data: { specifier, useBundledProbe },
-          timestamp: Date.now(),
-          hypothesisId: "H4",
-        }),
-      }).catch(() => {});
-      // #endregion
-      return {
-        ok: true,
-        detail: useBundledProbe
-          ? `vercel bundled import ok (${specifier})`
-          : `bundled import ok (${specifier})`,
-      };
-    } catch (importError) {
-      return {
-        ...formatCheckError(importError),
-        detail: [
-          useBundledProbe ? "vercel bundled probe" : resolved.detail,
-          formatCheckError(importError).error,
-        ]
-          .filter(Boolean)
-          .join(" | "),
-      };
-    }
-  }
+type ModuleProbe = (typeof MODULE_PROBES)[number];
 
+/** Static imports only — bundler traces into _libs on Vercel. Variable + @vite-ignore skips tracing and fails serverless. */
+async function checkBundledImport(specifier: ModuleProbe): Promise<CheckResult> {
   try {
-    // @vite-ignore — runtime probe; specifier is not statically analyzable
-    await import(/* @vite-ignore */ specifier);
-    return resolved;
+    switch (specifier) {
+      case "tslib":
+        await import("tslib");
+        break;
+      case "react":
+        await import("react");
+        break;
+      case "react-dom/server":
+        await import("react-dom/server");
+        break;
+      case "@radix-ui/react-dialog":
+        await import("@radix-ui/react-dialog");
+        break;
+    }
+    return { ok: true, detail: `import ok (${specifier})` };
   } catch (error) {
-    const err = formatCheckError(error);
+    return formatCheckError(error);
+  }
+}
+
+async function checkImportable(specifier: ModuleProbe): Promise<CheckResult> {
+  const bundled = await checkBundledImport(specifier);
+  if (process.env.VERCEL === "1") return bundled;
+
+  const resolved = checkResolvable(specifier);
+  if (!bundled.ok) {
     return {
-      ok: false,
-      error: err.error,
-      detail: [resolved.detail, err.detail].filter(Boolean).join(" | "),
+      ...bundled,
+      detail: [resolved.detail, bundled.error].filter(Boolean).join(" | "),
     };
   }
+  return resolved.ok ? resolved : bundled;
 }
 
 export function shouldExposeErrors(): boolean {
@@ -168,12 +140,7 @@ export function formatErrorForDisplay(error: unknown): string {
 }
 
 export async function runDiagnostics(lastError?: unknown): Promise<DiagnosticsReport> {
-  const moduleNames = [
-    "tslib",
-    "react",
-    "react-dom/server",
-    "@radix-ui/react-dialog",
-  ] as const;
+  const moduleNames = MODULE_PROBES;
 
   const moduleEntries = await Promise.all(
     moduleNames.map(async (name) => [name, await checkImportable(name)] as const),
