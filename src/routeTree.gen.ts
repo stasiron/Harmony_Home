@@ -12,10 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WeatherRouteImport } from './routes/weather'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SmartRouteImport } from './routes/smart'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as KitchenRouteImport } from './routes/kitchen'
 import { Route as ChoresRouteImport } from './routes/chores'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiAuthGoogleRouteImport } from './routes/api/auth/google'
+import { Route as ApiAuthGoogleCallbackRouteImport } from './routes/api/auth/google/callback'
 
 const WeatherRoute = WeatherRouteImport.update({
   id: '/weather',
@@ -30,6 +34,11 @@ const StatsRoute = StatsRouteImport.update({
 const SmartRoute = SmartRouteImport.update({
   id: '/smart',
   path: '/smart',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MembersRoute = MembersRouteImport.update({
@@ -47,66 +56,120 @@ const ChoresRoute = ChoresRouteImport.update({
   path: '/chores',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthGoogleRoute = ApiAuthGoogleRouteImport.update({
+  id: '/api/auth/google',
+  path: '/api/auth/google',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthGoogleCallbackRoute = ApiAuthGoogleCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => ApiAuthGoogleRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
   '/kitchen': typeof KitchenRoute
   '/members': typeof MembersRoute
+  '/settings': typeof SettingsRoute
   '/smart': typeof SmartRoute
   '/stats': typeof StatsRoute
   '/weather': typeof WeatherRoute
+  '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
+  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
   '/kitchen': typeof KitchenRoute
   '/members': typeof MembersRoute
+  '/settings': typeof SettingsRoute
   '/smart': typeof SmartRoute
   '/stats': typeof StatsRoute
   '/weather': typeof WeatherRoute
+  '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
+  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
   '/kitchen': typeof KitchenRoute
   '/members': typeof MembersRoute
+  '/settings': typeof SettingsRoute
   '/smart': typeof SmartRoute
   '/stats': typeof StatsRoute
   '/weather': typeof WeatherRoute
+  '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
+  '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/chores' | '/kitchen' | '/members' | '/smart' | '/stats' | '/weather'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    '/' | '/chores' | '/kitchen' | '/members' | '/smart' | '/stats' | '/weather'
-  id:
-    | '__root__'
     | '/'
+    | '/calendar'
     | '/chores'
     | '/kitchen'
     | '/members'
+    | '/settings'
     | '/smart'
     | '/stats'
     | '/weather'
+    | '/api/auth/google'
+    | '/api/auth/google/callback'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/calendar'
+    | '/chores'
+    | '/kitchen'
+    | '/members'
+    | '/settings'
+    | '/smart'
+    | '/stats'
+    | '/weather'
+    | '/api/auth/google'
+    | '/api/auth/google/callback'
+  id:
+    | '__root__'
+    | '/'
+    | '/calendar'
+    | '/chores'
+    | '/kitchen'
+    | '/members'
+    | '/settings'
+    | '/smart'
+    | '/stats'
+    | '/weather'
+    | '/api/auth/google'
+    | '/api/auth/google/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CalendarRoute: typeof CalendarRoute
   ChoresRoute: typeof ChoresRoute
   KitchenRoute: typeof KitchenRoute
   MembersRoute: typeof MembersRoute
+  SettingsRoute: typeof SettingsRoute
   SmartRoute: typeof SmartRoute
   StatsRoute: typeof StatsRoute
   WeatherRoute: typeof WeatherRoute
+  ApiAuthGoogleRoute: typeof ApiAuthGoogleRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -132,6 +195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SmartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/members': {
       id: '/members'
       path: '/members'
@@ -153,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChoresRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -160,17 +237,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/google': {
+      id: '/api/auth/google'
+      path: '/api/auth/google'
+      fullPath: '/api/auth/google'
+      preLoaderRoute: typeof ApiAuthGoogleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/google/callback': {
+      id: '/api/auth/google/callback'
+      path: '/callback'
+      fullPath: '/api/auth/google/callback'
+      preLoaderRoute: typeof ApiAuthGoogleCallbackRouteImport
+      parentRoute: typeof ApiAuthGoogleRoute
+    }
   }
 }
 
+interface ApiAuthGoogleRouteChildren {
+  ApiAuthGoogleCallbackRoute: typeof ApiAuthGoogleCallbackRoute
+}
+
+const ApiAuthGoogleRouteChildren: ApiAuthGoogleRouteChildren = {
+  ApiAuthGoogleCallbackRoute: ApiAuthGoogleCallbackRoute,
+}
+
+const ApiAuthGoogleRouteWithChildren = ApiAuthGoogleRoute._addFileChildren(
+  ApiAuthGoogleRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CalendarRoute: CalendarRoute,
   ChoresRoute: ChoresRoute,
   KitchenRoute: KitchenRoute,
   MembersRoute: MembersRoute,
+  SettingsRoute: SettingsRoute,
   SmartRoute: SmartRoute,
   StatsRoute: StatsRoute,
   WeatherRoute: WeatherRoute,
+  ApiAuthGoogleRoute: ApiAuthGoogleRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

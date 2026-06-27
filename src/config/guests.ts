@@ -19,6 +19,6 @@ export const GUEST_LOCATION_MARKERS = ["andersa", "częstochowa", "czestochowa"]
 export const GUEST_TAIL_HOURS = 3;
 
 /**
- * Ustaw w `.env`:
- * GOOGLE_CALENDAR_ICAL_URL=https://calendar.google.com/calendar/ical/.../private-.../basic.ics
+ * Kalendarz domu — env: GOOGLE_CALENDAR_ICAL_URL
+ * Konfiguracja: src/config/calendars/dom.ts
  */

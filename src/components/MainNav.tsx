@@ -1,14 +1,16 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BarChart3, CalendarCheck, Cpu, Home, ShoppingBasket, Users } from "lucide-react";
+import { BarChart3, Calendar, CalendarCheck, Cpu, Home, Settings, ShoppingBasket, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const navItems = [
   { to: "/", label: "Home", icon: Home },
+  { to: "/calendar", label: "Kalendarz", icon: Calendar },
   { to: "/chores", label: "Chores", icon: CalendarCheck },
   { to: "/kitchen", label: "Kitchen", icon: ShoppingBasket },
   { to: "/smart", label: "Smart", icon: Cpu },
   { to: "/stats", label: "Stats", icon: BarChart3 },
+  { to: "/settings", label: "Ustawienia", icon: Settings },
   { to: "/members", label: "Members", icon: Users, wide: true },
 ] as const;
 

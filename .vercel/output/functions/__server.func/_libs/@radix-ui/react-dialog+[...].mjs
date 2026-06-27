@@ -1,8 +1,8 @@
 import { i as __toESM } from "../../_runtime.mjs";
 import { l as require_react_dom, u as require_react } from "../@floating-ui/react-dom+[...].mjs";
 import { a as createSlot, n as Primitive, o as useComposedRefs, r as dispatchDiscreteCustomEvent, s as require_jsx_runtime } from "./react-arrow+[...].mjs";
-import { t as composeEventHandlers } from "../radix-ui__primitive.mjs";
 import { a as Presence, c as createContextScope, o as useControllableState, s as useLayoutEffect2 } from "./react-checkbox+[...].mjs";
+import { t as composeEventHandlers } from "../radix-ui__primitive.mjs";
 import { __assign, __rest, __spreadArray } from "tslib";
 //#region node_modules/@radix-ui/react-id/dist/index.mjs
 var import_react = /* @__PURE__ */ __toESM(require_react(), 1);
