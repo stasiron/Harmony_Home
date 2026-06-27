@@ -2,7 +2,7 @@ import { format, isToday } from "date-fns";
 import { pl } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
 import { guestPlansOnDate, statusOfTaskOnDate } from "@/lib/choreCalendar";
-import type { CalendarFeedEvent } from "@/lib/fetchCalendarEvents";
+import type { CalendarFeedEvent } from "@/lib/calendar-feed-types";
 import {
   currentTimeTopPx,
   DAY_GRID_HEIGHT_PX,

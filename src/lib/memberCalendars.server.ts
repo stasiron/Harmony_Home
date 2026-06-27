@@ -3,9 +3,9 @@ import {
   readCalendarConnectionsStore,
   type MemberConnection,
   type StoredCalendar,
-} from "@/lib/calendarConnectionsStore";
-import { classifyGoogleCalendar, memberName } from "@/lib/calendarRules";
-import type { CalendarFeedEvent } from "@/lib/fetchCalendarEvents";
+} from "@/lib/calendarConnectionsStore.server";
+import { memberName } from "@/lib/calendarRules";
+import type { CalendarFeedEvent } from "@/lib/calendar-feed-types";
 import {
   calendarEventId,
   eventOverlapsRange,
@@ -16,7 +16,7 @@ import {
   fetchGoogleCalendarEvents,
   getMemberAccessToken,
   googleEventToIsoRange,
-} from "@/lib/googleOAuth";
+} from "@/lib/googleOAuth.server";
 import type { RegisteredCalendar } from "@/config/calendars";
 
 export function resolveEnvCalendarUrl(envKey: string): string {
@@ -175,5 +175,3 @@ export async function fetchAllMemberCalendarEvents(
   events.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   return { configured, events };
 }
-
-export { classifyGoogleCalendar };

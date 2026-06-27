@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { CalendarDisplayMode } from "@/config/calendars/types";
-import type { MemberConnection } from "@/lib/calendarConnectionsStore";
-import { updateMemberConnection } from "@/lib/calendarConnectionsStore";
+import type { MemberConnection } from "@/lib/calendarConnectionsStore.server";
+import { updateMemberConnection } from "@/lib/calendarConnectionsStore.server";
 
 export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
 export const GOOGLE_EMAIL_SCOPE = "email";

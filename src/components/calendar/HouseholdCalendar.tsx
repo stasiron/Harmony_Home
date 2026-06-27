@@ -22,7 +22,8 @@ import {
   shiftAnchor,
   type CalendarViewMode,
 } from "@/lib/calendarView";
-import { fetchCalendarEvents, type CalendarFeedEvent } from "@/lib/fetchCalendarEvents";
+import { fetchCalendarEvents } from "@/lib/fetchCalendarEvents";
+import type { CalendarFeedEvent } from "@/lib/calendar-feed-types";
 import { cn } from "@/lib/utils";
 
 function eventsOnDay(events: CalendarFeedEvent[], day: Date) {

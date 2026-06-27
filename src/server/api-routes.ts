@@ -1,12 +1,12 @@
 import { peekLastCapturedError } from "@/lib/error-capture";
 import { runDiagnostics, verifyDebugToken } from "@/lib/diagnostics";
-import { saveOAuthMemberConnection } from "@/lib/calendarSettings";
+import { saveOAuthMemberConnection } from "@/lib/calendar-settings.server";
 import {
   buildGoogleAuthUrl,
   exchangeGoogleCode,
   getAppOrigin,
   verifyOAuthState,
-} from "@/lib/googleOAuth";
+} from "@/lib/googleOAuth.server";
 
 export async function handleApiRequest(request: Request): Promise<Response | null> {
   const { pathname } = new URL(request.url);
