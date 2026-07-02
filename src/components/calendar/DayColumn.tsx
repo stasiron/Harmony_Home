@@ -1,6 +1,7 @@
 import { format, isToday } from "date-fns";
 import { pl } from "date-fns/locale";
 import { useEffect, useMemo, useState } from "react";
+import { assigneeNamesForTask } from "@/lib/choreAssignees";
 import { guestPlansOnDate, statusOfTaskOnDate } from "@/lib/choreCalendar";
 import type { CalendarFeedEvent } from "@/lib/calendar-feed-types";
 import {
@@ -105,7 +106,7 @@ export function DayColumn({
                 key={task.id}
                 label={task.name}
                 urgent={statusOfTaskOnDate(task, day, guestsMode) === "must"}
-                sub={users.find((u) => u.id === task.assignedTo)?.name}
+                sub={assigneeNamesForTask(users, task.assignedTo) || undefined}
               />
             ))}
             {allDayPlans.map((plan) => (

@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "zadania": [
+    {
+      "id": "zadanie-bathroom-sink",
+      "name": "Umyj umywalkę",
+      "description": "Bateria, misa, okolice lustra",
+      "room": "bathroom",
+      "category": "bathroom",
+      "estimatedMinutes": 8,
+      "recurrence": "recurring",
+      "tMin": 4,
+      "tMax": 10,
+      "importance": 4,
+      "isGuestPriority": true,
+      "isExpressBlitz": false
+    },
+    {
+      "id": "zadanie-bathroom-toilet",
+      "name": "Wyczyść toaletę",
+      "description": "Miska, deska, zewnętrzna część",
+      "room": "bathroom",
+      "category": "bathroom",
+      "estimatedMinutes": 7,
+      "recurrence": "recurring",
+      "tMin": 3,
+      "tMax": 7,
+      "importance": 4,
+      "isGuestPriority": true,
+      "isExpressBlitz": false
+    },
+    {
+      "id": "zadanie-bathroom-shower",
+      "name": "Kabina / wanna",
+      "description": "Ściany, szyba, odpływ",
+      "room": "bathroom",
+      "category": "bathroom",
+      "estimatedMinutes": 10,
+      "recurrence": "recurring",
+      "tMin": 7,
+      "tMax": 14,
+      "importance": 3,
+      "isGuestPriority": false,
+      "isExpressBlitz": false
+    }
+  ]
+}

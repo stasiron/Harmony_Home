@@ -12,7 +12,7 @@ export function StatusBanner() {
   if (panic?.active)
     items.push({
       key: "panic",
-      text: `PANIC · guests in ${panic.minutes} min`,
+      text: "PANIC · priorytety dla gości",
       tone: "alert",
     });
   if (guestsMode)

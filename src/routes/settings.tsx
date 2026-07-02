@@ -3,7 +3,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Shell } from "@/components/Shell";
+import { HomeZoneEditor } from "@/components/chores/HomeZoneEditor";
 import { GoogleAccountCard } from "@/components/settings/GoogleAccountCard";
+import { ChoreWeightSettingsCard } from "@/components/settings/ChoreWeightSettingsCard";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -14,6 +16,7 @@ import {
   setMemberCalendarEnabled,
 } from "@/lib/calendar/api";
 import { cn } from "@/lib/utils";
+import { APP_VERSION } from "@/version";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -96,6 +99,10 @@ function SettingsPage() {
       )}
 
       <GoogleAccountCard />
+
+      <HomeZoneEditor />
+
+      <ChoreWeightSettingsCard />
 
       <div className="space-y-4">
         {status.members.map((member) => (
@@ -219,6 +226,10 @@ function SettingsPage() {
           </section>
         ))}
       </div>
+
+      <p className="text-center text-xs text-muted-foreground">
+        HomeHarmony {APP_VERSION}
+      </p>
     </div>
   );
 }

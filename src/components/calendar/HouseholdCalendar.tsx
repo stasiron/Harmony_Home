@@ -14,6 +14,7 @@ import { DayColumn } from "@/components/calendar/DayColumn";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useApp } from "@/context/AppContext";
+import { assigneeNamesForTask } from "@/lib/choreAssignees";
 import { statusOfTaskOnDate } from "@/lib/choreCalendar";
 import type { GuestPlan, Task } from "@/types";
 import { CALENDAR_VIEW_OPTIONS } from "@/lib/calendarView";
@@ -312,7 +313,7 @@ function DayDetailPanel({
       >
         {chores.map((task) => {
           const status = statusOfTaskOnDate(task, day, guestsMode);
-          const assignee = users.find((u) => u.id === task.assignedTo);
+          const assigneeLabel = assigneeNamesForTask(users, task.assignedTo);
           return (
             <article
               key={task.id}
@@ -334,9 +335,9 @@ function DayDetailPanel({
                   {status === "must" ? "pilne" : "sugerowane"}
                 </span>
               </div>
-              {assignee && (
+              {assigneeLabel && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {assignee.name}
+                  {assigneeLabel}
                 </p>
               )}
             </article>

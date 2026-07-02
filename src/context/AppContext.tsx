@@ -4,34 +4,76 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { useGuestCalendarSync } from "@/hooks/useGuestCalendarSync";
 import {
   loadInitialGuestPlans,
   loadInitialShopping,
   loadInitialUsers,
   persistAppState,
+  readAppStorage,
 } from "@/lib/appStorage";
-import { buildInitialTasks, persistTasks } from "@/lib/choreStorage";
+import {
+  buildInitialTasks,
+  buildInitialZadania,
+  buildTasksFromParts,
+  buildZadaniaFromParts,
+  persistChoreState,
+  readChoreStorage,
+} from "@/lib/choreStorage";
+import type { ChoreItemAddInput, ZadanieAddInput } from "@/lib/choreItemForm";
+import {
+  applyZadanieThresholds,
+  choreStatusFromLinkedZadania,
+  thresholdStatus,
+} from "@/lib/choreZadaniaStatus";
+import { normalizeAssignedTo } from "@/lib/choreAssignees";
+import { resolveLinkedZadania } from "@/lib/zadania";
+import { applyScheduleToTask, DEFAULT_SCHEDULE } from "@/lib/choreRecurrence";
+import {
+  normalizeTaskImportance,
+  PANIC_GUESTS_MIN_IMPORTANCE,
+  resolveImportance,
+} from "@/lib/choreImportance";
+import {
+  isGuestsModeMust,
+  isPanicGuestsMust,
+} from "@/lib/choreSort";
+import {
+  isEmptyHousehold,
+  saveHouseholdToFirestore,
+  snapshotFromChoreState,
+  snapshotHash,
+  subscribeHousehold,
+  type HouseholdSnapshot,
+} from "@/lib/householdFirestore";
 import type {
   ChoreRoom,
   GuestPlan,
   MapPin,
+  MapPoint,
   PanicState,
   Recipe,
+  RecurrenceSchedule,
   ShoppingItem,
   SmartHomeDevice,
   Status,
   Task,
+  TaskImportance,
+  TaskMapShape,
   TaskRecurrence,
   User,
+  Zadanie,
 } from "@/types";
 
 interface AppState {
   users: User[];
   tasks: Task[];
+  zadania: Zadanie[];
   shopping: ShoppingItem[];
   recipes: Recipe[];
   devices: SmartHomeDevice[];
@@ -42,30 +84,25 @@ interface AppState {
 
   // derived helpers
   daysSince: (iso: string) => number;
-  statusOf: (task: Task) => Status;
+  statusOf: (item: Task | Zadanie) => Status;
   visibleTasks: Task[];
+  visibleZadania: Zadanie[];
   alertCount: number;
 
   // actions
   completeTask: (id: string) => void;
+  completeZadanie: (id: string, completedBy?: string) => void;
   toggleUserHeavyDay: (userId: string) => void;
   setGuestsMode: (v: boolean) => void;
   addGuestPlan: (plan: Omit<GuestPlan, "id">) => void;
-  startPanic: (minutes: 15 | 30 | 45) => void;
+  startPanic: () => void;
   endPanic: () => void;
   toggleShopping: (id: string) => void;
   addShopping: (items: Omit<ShoppingItem, "id" | "checked">[]) => void;
   triggerDevice: (id: string) => void;
   addUser: (name: string) => void;
-  addTask: (input: {
-    name: string;
-    description?: string;
-    room: ChoreRoom;
-    estimatedMinutes: number;
-    assignedTo?: string;
-    mapPins?: MapPin[];
-    recurrence?: TaskRecurrence;
-  }) => void;
+  addTask: (input: ChoreItemAddInput & { linkedZadanieIds?: string[] }) => void;
+  addZadanie: (input: ZadanieAddInput) => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -96,9 +133,75 @@ const GUEST_PRIORITY_ROOMS: ChoreRoom[] = [
   "whole",
 ];
 
+function buildUserItem(input: ChoreItemAddInput) {
+  const recurrence = input.recurrence ?? "recurring";
+  const defaultImportance: TaskImportance =
+    input.importance ??
+    (GUEST_PRIORITY_ROOMS.includes(input.room) ? 4 : 3);
+
+  const base = {
+    id: crypto.randomUUID(),
+    name: input.name.trim(),
+    description: input.description,
+    room: input.room,
+    category: roomToCategory(input.room),
+    estimatedMinutes: input.estimatedMinutes,
+    assignedTo: normalizeAssignedTo(input.assignedTo),
+    mapShape: input.mapShape ?? "pin",
+    zoneId: input.zoneId,
+    mapPins: input.mapPins,
+    mapLine: input.mapLine,
+    mapLineWidth: input.mapLineWidth,
+    mapArea: input.mapArea,
+    recurrence,
+    source: "user" as const,
+    lastCompleted: new Date(
+      Date.now() - 1000 * 60 * 60 * 24 * 14,
+    ).toISOString(),
+    isGuestPriority: defaultImportance >= 4,
+    isExpressBlitz: defaultImportance >= 5,
+    importance: defaultImportance,
+  };
+
+  return recurrence === "recurring"
+    ? applyScheduleToTask({
+        ...base,
+        schedule: input.schedule ?? DEFAULT_SCHEDULE,
+      })
+    : {
+        ...base,
+        tMin: 0,
+        tSuggested: 0,
+        tMax: 0,
+      };
+}
+
+function buildUserZadanie(input: ZadanieAddInput): Zadanie {
+  const item = buildUserItem({ ...input, recurrence: "once" });
+  return applyZadanieThresholds(item as Zadanie, input.tMin, input.tMax);
+}
+
+function completeRecurringItem<T extends { id: string; recurrence: TaskRecurrence; source: Task["source"] }>(
+  items: T[],
+  id: string,
+): T[] {
+  const item = items.find((entry) => entry.id === id);
+  if (!item) return items;
+  if (item.recurrence === "once" && item.source === "user") {
+    return items.filter((entry) => entry.id !== id);
+  }
+  return items.map((entry) =>
+    entry.id === id
+      ? { ...entry, lastCompleted: new Date().toISOString() }
+      : entry,
+  );
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
+  const { syncUser, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<User[]>(loadInitialUsers);
   const [tasks, setTasks] = useState<Task[]>(buildInitialTasks);
+  const [zadania, setZadania] = useState<Zadanie[]>(buildInitialZadania);
   const [shopping, setShopping] = useState<ShoppingItem[]>(loadInitialShopping);
   const [recipes] = useState<Recipe[]>([]);
   const [devices, setDevices] = useState<SmartHomeDevice[]>([]);
@@ -111,41 +214,226 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [panic, setPanic] = useState<PanicState | null>(null);
 
+  const remoteHashRef = useRef<string | null>(null);
+  const pendingLocalHashRef = useRef<string | null>(null);
+  const clientHydratedRef = useRef(false);
+  const initialSyncDoneRef = useRef(false);
+  const [firestoreReady, setFirestoreReady] = useState(false);
+
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+  const zadaniaRef = useRef(zadania);
+  zadaniaRef.current = zadania;
+  const usersRef = useRef(users);
+  usersRef.current = users;
+  const shoppingRef = useRef(shopping);
+  shoppingRef.current = shopping;
+  const guestPlansRef = useRef(guestPlans);
+  guestPlansRef.current = guestPlans;
+
   useGuestCalendarSync(setGuestsMode, setGuestCalendarHint);
 
+  const buildCurrentSnapshot = useCallback((): HouseholdSnapshot => {
+    return {
+      ...snapshotFromChoreState(tasksRef.current, zadaniaRef.current),
+      users: usersRef.current,
+      shopping: shoppingRef.current,
+      guestPlans: guestPlansRef.current,
+    };
+  }, []);
+
+  const applyHouseholdSnapshot = useCallback((snapshot: HouseholdSnapshot) => {
+    const incomingHash = snapshotHash(snapshot);
+    if (incomingHash === remoteHashRef.current) return;
+
+    const pending = pendingLocalHashRef.current;
+    if (pending && pending !== incomingHash) return;
+
+    remoteHashRef.current = incomingHash;
+    pendingLocalHashRef.current = null;
+    setTasks(
+      buildTasksFromParts(snapshot.progress, snapshot.userTasks),
+    );
+    setZadania(
+      buildZadaniaFromParts(snapshot.progress, snapshot.userZadania),
+    );
+    if (snapshot.users.length > 0) setUsers(snapshot.users);
+    setShopping(snapshot.shopping);
+    setGuestPlans(snapshot.guestPlans);
+  }, []);
+
+  const buildLocalSnapshot = useCallback((): HouseholdSnapshot => {
+    const chores = readChoreStorage();
+    const app = readAppStorage();
+    return {
+      progress: chores.progress,
+      userTasks: chores.userTasks,
+      userZadania: chores.userZadania,
+      users: app.users.length > 0 ? app.users : loadInitialUsers(),
+      shopping: app.shopping,
+      guestPlans: app.guestPlans,
+    };
+  }, []);
+
+  // SSR nie widzi localStorage — fallback tylko gdy brak Firestore sync.
   useEffect(() => {
-    persistTasks(tasks);
-  }, [tasks]);
+    if (authLoading || clientHydratedRef.current) return;
+    clientHydratedRef.current = true;
+    if (syncUser) return;
+
+    setTasks(buildInitialTasks());
+    setZadania(buildInitialZadania());
+    setUsers(loadInitialUsers());
+    setShopping(loadInitialShopping());
+    setGuestPlans(loadInitialGuestPlans());
+  }, [authLoading, syncUser]);
+
+  // Firestore: wspólny stan obowiązków na wszystkich urządzeniach.
+  useEffect(() => {
+    if (!syncUser) {
+      initialSyncDoneRef.current = false;
+      setFirestoreReady(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const unsubscribe = subscribeHousehold(
+      (snapshot) => {
+        if (cancelled) return;
+
+        if (!initialSyncDoneRef.current) {
+          initialSyncDoneRef.current = true;
+          if (isEmptyHousehold(snapshot)) {
+            const local = buildLocalSnapshot();
+            if (!isEmptyHousehold(local)) {
+              remoteHashRef.current = snapshotHash(local);
+              void saveHouseholdToFirestore(local).catch((err) => {
+                console.error("Firestore household upload failed:", err);
+              });
+              applyHouseholdSnapshot(local);
+              setFirestoreReady(true);
+              return;
+            }
+          }
+        }
+
+        applyHouseholdSnapshot(snapshot);
+        setFirestoreReady(true);
+      },
+      (err) => {
+        console.error("Firestore household sync failed:", err);
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+      initialSyncDoneRef.current = false;
+      setFirestoreReady(false);
+    };
+  }, [syncUser, applyHouseholdSnapshot, buildLocalSnapshot]);
+
+  useEffect(() => {
+    persistChoreState(tasks, zadania);
+  }, [tasks, zadania]);
 
   useEffect(() => {
     persistAppState({ users, shopping, guestPlans });
   }, [users, shopping, guestPlans]);
+
+  useEffect(() => {
+    if (!syncUser) return;
+
+    const snapshot = buildCurrentSnapshot();
+    const hash = snapshotHash(snapshot);
+    if (hash === remoteHashRef.current) return;
+
+    pendingLocalHashRef.current = hash;
+    if (!firestoreReady) return;
+
+    const timer = setTimeout(() => {
+      void saveHouseholdToFirestore(snapshot)
+        .then(() => {
+          remoteHashRef.current = hash;
+          pendingLocalHashRef.current = null;
+        })
+        .catch((err) => {
+          console.error("Firestore household save failed:", err);
+        });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [syncUser, firestoreReady, tasks, zadania, users, shopping, guestPlans, buildCurrentSnapshot]);
 
   const daysSince = useCallback((iso: string) => {
     const d = (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24);
     return Math.floor(d);
   }, []);
 
-  const statusOf = useCallback(
-    (task: Task): Status => {
-      const d = daysSince(task.lastCompleted);
-      if (guestsMode && task.isGuestPriority) return "must";
-      if (panic?.active && task.isExpressBlitz) return "must";
-      if (d < task.tMin) return "done";
-      if (d >= task.tMax) return "must";
-      if (d >= task.tSuggested) return "suggested";
-      return "safe";
+  const zadanieStatusOf = useCallback(
+    (zadanie: Zadanie): Status => {
+      if (guestsMode && isGuestsModeMust(zadanie, true)) return "must";
+      if (isPanicGuestsMust(zadanie, !!panic?.active)) return "must";
+      return thresholdStatus(
+        daysSince(zadanie.lastCompleted),
+        zadanie.tMin,
+        zadanie.tMax,
+      );
     },
     [daysSince, guestsMode, panic],
   );
 
+  const statusOf = useCallback(
+    (item: Task | Zadanie): Status => {
+      if (guestsMode && isGuestsModeMust(item, true)) return "must";
+      if (isPanicGuestsMust(item, !!panic?.active)) return "must";
+
+      if ("linkedZadanieIds" in item && item.linkedZadanieIds?.length) {
+        const linked = resolveLinkedZadania(item.linkedZadanieIds, zadania);
+        const derived = choreStatusFromLinkedZadania(
+          item,
+          linked,
+          zadanieStatusOf,
+        );
+        if (derived) return derived;
+      }
+
+      return thresholdStatus(
+        daysSince(item.lastCompleted),
+        item.tMin,
+        item.tMax,
+      );
+    },
+    [daysSince, guestsMode, panic, zadania, zadanieStatusOf],
+  );
+
+  const visibleZadania = useMemo(() => {
+    if (panic?.active) {
+      return zadania.filter(
+        (z) => resolveImportance(z) >= PANIC_GUESTS_MIN_IMPORTANCE,
+      );
+    }
+    return zadania;
+  }, [zadania, panic]);
+
   const visibleTasks = useMemo(() => {
-    if (panic?.active) return tasks.filter((t) => t.isExpressBlitz);
+    if (panic?.active) {
+      return tasks.filter(
+        (t) => resolveImportance(t) >= PANIC_GUESTS_MIN_IMPORTANCE,
+      );
+    }
     const heavyDayUserIds = new Set(
       users.filter((u) => u.heavyDay).map((u) => u.id),
     );
     return tasks.filter((t) => {
-      if (!t.assignedTo || !heavyDayUserIds.has(t.assignedTo)) return true;
+      const assignees = normalizeAssignedTo(t.assignedTo);
+      if (
+        assignees.length === 0 ||
+        !assignees.some((id) => heavyDayUserIds.has(id))
+      ) {
+        return true;
+      }
       return statusOf(t) === "must";
     });
   }, [tasks, panic, statusOf, users]);
@@ -156,14 +444,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const completeTask = useCallback((id: string) => {
-    setTasks((prev) => {
-      const task = prev.find((t) => t.id === id);
-      if (!task) return prev;
-      if (task.recurrence === "once" && task.source === "user") {
-        return prev.filter((t) => t.id !== id);
+    setTasks((prev) => completeRecurringItem(prev, id));
+  }, []);
+
+  const completeZadanie = useCallback((id: string, completedBy?: string) => {
+    setZadania((prev) => {
+      const item = prev.find((z) => z.id === id);
+      if (!item) return prev;
+      if (item.recurrence === "once" && item.source === "user") {
+        return prev.filter((z) => z.id !== id);
       }
-      return prev.map((t) =>
-        t.id === id ? { ...t, lastCompleted: new Date().toISOString() } : t,
+      return prev.map((z) =>
+        z.id === id
+          ? {
+              ...z,
+              lastCompleted: new Date().toISOString(),
+              lastCompletedBy: completedBy,
+            }
+          : z,
       );
     });
   }, []);
@@ -179,8 +477,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setGuestsMode(true);
   }, []);
 
-  const startPanic = useCallback((minutes: 15 | 30 | 45) => {
-    setPanic({ active: true, minutes, startedAt: new Date().toISOString() });
+  const startPanic = useCallback(() => {
+    setPanic({ active: true });
   }, []);
   const endPanic = useCallback(() => setPanic(null), []);
 
@@ -232,7 +530,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               room: "hallway",
               category: "general",
               estimatedMinutes: 5,
-              assignedTo: users[0]?.id ?? "",
+              assignedTo: users[0] ? [users[0].id] : [],
               recurrence: "once",
               source: "user",
               lastCompleted: new Date(
@@ -241,6 +539,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               tMin: 0,
               tSuggested: 0,
               tMax: 0,
+              importance: 3,
               isGuestPriority: false,
               isExpressBlitz: false,
             };
@@ -273,47 +572,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addTask = useCallback(
-    (input: {
-      name: string;
-      description?: string;
-      room: ChoreRoom;
-      estimatedMinutes: number;
-      assignedTo?: string;
-      mapPins?: MapPin[];
-      recurrence?: TaskRecurrence;
-    }) => {
+    (input: ChoreItemAddInput & { linkedZadanieIds?: string[] }) => {
       const trimmed = input.name.trim();
       if (!trimmed || input.estimatedMinutes < 1) return;
-      setTasks((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          name: trimmed,
-          description: input.description,
-          room: input.room,
-          category: roomToCategory(input.room),
-          estimatedMinutes: input.estimatedMinutes,
-          assignedTo: input.assignedTo ?? "",
-          mapPins: input.mapPins,
-          recurrence: input.recurrence ?? "recurring",
-          source: "user",
-          lastCompleted: new Date(
-            Date.now() - 1000 * 60 * 60 * 24 * 14,
-          ).toISOString(),
-          tMin: 3,
-          tSuggested: 5,
-          tMax: 7,
-          isGuestPriority: GUEST_PRIORITY_ROOMS.includes(input.room),
-          isExpressBlitz: false,
-        },
-      ]);
+
+      const task: Task = {
+        ...buildUserItem(input),
+        linkedZadanieIds: input.linkedZadanieIds,
+      };
+
+      setTasks((prev) => [...prev, task]);
     },
     [],
   );
 
+  const addZadanie = useCallback((input: ZadanieAddInput) => {
+    if (!input.name.trim() || input.estimatedMinutes < 1) return;
+    setZadania((prev) => [...prev, buildUserZadanie(input)]);
+  }, []);
+
   const value: AppState = {
     users,
     tasks,
+    zadania,
     shopping,
     recipes,
     devices,
@@ -324,8 +605,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     daysSince,
     statusOf,
     visibleTasks,
+    visibleZadania,
     alertCount,
     completeTask,
+    completeZadanie,
     toggleUserHeavyDay,
     setGuestsMode,
     addGuestPlan,
@@ -336,6 +619,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     triggerDevice,
     addUser,
     addTask,
+    addZadanie,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

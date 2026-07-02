@@ -13,7 +13,7 @@ function emptyStorage(): AppStorage {
   return { users: [], shopping: [], guestPlans: [] };
 }
 
-function readStorage(): AppStorage {
+export function readAppStorage(): AppStorage {
   if (typeof window === "undefined") return emptyStorage();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -30,17 +30,17 @@ function readStorage(): AppStorage {
 }
 
 export function loadInitialUsers(): User[] {
-  const stored = readStorage().users;
+  const stored = readAppStorage().users;
   if (stored.length > 0) return stored;
   return [...DEFAULT_MEMBERS];
 }
 
 export function loadInitialShopping(): ShoppingItem[] {
-  return readStorage().shopping;
+  return readAppStorage().shopping;
 }
 
 export function loadInitialGuestPlans(): GuestPlan[] {
-  return readStorage().guestPlans;
+  return readAppStorage().guestPlans;
 }
 
 export function persistAppState(state: AppStorage) {

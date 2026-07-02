@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Flame, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { normalizeAssignedTo } from "@/lib/choreAssignees";
 import { Shell } from "@/components/Shell";
 import { ChoreCard } from "@/components/chores/ChoreCard";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ function MembersPage() {
   const selected = users.find((u) => u.id === selectedId);
   const memberTasks = selected
     ? tasks.filter((t) => {
-        if (t.assignedTo !== selected.id) return false;
+        if (!normalizeAssignedTo(t.assignedTo).includes(selected.id)) return false;
         if (selected.heavyDay) return statusOf(t) === "must";
         return true;
       })
@@ -115,7 +116,11 @@ function MembersPage() {
               <MemberCard
                 key={user.id}
                 user={user}
-                taskCount={tasks.filter((t) => t.assignedTo === user.id).length}
+                taskCount={
+                  tasks.filter((t) =>
+                    normalizeAssignedTo(t.assignedTo).includes(user.id),
+                  ).length
+                }
                 selected={selectedId === user.id}
                 onSelect={() =>
                   setSelectedId((id) => (id === user.id ? null : user.id))

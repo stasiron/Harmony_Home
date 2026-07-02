@@ -39,4 +39,7 @@ export default defineConfig({
       "@tanstack/react-start",
     ],
   },
+  server: {
+    host: true,
+  },
 });

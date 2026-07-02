@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import type { MapPin } from "@/types";
 import { cn } from "@/lib/utils";
 
-const FLOOR_PLAN_SRC = "/images/apartment-floor-plan.png";
+import { FLOOR_PLAN_SRC } from "@/lib/contentPaths";
 
 type Props = {
   pins: MapPin[];

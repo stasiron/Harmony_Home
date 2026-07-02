@@ -1,3 +1,4 @@
+import { isGuestsModeMust } from "@/lib/choreSort";
 import { isSameDay, startOfDay } from "date-fns";
 import type { GuestPlan, Status, Task } from "@/types";
 
@@ -13,7 +14,7 @@ export function statusOfTaskOnDate(
   guestsMode = false,
 ): Status {
   const d = daysSinceOnDate(task, date);
-  if (guestsMode && task.isGuestPriority) return "must";
+  if (guestsMode && isGuestsModeMust(task, true)) return "must";
   if (d < task.tMin) return "done";
   if (d >= task.tMax) return "must";
   if (d >= task.tSuggested) return "suggested";

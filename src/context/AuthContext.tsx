@@ -12,6 +12,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInAnonymously,
   signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
@@ -39,6 +40,8 @@ const GOOGLE_CALENDAR_SCOPE =
 
 type AuthContextValue = {
   user: User | null;
+  /** Każda sesja Firebase (Google lub anonimowa) — sync obowiązków w Firestore. */
+  syncUser: User | null;
   memberId: string | null;
   loading: boolean;
   syncingCalendar: boolean;
@@ -81,6 +84,8 @@ function authErrorMessage(err: unknown): string {
 }
 
 async function loadAndSyncUserProfile(user: User): Promise<string | null> {
+  if (user.isAnonymous) return readStoredMemberId();
+
   const fromEmail = guessMemberId(user);
   const fromStorage = readStoredMemberId();
 
@@ -128,7 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   saveCalendarConnectionRef.current = saveCalendarConnection;
   loadCalendarStatusRef.current = loadCalendarStatus;
 
-  const [user, setUser] = useState<User | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const user = firebaseUser?.isAnonymous ? null : firebaseUser;
+  const syncUser = firebaseUser;
   const [memberId, setMemberId] = useState<string | null>(() =>
     readStoredMemberId(),
   );
@@ -230,11 +237,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe = onAuthStateChanged(auth, (nextUser) => {
         if (cancelled) return;
 
-        setUser(nextUser);
-
         if (!nextUser) {
-          setMemberId(null);
-          clearStoredMemberId();
+          setFirebaseUser(null);
+          setLoading(true);
+          void signInAnonymously(auth)
+            .catch((err) => {
+              if (!cancelled) {
+                console.error("Anonymous auth failed:", err);
+                setError(
+                  "Brak sesji Firebase — włącz Anonymous w Firebase Console → Authentication → Sign-in method.",
+                );
+              }
+            })
+            .finally(() => {
+              if (!cancelled) setLoading(false);
+            });
+          return;
+        }
+
+        setFirebaseUser(nextUser);
+
+        if (nextUser.isAnonymous) {
+          setMemberId(readStoredMemberId());
           setLoading(false);
           return;
         }
@@ -322,7 +346,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!auth) return;
     setError(null);
     sessionStorage.removeItem("calendarOAuthAttempted");
-    clearStoredMemberId();
     await firebaseSignOut(auth);
   }, []);
 
@@ -351,6 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       user,
+      syncUser,
       memberId,
       loading,
       syncingCalendar,
@@ -366,6 +390,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }),
     [
       user,
+      syncUser,
       memberId,
       loading,
       syncingCalendar,

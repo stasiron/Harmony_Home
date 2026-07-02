@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "chores": [
+    {
+      "id": "permanent-trash",
+      "name": "Wynieś śmieci",
+      "description": "Worki do pojemnika na podwórku",
+      "room": "kitchen",
+      "category": "kitchen",
+      "estimatedMinutes": 5,
+      "assignedTo": "member-1",
+      "recurrence": "recurring",
+      "schedule": { "type": "interval", "unit": "days", "every": 2 },
+      "importance": 5,
+      "isGuestPriority": true,
+      "isExpressBlitz": false
+    },
+    {
+      "id": "permanent-vacuum-living",
+      "name": "Odkurz salon",
+      "room": "living",
+      "category": "living",
+      "estimatedMinutes": 20,
+      "assignedTo": "member-2",
+      "mapPins": [{ "x": 20, "y": 24 }],
+      "recurrence": "recurring",
+      "schedule": { "type": "interval", "unit": "weeks", "every": 1 },
+      "importance": 5,
+      "isGuestPriority": true,
+      "isExpressBlitz": true
+    },
+    {
+      "id": "permanent-bathroom",
+      "name": "Wyczyść łazienkę",
+      "room": "bathroom",
+      "category": "bathroom",
+      "estimatedMinutes": 25,
+      "assignedTo": "",
+      "recurrence": "recurring",
+      "schedule": { "type": "weekly", "weekdays": [6], "everyWeeks": 1 },
+      "importance": 5,
+      "isGuestPriority": true,
+      "isExpressBlitz": false,
+      "linkedZadanieIds": [
+        "zadanie-bathroom-sink",
+        "zadanie-bathroom-toilet",
+        "zadanie-bathroom-shower"
+      ]
+    }
+  ]
+}

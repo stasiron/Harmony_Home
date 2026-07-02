@@ -9,6 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import { useApp } from "@/context/AppContext";
+import { normalizeAssignedTo } from "@/lib/choreAssignees";
 import { Shell } from "@/components/Shell";
 
 export const Route = createFileRoute("/stats")({
@@ -31,7 +32,9 @@ function StatsPage() {
   const hasData = users.length > 0 && tasks.length > 0;
 
   const data = users.map((u, idx) => {
-    const userTasks = tasks.filter((t) => t.assignedTo === u.id);
+    const userTasks = tasks.filter((t) =>
+      normalizeAssignedTo(t.assignedTo).includes(u.id),
+    );
     const completedThisWeek = userTasks.filter(
       (t) => daysSince(t.lastCompleted) <= 7,
     ).length;
