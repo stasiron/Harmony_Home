@@ -244,6 +244,8 @@ export function ApartmentMap({
                     line.visualStatus === "must" && "animate-pulse",
                   )}
                   strokeWidth={line.strokeWidth}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   strokeDasharray={
                     line.visualStatus === "done" ? "1.5 1.5" : undefined
                   }

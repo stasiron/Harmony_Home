@@ -8,7 +8,14 @@ import {
 import { getFirestoreDb } from "@/lib/firebase";
 import { PERMANENT_CHORE_IDS } from "@/config/chores";
 import { PERMANENT_ZADANIA_IDS } from "@/config/zadania";
-import type { GuestPlan, ShoppingItem, Task, User, Zadanie } from "@/types";
+import type {
+  GuestPlan,
+  ShoppingItem,
+  Task,
+  TodoItem,
+  User,
+  Zadanie,
+} from "@/types";
 
 export const HOUSEHOLD_DOC_ID = "homeharmony";
 
@@ -19,6 +26,7 @@ export type HouseholdSnapshot = {
   users: User[];
   shopping: ShoppingItem[];
   guestPlans: GuestPlan[];
+  todos: TodoItem[];
 };
 
 function emptySnapshot(): HouseholdSnapshot {
@@ -29,6 +37,7 @@ function emptySnapshot(): HouseholdSnapshot {
     users: [],
     shopping: [],
     guestPlans: [],
+    todos: [],
   };
 }
 
@@ -48,6 +57,23 @@ function normalizeSnapshot(data: Record<string, unknown>): HouseholdSnapshot {
       : [],
     guestPlans: Array.isArray(data.guestPlans)
       ? (data.guestPlans as GuestPlan[])
+      : [],
+    todos: Array.isArray(data.todos)
+      ? (data.todos as TodoItem[]).map((t) => ({
+          ...t,
+          scope: t.scope === "household" ? "household" : "personal",
+          assignedTo:
+            t.scope !== "household" && typeof t.assignedTo === "string"
+              ? t.assignedTo
+              : null,
+          householdMode:
+            t.scope === "household"
+              ? t.householdMode === "everyone"
+                ? "everyone"
+                : "anyone"
+              : undefined,
+          completedBy: Array.isArray(t.completedBy) ? t.completedBy : [],
+        }))
       : [],
   };
 }
@@ -79,6 +105,7 @@ export function snapshotHash(snapshot: HouseholdSnapshot): string {
     users: snapshot.users,
     shopping: snapshot.shopping,
     guestPlans: snapshot.guestPlans,
+    todos: snapshot.todos,
   });
 }
 
@@ -127,6 +154,7 @@ export function isEmptyHousehold(snapshot: HouseholdSnapshot): boolean {
     Object.keys(snapshot.progress).length === 0 &&
     snapshot.users.length === 0 &&
     snapshot.shopping.length === 0 &&
-    snapshot.guestPlans.length === 0
+    snapshot.guestPlans.length === 0 &&
+    snapshot.todos.length === 0
   );
 }

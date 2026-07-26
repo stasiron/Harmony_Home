@@ -66,6 +66,8 @@ export interface Zadanie {
   estimatedMinutes: number;
   mapShape?: TaskMapShape;
   zoneId?: string;
+  /** Wiele stref naraz (zadania) — zoneId = pierwsza */
+  zoneIds?: string[];
   mapPins?: MapPin[];
   mapLine?: MapPoint[];
   /** Grubość linii na mapie (kształt line) */
@@ -84,6 +86,8 @@ export interface Zadanie {
   smartDeviceId?: string;
   /** Kto ostatnio wykonał zadanie (dla % obowiązku) */
   lastCompletedBy?: string;
+  /** Wiele pokoi naraz — room = pierwszy */
+  rooms?: ChoreRoom[];
 }
 
 export interface User {
@@ -109,6 +113,8 @@ export interface Task {
   mapShape?: TaskMapShape;
   /** Strefa z drzewa domu (dla mapShape zone lub powiązanie) */
   zoneId?: string;
+  /** Wiele stref naraz — zoneId = pierwsza */
+  zoneIds?: string[];
   mapPins?: MapPin[];
   mapLine?: MapPoint[];
   /** Grubość linii na mapie (kształt line) */
@@ -133,6 +139,8 @@ export interface Task {
   smartDeviceId?: string;
   /** Id zadań przypiętych do obowiązku */
   linkedZadanieIds?: string[];
+  /** Wiele pokoi naraz — room = pierwszy */
+  rooms?: ChoreRoom[];
 }
 
 export interface Recipe {
@@ -152,6 +160,26 @@ export interface ShoppingItem {
   category: ShoppingCategory;
   qty: string;
   checked: boolean;
+}
+
+/** Proste zapamiętane sprawy — nie obowiązki domowe */
+export type TodoScope = "personal" | "household";
+
+/** Domowe: ktoś jeden raz, albo każdy domownik po razie */
+export type TodoHouseholdMode = "anyone" | "everyone";
+
+export interface TodoItem {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: string;
+  scope: TodoScope;
+  /** Tylko dla scope: personal — kto ma to zrobić */
+  assignedTo?: string | null;
+  /** Tylko dla scope: household */
+  householdMode?: TodoHouseholdMode;
+  /** Id domowników którzy odhaczyli (everyone / opcjonalnie anyone) */
+  completedBy?: string[];
 }
 
 export interface SmartHomeDevice {

@@ -11,21 +11,37 @@ import {
 import type { ChoreRoom, HomeZone } from "@/types";
 import { cn } from "@/lib/utils";
 
-type Props = {
-  zones: HomeZone[];
+type SingleProps = {
+  multi?: false;
   room: ChoreRoom;
   zoneId: string;
   onSelectRoom: (room: ChoreRoom) => void;
   onSelectZone: (zoneId: string) => void;
 };
 
-export function ChoreLocationPicker({
-  zones,
-  room,
-  zoneId,
-  onSelectRoom,
-  onSelectZone,
-}: Props) {
+type MultiProps = {
+  multi: true;
+  rooms: ChoreRoom[];
+  zoneIds: string[];
+  onChangeRooms: (rooms: ChoreRoom[]) => void;
+  onChangeZoneIds: (zoneIds: string[]) => void;
+};
+
+type Props = {
+  zones: HomeZone[];
+} & (SingleProps | MultiProps);
+
+function toggleInList<T>(list: T[], value: T): T[] {
+  if (list.includes(value)) {
+    if (list.length <= 1) return list;
+    return list.filter((item) => item !== value);
+  }
+  return [...list, value];
+}
+
+export function ChoreLocationPicker(props: Props) {
+  const { zones } = props;
+  const multi = props.multi === true;
   const [hoveredRoom, setHoveredRoom] = useState<ChoreRoom | null>(null);
   const tree = buildZoneTree(zones);
   const zoneGroups = flattenZoneTree(tree).filter(
@@ -33,12 +49,62 @@ export function ChoreLocationPicker({
   );
   const hasZoneGroups = zoneGroups.length > 0;
 
+  const selectedRooms = multi
+    ? props.rooms
+    : !props.zoneId
+      ? [props.room]
+      : [];
+  const selectedZoneIds = multi
+    ? props.zoneIds
+    : props.zoneId
+      ? [props.zoneId]
+      : [];
+  const usingZones = selectedZoneIds.length > 0;
+
+  const pickRoom = (room: ChoreRoom) => {
+    if (multi) {
+      if (usingZones) {
+        props.onChangeZoneIds([]);
+        props.onChangeRooms([room]);
+        return;
+      }
+      props.onChangeRooms(toggleInList(props.rooms, room));
+      return;
+    }
+    props.onSelectRoom(room);
+  };
+
+  const pickZone = (zoneId: string) => {
+    if (multi) {
+      if (!usingZones && props.rooms.length > 0) {
+        props.onChangeRooms([]);
+        props.onChangeZoneIds([zoneId]);
+        return;
+      }
+      props.onChangeZoneIds(toggleInList(props.zoneIds, zoneId));
+      return;
+    }
+    props.onSelectZone(zoneId);
+  };
+
+  const summary = usingZones
+    ? `Strefy: ${selectedZoneIds.map((id) => zonePathLabel(zones, id)).join(", ")}`
+    : `Pokoje: ${selectedRooms
+        .map((r) => ROOM_OPTIONS.find((o) => o.value === r)?.label ?? r)
+        .join(", ")}`;
+
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label>Lokalizacja — pokój lub strefa</Label>
+        <Label>
+          {multi
+            ? "Lokalizacja — pokoje lub strefy"
+            : "Lokalizacja — pokój lub strefa"}
+        </Label>
         <p className="text-xs text-muted-foreground">
-          Kliknij pokój na planie albo wybierz strefę / pokój z listy poniżej.
+          {multi
+            ? "Kliknij kilka pokoi albo kilka stref (nie mieszaj naraz). Ponowne kliknięcie odznacza."
+            : "Kliknij pokój na planie albo wybierz strefę / pokój z listy poniżej."}
         </p>
       </div>
 
@@ -46,17 +112,17 @@ export function ChoreLocationPicker({
         zones={zones}
         showLabels={false}
         roomMapHover
-        highlightZoneId={zoneId || null}
-        highlightRoom={!zoneId ? room : null}
+        highlightZoneIds={usingZones ? selectedZoneIds : []}
+        highlightRooms={!usingZones ? selectedRooms : []}
         hoveredRoom={hoveredRoom}
         onMapClick={(point, space) => {
           if (space) {
             const hit = roomForSpace(space);
-            if (hit) onSelectRoom(hit);
+            if (hit) pickRoom(hit);
             return;
           }
           const hit = findRoomAtPoint(point, zones);
-          if (hit) onSelectRoom(hit);
+          if (hit) pickRoom(hit);
         }}
       />
 
@@ -70,10 +136,10 @@ export function ChoreLocationPicker({
               <button
                 key={zone.id}
                 type="button"
-                onClick={() => onSelectZone(zone.id)}
+                onClick={() => pickZone(zone.id)}
                 className={cn(
                   "rounded-lg border px-2.5 py-1 text-xs transition-colors",
-                  zoneId === zone.id
+                  selectedZoneIds.includes(zone.id)
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-muted/30 hover:bg-muted",
                 )}
@@ -95,12 +161,12 @@ export function ChoreLocationPicker({
             <button
               key={opt.value}
               type="button"
-              onClick={() => onSelectRoom(opt.value)}
+              onClick={() => pickRoom(opt.value)}
               onMouseEnter={() => setHoveredRoom(opt.value)}
               onMouseLeave={() => setHoveredRoom(null)}
               className={cn(
                 "rounded-lg border px-2.5 py-1 text-xs transition-colors",
-                !zoneId && room === opt.value
+                !usingZones && selectedRooms.includes(opt.value)
                   ? "border-secondary bg-secondary text-secondary-foreground"
                   : "border-border bg-muted/30 hover:bg-muted",
               )}
@@ -111,15 +177,7 @@ export function ChoreLocationPicker({
         </div>
       </div>
 
-      {zoneId ? (
-        <p className="text-xs text-muted-foreground">
-          Strefa: {zonePathLabel(zones, zoneId)}
-        </p>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          Pokój: {ROOM_OPTIONS.find((o) => o.value === room)?.label ?? room}
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground">{summary}</p>
     </div>
   );
 }

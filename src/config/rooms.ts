@@ -27,6 +27,10 @@ export function roomLabel(room: ChoreRoom): string {
   return ROOM_OPTIONS.find((r) => r.value === room)?.label ?? room;
 }
 
+export function roomsLabel(rooms: ChoreRoom[]): string {
+  return rooms.map(roomLabel).join(", ");
+}
+
 export function pinForRoom(room: ChoreRoom, index: number, total: number) {
   const base = ROOM_PIN_POSITIONS[room];
   if (total <= 1) return base;

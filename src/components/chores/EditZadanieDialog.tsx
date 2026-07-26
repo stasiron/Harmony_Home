@@ -1,15 +1,15 @@
-import { Plus } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { ChoreItemFormWizard } from "@/components/chores/ChoreItemFormWizard";
 import { loadHomeZones } from "@/config/homeZones";
 import {
   canSubmitZadanieForm,
-  emptyChoreItemForm,
   formToZadanieInput,
+  zadanieToChoreItemForm,
   type ChoreItemFormState,
 } from "@/lib/choreItemForm";
-import { Button } from "@/components/ui/button";
+import type { Zadanie } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -18,36 +18,50 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function AddZadanieDialog() {
-  const { users, addZadanie } = useApp();
+export function EditZadanieDialog({
+  zadanie,
+  compact,
+}: {
+  zadanie: Zadanie;
+  compact?: boolean;
+}) {
+  const { users, updateZadanie } = useApp();
   const [open, setOpen] = useState(false);
   const [resetToken, setResetToken] = useState(0);
   const [form, setForm] = useState<ChoreItemFormState>(() =>
-    emptyChoreItemForm(),
+    zadanieToChoreItemForm(zadanie),
   );
   const [homeZones, setHomeZones] = useState(() => loadHomeZones());
 
   useEffect(() => {
     if (!open) return;
     setHomeZones(loadHomeZones());
-    setForm(emptyChoreItemForm());
+    setForm(zadanieToChoreItemForm(zadanie));
     setResetToken((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open only
   }, [open]);
 
   const handleSubmit = () => {
     const input = formToZadanieInput(form);
     if (!input) return;
-    addZadanie(input);
+    updateZadanie(zadanie.id, input);
     setOpen(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="shrink-0">
-          <Plus className="size-4" />
-          Dodaj zadanie
-        </Button>
+        <button
+          type="button"
+          className={
+            compact
+              ? "flex size-8 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-muted"
+              : "flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-muted"
+          }
+          aria-label="Edytuj zadanie"
+        >
+          <Pencil className={compact ? "size-3.5" : "size-4"} />
+        </button>
       </DialogTrigger>
       <DialogContent
         className="max-h-[90vh] max-w-lg overflow-y-auto"
@@ -56,7 +70,7 @@ export function AddZadanieDialog() {
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Dodaj zadanie</DialogTitle>
+          <DialogTitle>Edytuj zadanie</DialogTitle>
         </DialogHeader>
         <ChoreItemFormWizard
           mode="zadanie"
@@ -67,10 +81,10 @@ export function AddZadanieDialog() {
           resetToken={resetToken}
           onSubmit={handleSubmit}
           canSubmit={canSubmitZadanieForm(form)}
-          submitLabel="Dodaj zadanie"
-          nameInputId="zadanie-name"
-          descInputId="zadanie-desc"
-          minutesInputId="zadanie-minutes"
+          submitLabel="Zapisz zmiany"
+          nameInputId="edit-zadanie-name"
+          descInputId="edit-zadanie-desc"
+          minutesInputId="edit-zadanie-minutes"
         />
       </DialogContent>
     </Dialog>

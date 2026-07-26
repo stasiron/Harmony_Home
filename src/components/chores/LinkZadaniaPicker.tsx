@@ -6,14 +6,25 @@ type Props = {
   zadania: Zadanie[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  /** Zadania już w innych obowiązkach — ukryte (chyba że właśnie wybrane). */
+  attachedElsewhereIds?: Set<string>;
 };
 
-export function LinkZadaniaPicker({ zadania, selectedIds, onChange }: Props) {
-  if (zadania.length === 0) {
+export function LinkZadaniaPicker({
+  zadania,
+  selectedIds,
+  onChange,
+  attachedElsewhereIds,
+}: Props) {
+  const available = zadania.filter(
+    (z) =>
+      selectedIds.includes(z.id) || !attachedElsewhereIds?.has(z.id),
+  );
+
+  if (available.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-        Brak zadań do przypisania. Najpierw dodaj zadanie przyciskiem „Dodaj
-        zadanie”.
+        Brak wolnych zadań. Dodaj zadanie albo odepnij je od innego obowiązku.
       </div>
     );
   }
@@ -27,15 +38,15 @@ export function LinkZadaniaPicker({ zadania, selectedIds, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-2 rounded-2xl border border-border bg-muted/15 p-3">
+    <div className="space-y-2">
       <div className="space-y-1">
-        <Label>Przypisz istniejące zadania</Label>
+        <Label>Wolne zadania</Label>
         <p className="text-xs text-muted-foreground">
-          Opcjonalnie podepnij gotowe zadania do tego obowiązku.
+          Obowiązek = zbiór zadań. Wybierz niepodpięte zadania do wykonania.
         </p>
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {zadania.map((zadanie) => {
+      <div className="flex flex-col gap-1.5">
+        {available.map((zadanie) => {
           const selected = selectedIds.includes(zadanie.id);
           return (
             <button
@@ -43,17 +54,34 @@ export function LinkZadaniaPicker({ zadania, selectedIds, onChange }: Props) {
               type="button"
               onClick={() => toggle(zadanie.id)}
               className={cn(
-                "rounded-lg border px-2.5 py-1 text-left text-xs transition-colors",
+                "rounded-xl border px-3 py-2 text-left text-sm transition-colors",
                 selected
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-muted",
+                  : "border-border bg-muted/30 hover:bg-muted",
               )}
             >
-              {zadanie.name}
+              <span className="font-medium">{zadanie.name}</span>
+              {zadanie.description ? (
+                <span
+                  className={cn(
+                    "mt-0.5 block text-xs line-clamp-1",
+                    selected
+                      ? "text-primary-foreground/80"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {zadanie.description}
+                </span>
+              ) : null}
             </button>
           );
         })}
       </div>
+      {selectedIds.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Wybrane: {selectedIds.length}
+        </p>
+      )}
     </div>
   );
 }

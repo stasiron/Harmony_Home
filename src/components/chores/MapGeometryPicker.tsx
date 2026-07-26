@@ -130,6 +130,8 @@ export function MapGeometryPicker({
               points={polygonToPointsAttr(line)}
               className="fill-none stroke-primary"
               strokeWidth={resolveMapLineWidth(lineWidth)}
+              strokeLinecap="round"
+              strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
             />
           )}

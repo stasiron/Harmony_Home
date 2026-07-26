@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { ChoreItemFormWizard } from "@/components/chores/ChoreItemFormWizard";
@@ -6,12 +6,12 @@ import { LinkZadaniaPicker } from "@/components/chores/LinkZadaniaPicker";
 import { loadHomeZones } from "@/config/homeZones";
 import {
   canSubmitChoreItemForm,
-  emptyChoreItemForm,
   formToChoreItemInput,
+  taskToChoreItemForm,
   type ChoreItemFormState,
 } from "@/lib/choreItemForm";
 import { zadanieIdsAttachedElsewhere } from "@/lib/zadania";
-import { Button } from "@/components/ui/button";
+import type { Task } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -20,32 +20,34 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function AddChoreDialog() {
-  const { users, tasks, zadania, addTask } = useApp();
+export function EditChoreDialog({ task }: { task: Task }) {
+  const { users, tasks, zadania, updateTask } = useApp();
   const [open, setOpen] = useState(false);
   const [resetToken, setResetToken] = useState(0);
   const [form, setForm] = useState<ChoreItemFormState>(() =>
-    emptyChoreItemForm(),
+    taskToChoreItemForm(task),
   );
   const [homeZones, setHomeZones] = useState(() => loadHomeZones());
 
   const attachedElsewhere = useMemo(
-    () => zadanieIdsAttachedElsewhere(tasks),
-    [tasks],
+    () => zadanieIdsAttachedElsewhere(tasks, task.id),
+    [tasks, task.id],
   );
 
   useEffect(() => {
     if (!open) return;
     setHomeZones(loadHomeZones());
-    setForm(emptyChoreItemForm());
+    setForm(taskToChoreItemForm(task));
     setResetToken((n) => n + 1);
+    // Reset tylko przy otwarciu, nie przy nowej referencji task.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open only
   }, [open]);
 
   const handleSubmit = () => {
     const input = formToChoreItemInput(form);
     if (!input) return;
 
-    addTask({
+    updateTask(task.id, {
       ...input,
       linkedZadanieIds: form.linkedZadanieIds,
     });
@@ -56,10 +58,13 @@ export function AddChoreDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary" className="shrink-0">
-          <Plus className="size-4" />
-          Dodaj obowiązek
-        </Button>
+        <button
+          type="button"
+          className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-muted"
+          aria-label="Edytuj obowiązek"
+        >
+          <Pencil className="size-4" />
+        </button>
       </DialogTrigger>
       <DialogContent
         className="max-h-[90vh] max-w-lg overflow-y-auto"
@@ -68,7 +73,7 @@ export function AddChoreDialog() {
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Dodaj obowiązek</DialogTitle>
+          <DialogTitle>Edytuj obowiązek</DialogTitle>
         </DialogHeader>
         <ChoreItemFormWizard
           mode="chore"
@@ -79,10 +84,10 @@ export function AddChoreDialog() {
           resetToken={resetToken}
           onSubmit={handleSubmit}
           canSubmit={canSubmitChoreItemForm(form)}
-          submitLabel="Dodaj obowiązek"
-          nameInputId="chore-name"
-          descInputId="chore-desc"
-          minutesInputId="chore-minutes"
+          submitLabel="Zapisz zmiany"
+          nameInputId="edit-chore-name"
+          descInputId="edit-chore-desc"
+          minutesInputId="edit-chore-minutes"
           extraSlot={
             <LinkZadaniaPicker
               zadania={zadania}

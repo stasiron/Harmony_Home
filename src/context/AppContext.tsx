@@ -13,6 +13,7 @@ import { useGuestCalendarSync } from "@/hooks/useGuestCalendarSync";
 import {
   loadInitialGuestPlans,
   loadInitialShopping,
+  loadInitialTodos,
   loadInitialUsers,
   persistAppState,
   readAppStorage,
@@ -51,6 +52,12 @@ import {
   subscribeHousehold,
   type HouseholdSnapshot,
 } from "@/lib/householdFirestore";
+import {
+  applyTodoToggle,
+  buildTodoItem,
+  isTodoOpen,
+  type TodoAddInput,
+} from "@/lib/todoHelpers";
 import type {
   ChoreRoom,
   GuestPlan,
@@ -66,6 +73,7 @@ import type {
   TaskImportance,
   TaskMapShape,
   TaskRecurrence,
+  TodoItem,
   User,
   Zadanie,
 } from "@/types";
@@ -75,6 +83,7 @@ interface AppState {
   tasks: Task[];
   zadania: Zadanie[];
   shopping: ShoppingItem[];
+  todos: TodoItem[];
   recipes: Recipe[];
   devices: SmartHomeDevice[];
   guestsMode: boolean;
@@ -99,10 +108,20 @@ interface AppState {
   endPanic: () => void;
   toggleShopping: (id: string) => void;
   addShopping: (items: Omit<ShoppingItem, "id" | "checked">[]) => void;
+  addTodo: (input: TodoAddInput) => void;
+  toggleTodo: (id: string, memberId?: string | null) => void;
+  setTodoAssignee: (id: string, memberId: string | null) => void;
+  removeTodo: (id: string) => void;
+  clearDoneTodos: () => void;
   triggerDevice: (id: string) => void;
   addUser: (name: string) => void;
   addTask: (input: ChoreItemAddInput & { linkedZadanieIds?: string[] }) => void;
+  updateTask: (
+    id: string,
+    input: ChoreItemAddInput & { linkedZadanieIds?: string[] },
+  ) => void;
   addZadanie: (input: ZadanieAddInput) => void;
+  updateZadanie: (id: string, input: ZadanieAddInput) => void;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -144,11 +163,13 @@ function buildUserItem(input: ChoreItemAddInput) {
     name: input.name.trim(),
     description: input.description,
     room: input.room,
+    rooms: input.rooms,
     category: roomToCategory(input.room),
     estimatedMinutes: input.estimatedMinutes,
     assignedTo: normalizeAssignedTo(input.assignedTo),
-    mapShape: input.mapShape ?? "pin",
+    mapShape: input.mapShape,
     zoneId: input.zoneId,
+    zoneIds: input.zoneIds,
     mapPins: input.mapPins,
     mapLine: input.mapLine,
     mapLineWidth: input.mapLineWidth,
@@ -178,7 +199,94 @@ function buildUserItem(input: ChoreItemAddInput) {
 
 function buildUserZadanie(input: ZadanieAddInput): Zadanie {
   const item = buildUserItem({ ...input, recurrence: "once" });
-  return applyZadanieThresholds(item as Zadanie, input.tMin, input.tMax);
+  return applyZadanieThresholds(item as unknown as Zadanie, input.tMin, input.tMax);
+}
+
+function patchZadanieFromInput(
+  zadanie: Zadanie,
+  input: ZadanieAddInput,
+): Zadanie {
+  const importance =
+    input.importance ??
+    zadanie.importance ??
+    (GUEST_PRIORITY_ROOMS.includes(input.room) ? 4 : 3);
+
+  return applyZadanieThresholds(
+    {
+      ...zadanie,
+      name: input.name.trim(),
+      description: input.description,
+      room: input.room,
+      rooms: input.rooms,
+      category: roomToCategory(input.room),
+      estimatedMinutes: input.estimatedMinutes,
+      mapShape: input.mapShape,
+      zoneId: input.zoneId,
+      zoneIds: input.zoneIds,
+      mapPins: input.mapPins,
+      mapLine: input.mapLine,
+      mapLineWidth: input.mapLineWidth,
+      mapArea: input.mapArea,
+      importance,
+      isGuestPriority: importance >= 4,
+      isExpressBlitz: importance >= 5,
+    },
+    input.tMin,
+    input.tMax,
+  );
+}
+
+function patchTaskFromInput(
+  task: Task,
+  input: ChoreItemAddInput & { linkedZadanieIds?: string[] },
+): Task {
+  const recurrence = input.recurrence ?? task.recurrence;
+  const importance =
+    input.importance ??
+    task.importance ??
+    (GUEST_PRIORITY_ROOMS.includes(input.room) ? 4 : 3);
+
+  const base: Task = {
+    ...task,
+    name: input.name.trim(),
+    description: input.description,
+    room: input.room,
+    rooms: input.rooms,
+    category: roomToCategory(input.room),
+    estimatedMinutes: input.estimatedMinutes,
+    assignedTo: normalizeAssignedTo(input.assignedTo ?? task.assignedTo),
+    mapShape: input.mapShape,
+    zoneId: input.zoneId,
+    zoneIds: input.zoneIds,
+    mapPins: input.mapPins,
+    mapLine: input.mapLine,
+    mapLineWidth: input.mapLineWidth,
+    mapArea: input.mapArea,
+    recurrence,
+    importance,
+    isGuestPriority: importance >= 4,
+    isExpressBlitz: importance >= 5,
+    linkedZadanieIds: input.linkedZadanieIds,
+  };
+
+  if (recurrence === "recurring") {
+    const { lastCompleted: _lastCompleted, ...withoutLast } = base;
+    return {
+      ...applyScheduleToTask({
+        ...withoutLast,
+        schedule: input.schedule ?? task.schedule ?? DEFAULT_SCHEDULE,
+      }),
+      lastCompleted: task.lastCompleted,
+    };
+  }
+
+  return {
+    ...base,
+    schedule: undefined,
+    tMin: 0,
+    tSuggested: 0,
+    tMax: 0,
+  };
 }
 
 function completeRecurringItem<T extends { id: string; recurrence: TaskRecurrence; source: Task["source"] }>(
@@ -203,6 +311,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(buildInitialTasks);
   const [zadania, setZadania] = useState<Zadanie[]>(buildInitialZadania);
   const [shopping, setShopping] = useState<ShoppingItem[]>(loadInitialShopping);
+  const [todos, setTodos] = useState<TodoItem[]>(loadInitialTodos);
   const [recipes] = useState<Recipe[]>([]);
   const [devices, setDevices] = useState<SmartHomeDevice[]>([]);
   const [guestsMode, setGuestsMode] = useState(false);
@@ -228,6 +337,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   usersRef.current = users;
   const shoppingRef = useRef(shopping);
   shoppingRef.current = shopping;
+  const todosRef = useRef(todos);
+  todosRef.current = todos;
   const guestPlansRef = useRef(guestPlans);
   guestPlansRef.current = guestPlans;
 
@@ -239,6 +350,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       users: usersRef.current,
       shopping: shoppingRef.current,
       guestPlans: guestPlansRef.current,
+      todos: todosRef.current,
     };
   }, []);
 
@@ -260,6 +372,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (snapshot.users.length > 0) setUsers(snapshot.users);
     setShopping(snapshot.shopping);
     setGuestPlans(snapshot.guestPlans);
+    setTodos(snapshot.todos);
   }, []);
 
   const buildLocalSnapshot = useCallback((): HouseholdSnapshot => {
@@ -272,6 +385,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       users: app.users.length > 0 ? app.users : loadInitialUsers(),
       shopping: app.shopping,
       guestPlans: app.guestPlans,
+      todos: app.todos,
     };
   }, []);
 
@@ -286,6 +400,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUsers(loadInitialUsers());
     setShopping(loadInitialShopping());
     setGuestPlans(loadInitialGuestPlans());
+    setTodos(loadInitialTodos());
   }, [authLoading, syncUser]);
 
   // Firestore: wspólny stan obowiązków na wszystkich urządzeniach.
@@ -339,8 +454,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [tasks, zadania]);
 
   useEffect(() => {
-    persistAppState({ users, shopping, guestPlans });
-  }, [users, shopping, guestPlans]);
+    persistAppState({ users, shopping, guestPlans, todos });
+  }, [users, shopping, guestPlans, todos]);
 
   useEffect(() => {
     if (!syncUser) return;
@@ -364,7 +479,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [syncUser, firestoreReady, tasks, zadania, users, shopping, guestPlans, buildCurrentSnapshot]);
+  }, [syncUser, firestoreReady, tasks, zadania, users, shopping, guestPlans, todos, buildCurrentSnapshot]);
 
   const daysSince = useCallback((iso: string) => {
     const d = (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24);
@@ -505,6 +620,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const addTodo = useCallback((input: TodoAddInput) => {
+    const item = buildTodoItem(input);
+    if (!item) return;
+    setTodos((prev) => [item, ...prev]);
+  }, []);
+
+  const toggleTodo = useCallback(
+    (id: string, memberId?: string | null) => {
+      setTodos((prev) =>
+        prev.map((t) =>
+          t.id === id ? applyTodoToggle(t, usersRef.current, memberId ?? null) : t,
+        ),
+      );
+    },
+    [],
+  );
+
+  const removeTodo = useCallback((id: string) => {
+    setTodos((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const setTodoAssignee = useCallback((id: string, memberId: string | null) => {
+    setTodos((prev) =>
+      prev.map((t) =>
+        t.id === id && t.scope === "personal"
+          ? { ...t, assignedTo: memberId }
+          : t,
+      ),
+    );
+  }, []);
+
+  const clearDoneTodos = useCallback(() => {
+    setTodos((prev) =>
+      prev.filter((t) => isTodoOpen(t, usersRef.current)),
+    );
+  }, []);
+
   const triggerDevice = useCallback(
     (id: string) => {
       setDevices((prev) => {
@@ -586,9 +738,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const updateTask = useCallback(
+    (
+      id: string,
+      input: ChoreItemAddInput & { linkedZadanieIds?: string[] },
+    ) => {
+      const trimmed = input.name.trim();
+      if (!trimmed || input.estimatedMinutes < 1) return;
+
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === id ? patchTaskFromInput(task, input) : task,
+        ),
+      );
+    },
+    [],
+  );
+
   const addZadanie = useCallback((input: ZadanieAddInput) => {
     if (!input.name.trim() || input.estimatedMinutes < 1) return;
     setZadania((prev) => [...prev, buildUserZadanie(input)]);
+  }, []);
+
+  const updateZadanie = useCallback((id: string, input: ZadanieAddInput) => {
+    if (!input.name.trim() || input.estimatedMinutes < 1) return;
+    setZadania((prev) =>
+      prev.map((zadanie) =>
+        zadanie.id === id ? patchZadanieFromInput(zadanie, input) : zadanie,
+      ),
+    );
   }, []);
 
   const value: AppState = {
@@ -596,6 +774,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     tasks,
     zadania,
     shopping,
+    todos,
     recipes,
     devices,
     guestsMode,
@@ -616,10 +795,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     endPanic,
     toggleShopping,
     addShopping,
+    addTodo,
+    toggleTodo,
+    setTodoAssignee,
+    removeTodo,
+    clearDoneTodos,
     triggerDevice,
     addUser,
     addTask,
+    updateTask,
     addZadanie,
+    updateZadanie,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

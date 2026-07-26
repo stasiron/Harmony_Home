@@ -20,8 +20,12 @@ type ZoneMapOverlayProps = {
   overlayOnly?: boolean;
   showLabels?: boolean;
   interactiveLabels?: boolean;
+  /** @deprecated prefer highlightZoneIds */
   highlightZoneId?: string | null;
+  /** @deprecated prefer highlightRooms */
   highlightRoom?: ChoreRoom | null;
+  highlightZoneIds?: string[];
+  highlightRooms?: ChoreRoom[];
   hoveredRoom?: ChoreRoom | null;
   roomMapHover?: boolean;
   onMapClick?: (point: MapPoint, space?: HomeZone) => void;
@@ -35,6 +39,8 @@ export function ZoneMapOverlay({
   interactiveLabels = false,
   highlightZoneId = null,
   highlightRoom = null,
+  highlightZoneIds,
+  highlightRooms,
   hoveredRoom = null,
   roomMapHover = false,
   onMapClick,
@@ -46,11 +52,15 @@ export function ZoneMapOverlay({
 
   const labelZones = zonesWithMapLabel(zones);
 
-  const highlightPolys = highlightZoneId
-    ? polygonsForZone(highlightZoneId, zones)
-    : highlightRoom
-      ? polygonsForRoom(highlightRoom, zones)
-      : [];
+  const zoneIds =
+    highlightZoneIds ?? (highlightZoneId ? [highlightZoneId] : []);
+  const rooms =
+    highlightRooms ?? (highlightRoom ? [highlightRoom] : []);
+  const usingZoneHighlight = zoneIds.length > 0;
+
+  const highlightPolys = usingZoneHighlight
+    ? zoneIds.flatMap((id) => polygonsForZone(id, zones))
+    : rooms.flatMap((room) => polygonsForRoom(room, zones));
 
   const outlinePolys = hoveredSpaceId
     ? polygonForSpace(hoveredSpaceId, zones)
@@ -120,16 +130,16 @@ export function ZoneMapOverlay({
         preserveAspectRatio="none"
         aria-hidden
       >
-        {highlightPolys.map(({ zoneId, polygon }) => (
+        {highlightPolys.map(({ zoneId, polygon }, index) => (
           <polygon
-            key={`hl-${zoneId}`}
+            key={`hl-${zoneId}-${index}`}
             points={polygonToPointsAttr(polygon)}
             className={cn(
-              highlightZoneId
-                ? "fill-primary/20 stroke-primary"
-                : "fill-secondary/25 stroke-secondary",
+              usingZoneHighlight
+                ? "fill-primary/55 stroke-primary"
+                : "fill-secondary/55 stroke-secondary",
             )}
-            strokeWidth={0.55}
+            strokeWidth={1.35}
             vectorEffect="non-scaling-stroke"
           />
         ))}
@@ -138,7 +148,7 @@ export function ZoneMapOverlay({
             key={`ol-${zoneId}`}
             points={polygonToPointsAttr(polygon)}
             className="fill-none stroke-primary"
-            strokeWidth={0.65}
+            strokeWidth={1.1}
             vectorEffect="non-scaling-stroke"
           />
         ))}
@@ -149,12 +159,11 @@ export function ZoneMapOverlay({
           {labelZones.map((zone) => {
             const pos = zoneDisplayPosition(zone, zones);
             if (!pos) return null;
-            const isHighlighted =
-              highlightZoneId === zone.id ||
-              (highlightZoneId &&
-                polygonsForZone(highlightZoneId, zones).some(
-                  (p) => p.zoneId === zone.id,
-                ));
+            const isHighlighted = zoneIds.some(
+              (id) =>
+                id === zone.id ||
+                polygonsForZone(id, zones).some((p) => p.zoneId === zone.id),
+            );
 
             return (
               <div

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WeatherRouteImport } from './routes/weather'
+import { Route as TodoRouteImport } from './routes/todo'
 import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SmartRouteImport } from './routes/smart'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -22,6 +23,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const WeatherRoute = WeatherRouteImport.update({
   id: '/weather',
   path: '/weather',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TodoRoute = TodoRouteImport.update({
+  id: '/todo',
+  path: '/todo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatsRoute = StatsRouteImport.update({
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/smart': typeof SmartRoute
   '/stats': typeof StatsRoute
+  '/todo': typeof TodoRoute
   '/weather': typeof WeatherRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/smart': typeof SmartRoute
   '/stats': typeof StatsRoute
+  '/todo': typeof TodoRoute
   '/weather': typeof WeatherRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/smart': typeof SmartRoute
   '/stats': typeof StatsRoute
+  '/todo': typeof TodoRoute
   '/weather': typeof WeatherRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/smart'
     | '/stats'
+    | '/todo'
     | '/weather'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/smart'
     | '/stats'
+    | '/todo'
     | '/weather'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/smart'
     | '/stats'
+    | '/todo'
     | '/weather'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SmartRoute: typeof SmartRoute
   StatsRoute: typeof StatsRoute
+  TodoRoute: typeof TodoRoute
   WeatherRoute: typeof WeatherRoute
 }
 
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/weather'
       fullPath: '/weather'
       preLoaderRoute: typeof WeatherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/todo': {
+      id: '/todo'
+      path: '/todo'
+      fullPath: '/todo'
+      preLoaderRoute: typeof TodoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stats': {
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SmartRoute: SmartRoute,
   StatsRoute: StatsRoute,
+  TodoRoute: TodoRoute,
   WeatherRoute: WeatherRoute,
 }
 export const routeTree = rootRouteImport

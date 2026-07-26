@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Check, Clock } from "lucide-react";
 import type { User, Zadanie } from "@/types";
 import { useAuth } from "@/context/AuthContext";
-import { roomLabel } from "@/config/rooms";
+import { loadHomeZones } from "@/config/homeZones";
 import { useApp } from "@/context/AppContext";
+import { EditZadanieDialog } from "@/components/chores/EditZadanieDialog";
 import { pickDefaultCompleter } from "@/lib/choreAssignees";
 import { IMPORTANCE_LABELS, resolveImportance } from "@/lib/choreImportance";
+import { zadanieLocationLabel } from "@/lib/zadanieLocation";
 import { cn } from "@/lib/utils";
 
 const statusStyles: Record<string, string> = {
@@ -93,7 +95,7 @@ export function ZadanieCard({
               <Clock className="size-3" /> {zadanie.estimatedMinutes} min
             </span>
             <span>Last: {d}d ago</span>
-            <span>{roomLabel(zadanie.room)}</span>
+            <span>{zadanieLocationLabel(zadanie, loadHomeZones())}</span>
             <span>
               próg {zadanie.tMin}d · krytyczne {zadanie.tMax}d
             </span>
@@ -150,13 +152,16 @@ export function ZadanieCard({
             </span>
           )}
         </div>
-        <button
-          onClick={handleComplete}
-          className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
-          aria-label="Oznacz zadanie jako zrobione"
-        >
-          <Check className="size-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <EditZadanieDialog zadanie={zadanie} compact={compact} />
+          <button
+            onClick={handleComplete}
+            className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+            aria-label="Oznacz zadanie jako zrobione"
+          >
+            <Check className="size-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

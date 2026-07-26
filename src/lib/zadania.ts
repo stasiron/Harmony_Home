@@ -18,3 +18,16 @@ export function zadaniaLinkedToChore(
   const chore = tasks.find((t) => t.id === choreId);
   return chore?.linkedZadanieIds ?? [];
 }
+
+/** Id zadań już podpiętych do innych obowiązków (nie do `exceptChoreId`). */
+export function zadanieIdsAttachedElsewhere(
+  tasks: { id: string; linkedZadanieIds?: string[] }[],
+  exceptChoreId?: string,
+): Set<string> {
+  const attached = new Set<string>();
+  for (const task of tasks) {
+    if (exceptChoreId && task.id === exceptChoreId) continue;
+    for (const id of task.linkedZadanieIds ?? []) attached.add(id);
+  }
+  return attached;
+}

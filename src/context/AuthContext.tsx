@@ -24,8 +24,10 @@ import {
 } from "@/lib/calendar/api";
 import { guessMemberId } from "@/lib/memberLink";
 import {
-  clearStoredMemberId,
+  clearSeeAsMemberId,
+  readSeeAsMemberId,
   readStoredMemberId,
+  writeSeeAsMemberId,
   writeStoredMemberId,
 } from "@/lib/memberStorage";
 import {
@@ -43,6 +45,8 @@ type AuthContextValue = {
   /** Każda sesja Firebase (Google lub anonimowa) — sync obowiązków w Firestore. */
   syncUser: User | null;
   memberId: string | null;
+  /** Podgląd home jako domownik bez logowania Google. */
+  seeAsMemberId: string | null;
   loading: boolean;
   syncingCalendar: boolean;
   calendarSyncTick: number;
@@ -53,6 +57,8 @@ type AuthContextValue = {
   connectPersistentCalendar: () => void;
   signOut: () => Promise<void>;
   linkMember: (memberId: string) => Promise<void>;
+  setSeeAsMember: (memberId: string) => void;
+  clearSeeAs: () => void;
   clearError: () => void;
 };
 
@@ -138,6 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const syncUser = firebaseUser;
   const [memberId, setMemberId] = useState<string | null>(() =>
     readStoredMemberId(),
+  );
+  const [seeAsMemberId, setSeeAsMemberIdState] = useState<string | null>(() =>
+    readSeeAsMemberId(),
   );
   const [loading, setLoading] = useState(configured);
   const [syncingCalendar, setSyncingCalendar] = useState(false);
@@ -266,6 +275,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void loadAndSyncUserProfile(nextUser)
           .then(async (linkedMemberId) => {
             if (cancelled) return;
+            clearSeeAsMemberId();
+            setSeeAsMemberIdState(null);
             setMemberId(linkedMemberId);
             const synced = await connectCalendarIfPending(linkedMemberId);
             if (!synced) {
@@ -369,6 +380,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setSeeAsMember = useCallback((nextMemberId: string) => {
+    writeSeeAsMemberId(nextMemberId);
+    setSeeAsMemberIdState(nextMemberId);
+  }, []);
+
+  const clearSeeAs = useCallback(() => {
+    clearSeeAsMemberId();
+    setSeeAsMemberIdState(null);
+  }, []);
+
   const clearError = useCallback(() => setError(null), []);
 
   const value = useMemo(
@@ -376,6 +397,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       syncUser,
       memberId,
+      seeAsMemberId,
       loading,
       syncingCalendar,
       calendarSyncTick,
@@ -386,12 +408,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       connectPersistentCalendar,
       signOut,
       linkMember,
+      setSeeAsMember,
+      clearSeeAs,
       clearError,
     }),
     [
       user,
       syncUser,
       memberId,
+      seeAsMemberId,
       loading,
       syncingCalendar,
       calendarSyncTick,
@@ -402,6 +427,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       connectPersistentCalendar,
       signOut,
       linkMember,
+      setSeeAsMember,
+      clearSeeAs,
       clearError,
     ],
   );

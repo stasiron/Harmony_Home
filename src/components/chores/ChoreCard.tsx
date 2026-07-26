@@ -1,7 +1,7 @@
-import { Check, Clock, ListChecks, Repeat } from "lucide-react";
+import { Check, ListChecks, Repeat } from "lucide-react";
 import type { Task } from "@/types";
-import { roomLabel } from "@/config/rooms";
 import { useApp } from "@/context/AppContext";
+import { EditChoreDialog } from "@/components/chores/EditChoreDialog";
 import { ZadanieCard } from "@/components/chores/ZadanieCard";
 import { formatScheduleLabel } from "@/lib/choreRecurrence";
 import { IMPORTANCE_LABELS, resolveImportance } from "@/lib/choreImportance";
@@ -63,18 +63,17 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
           )}
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Clock className="size-3" /> {task.estimatedMinutes} min
+              <ListChecks className="size-3" />
+              {linked.length}{" "}
+              {linked.length === 1 ? "zadanie" : "zadań"}
+              {linkedSummary
+                ? ` · ${linkedSummary.pendingCount} do zrobienia`
+                : null}
+              {linkedSummary && linkedSummary.criticalCount > 0
+                ? ` · ${linkedSummary.criticalCount} kryt.`
+                : null}
             </span>
             <span>Last: {d}d ago</span>
-            <span>{roomLabel(task.room)}</span>
-            {linkedSummary && (
-              <span className="flex items-center gap-1">
-                <ListChecks className="size-3" />
-                {linkedSummary.pendingCount}/{linked.length} zadań
-                {linkedSummary.criticalCount > 0 &&
-                  ` · ${linkedSummary.criticalCount} kryt.`}
-              </span>
-            )}
             {task.recurrence === "recurring" && task.schedule && (
               <span className="flex items-center gap-1">
                 <Repeat className="size-3" />
@@ -183,13 +182,16 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
             </span>
           )}
         </div>
-        <button
-          onClick={() => completeTask(task.id)}
-          className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
-          aria-label="Mark done"
-        >
-          <Check className="size-4" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <EditChoreDialog task={task} />
+          <button
+            onClick={() => completeTask(task.id)}
+            className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+            aria-label="Mark done"
+          >
+            <Check className="size-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

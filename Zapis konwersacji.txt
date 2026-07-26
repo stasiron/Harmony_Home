@@ -1,0 +1,306 @@
+# HomeHarmony — lista funkcjonalności (obowiązki domowe)
+
+## 1. Harmonogram powtarzania obowiązków
+
+**Opis:** Przy typie „Powtarzalne” w dialogu „Dodaj obowiązek” użytkownik wybiera częstotliwość wykonania.
+
+**Opcje:**
+- Co X dni (np. śmieci co 2 dni)
+- Co X tygodni (np. odkurzanie co tydzień)
+- Co X miesięcy
+- Wybrane dni tygodnia (Pn–Nd) + „co ile tygodni”
+
+**Etykieta na karcie:** np. „Co 2 dni”, „So · co tydzień”.
+
+**Format JSON (`schedule`):**
+```json
+{ "type": "interval", "unit": "days", "every": 2 }
+{ "type": "interval", "unit": "weeks", "every": 1 }
+{ "type": "weekly", "weekdays": [1, 4], "everyWeeks": 2 }
+```
+`weekdays`: 1 = Pn … 7 = Nd.
+
+**Pliki:** `src/lib/choreRecurrence.ts`, `src/components/chores/RecurrencePicker.tsx`
+
+**Uwagi:** Z harmonogramu liczone są progi `tMin` / `tSuggested` / `tMax`. Stare zadania bez `schedule` dostają domyślny „co 7 dni”.
+
+---
+
+## 2. Stałe obowiązki w JSON
+
+**Opis:** Wszystkie wbudowane obowiązki trzymane w pliku JSON — podmiana pliku = nowa lista bez zmian w kodzie.
+
+**Plik:** `content/data/chores.json`
+
+---
+
+## 3. Poziomy ważności zadań
+
+**Opis:** Każdy obowiązek/zadanie ma pole `importance` (1–5).
+
+| Poziom | Etykieta      |
+|--------|---------------|
+| 5      | Krytyczna     |
+| 4      | Wysoka        |
+| 3      | Średnia (dom.)|
+| 2      | Niska         |
+| 1      | Bardzo niska  |
+
+**UI:** Wybór w dialogu „Dodaj obowiązek”.
+
+**Migracja:** Stare wpisy bez pola → z `isExpressBlitz` / `isGuestPriority`.
+
+**Tryb PANIC_GOSCIE** (Guests Panic Button):
+- Lista tylko zadań z ważnością ≥ 3
+- Sortowanie: ważność ↓ → status (must/suggested) → nazwa
+- Ważność ≥ 4 → status `must`
+- Widok na `/chores`: sekcja „PANIC_GOSCIE — od najważniejszych” z numerami 1, 2, 3…
+- Tryb gości (`guestsMode`) też sortuje po ważności + pokazuje badge
+
+---
+
+## 4. Mapa — tryby wyświetlania pinezek
+
+**Opis:** Przełącznik nad planem mieszkania. Trzy tryby:
+
+### Tryb 1: Inicjały (domyślny)
+- Pierwsza litera osoby przypisanej (brak osoby → litera z nazwy zadania)
+- Obramówka = pilność (jak w trybie 2)
+- Czerwone pulsuje
+
+### Tryb 2: Kolory
+- Sam kolor + `!` przy pomarańczowym/czerwonym
+- Szary = wykonane / brak potrzeby
+- Zielony = za chwilę
+- Pomarańczowy = wykonaj
+- Czerwony = koniecznie
+
+### Tryb 3: PANIC
+- Ta sama kolorystyka, ale kolor z ważności zadania (nie statusu)
+- Tylko zadania ważność ≥ 3
+- 5 = czerwony (teraz, przed gośćmi), 4 = pomarańczowy, 3 = zielony
+
+**Legenda** pod przełącznikiem. Hover na pinezce → nazwa + pokój (+ ważność w PANIC).
+
+**Pliki:** `ApartmentMap.tsx`, `src/lib/mapPinStyles.ts`
+
+---
+
+## 5. Mapa — warstwy wyświetlania
+
+**Opis:** Multi-select nad planem — można włączyć kilka naraz. Wybór zapisuje się w `localStorage`.
+
+| Warstwa  | Co robi |
+|----------|---------|
+| Pinezki  | Inicjały / kolory (wg trybu z pkt. 4) |
+| Linie    | Od środka strefy pokoju → zadanie (brak strefy → od dołu) |
+| Obszary  | Kółko wokół zadania, kolor = pilność |
+| Strefy   | Nazwa na środku strefy; hover → kontur (bez kolorowego fill) |
+
+Każdy obowiązek rysuje się według swojego `mapShape`.
+
+---
+
+## 6. Edytor stref mapy
+
+**Opis:** Sekcja w `/settings` — „Edytor stref mapy”.
+
+**Flow:**
+1. Wybierz pokój
+2. Klikaj plan — rysuj wielokąt
+3. Zamknij strefę (min. 3 punkty)
+4. Kopiuj JSON → wklej do `content/data/homeZones.json`
+
+**Draft** w przeglądarce → podgląd na mapie od razu. Plik JSON ma pierwszeństwo.
+
+---
+
+## 7. Drzewo stref domu
+
+**Opis:** Hierarchiczna struktura domu w `/settings` → „Drzewo stref domu”.
+
+**Typy węzłów:**
+- **Grupa** (📁) — folder bez kształtu, np. „Strefa dzienna”, „Strefa prywatna”
+- **Przestrzeń** (▢) — z wielokątem na planie, np. „Kuchnia”, „Strefa dzieci”
+
+**Funkcje:**
+- Własna nazwa, wybór rodzica → zagnieżdżone drzewo
+- Opcjonalne powiązanie z pokojem (kategoria)
+- Kopiuj JSON → `content/data/homeZones.json`
+
+**Przykład:**
+```
+📁 Strefa dzienna
+  ▢ Salon
+  ▢ Kuchnia
+  ▢ Jadalnia
+📁 Strefa prywatna
+  📁 Strefa dzieci
+    ▢ Sypialnia 1
+```
+
+---
+
+## 8. Kształty obowiązku na mapie
+
+**Opis:** W dialogu „Dodaj obowiązek” wybór kształtu lokalizacji.
+
+| Kształt      | Jak                          |
+|--------------|------------------------------|
+| Pinezka      | Klik na plan                 |
+| Linia        | 2 punkty                     |
+| Obszar       | Wielokąt (min. 3 pkt.)       |
+| Cała strefa  | Wybór z drzewa — obejmuje grupę + dzieci |
+
+**Grubość linii:** Pole `mapLineWidth` (config: `src/config/mapLine.ts`, domyślnie 2.5, zakres 0.5–8). Suwak w formularzu gdy wybrana linia.
+
+---
+
+## 9. Wybór lokalizacji przy dodawaniu obowiązku
+
+**Opis:** `ChoreLocationPicker` — mapa + listy pod planem.
+
+**Mapa:**
+- Stały aspect ratio obrazka (`1024/818`)
+- Czysty plan bez etykiet stref
+- Klik na planie → wybór pokoju (polygon lub najbliższy pin)
+- Hover → kontur pokoju; zaznaczony pokój → wypełnienie
+- Przy wyborze strefy → podświetlenie konturów wszystkich pokoi w strefie
+
+**Listy (poziomo pod mapą, osobne rzędy):**
+- **Strefy** — tylko grupy (`kind === "group"`)
+- **Pokoje** — osobny rząd, zawsze widoczny
+
+**Wybór strefy** → `mapShape: "zone"`, bez dodatkowej geometrii.
+**Wybór pokoju** → pinezka/linia/obszar jak wcześniej.
+
+**Pliki:** `ChoreLocationPicker.tsx`, `ZoneMapOverlay.tsx`, `src/lib/mapHitTest.ts`, `src/lib/contentPaths.ts`
+
+---
+
+## 10. Struktura folderów `content/`
+
+**Opis:** Centralne miejsce na zasoby edytowalne bez rebuildu kodu.
+
+```
+content/
+├── images/              ← zdjęcia (plan mieszkania itd.)
+│   └── apartment-floor-plan.png
+└── data/                ← JSON do szybkiej edycji
+    ├── chores.json      — stałe obowiązki
+    ├── homeZones.json   — drzewo stref / plan pokoi
+    └── zadania.json     — stałe zadania
+```
+
+Importy: `@content/data/...`, obrazek przez `src/lib/contentPaths.ts`.
+
+---
+
+## 11. Zadania — osobna encja
+
+**Opis:** Zadania to rzeczy do zrobienia ze szczegółami. Działają jak obowiązki, ale są osobnym typem. Do obowiązku można przypiąć wiele istniejących zadań.
+
+**Model:**
+- **Zadanie** — osobny typ, te same pola co obowiązek (lokalizacja, ważność, mapa…), **bez przypisania osoby**
+- **Obowiązek** — `linkedZadanieIds` zamiast zagnieżdżonych kroków
+
+**UI:**
+- Przycisk „Dodaj zadanie” — ten sam formularz (`ChoreItemFormFields`)
+- „Dodaj obowiązek” → sekcja „Przypisz istniejące zadania” (multi-select chipów)
+- Strona `/chores`: sekcje Obowiązki + Zadania
+- `ChoreCard` — przypięte zadania jako mini-karty
+
+**Dane:** `content/data/zadania.json`
+**Sync:** Firestore `userZadania` + wspólny progress
+
+**Flow:** Najpierw dodaj zadania → potem obowiązek z przypięciem istniejących.
+
+---
+
+## 12. Progi czasu i waga zadań
+
+**Opis:** Zadania mają progi czasu zamiast harmonogramu powtarzania.
+
+**Pola zadania:**
+- **Min. czas (dni)** — po tylu dniach zadanie prosi o wykonanie (`suggested`)
+- **Maks. czas (dni)** — po tylu staje się krytyczne (`must`)
+- **Trudność** = `estimatedMinutes` (waga przy liczeniu obowiązku)
+
+**Status obowiązku z przypiętymi zadaniami** (nie z własnego harmonogramu):
+- Pomarańczowy — ≥ 50% wagi zadań wymaga wykonania
+- Czerwony — choć jedno zadanie krytyczne
+- Zielony / done — wszystkie zadania świeże
+
+**Przykład (łazienka):**
+- Umywalka: 4–10 dni, waga 8 min
+- Toaleta: 3–7 dni, waga 7 min
+- Kabina: 7–14 dni, waga 10 min
+- Obowiązek pomarańczowy gdy połowa wagi „do zrobienia”, czerwony gdy cokolwiek po `tMax`
+
+---
+
+## 13. Przypisanie osób do obowiązków
+
+**Opis:** Osoby przypisuje się tylko do obowiązków, nie do zadań.
+
+|                | Zadanie | Obowiązek        |
+|----------------|---------|------------------|
+| Osoba          | brak    | `assignedTo: string[]` (wielu) |
+| Kto zrobił     | `lastCompletedBy` przy odhaczeniu | — |
+| % wykonania    | —       | waga zadań per osoba |
+
+**UI:**
+- `AssigneeMultiPicker` — tylko obowiązek, wiele osób na karcie (avatary)
+- Odhaczanie zadania: 1 osoba → auto; zalogowany w assignees → auto; wielu → „Kto zrobił?”
+
+**% wykonania** (`choreCompletionByAssignee()`):
+- Waga zadania = `estimatedMinutes`
+- Tylko zadania `done`, kto odhaczył → `lastCompletedBy`
+- Pasek % na `ChoreCard`
+
+**Pliki:** `src/lib/choreAssignees.ts`, `AssigneeMultiPicker.tsx`, `ChoreCard.tsx`, `ZadanieCard.tsx`
+
+**Migracja:** Stary string `assignedTo` w JSON → `normalizeAssignedTo()` przy load.
+
+---
+
+## 14. Konfiguracja wagi zadań
+
+**Opis:** Wzór i limity w osobnym pliku konfiguracyjnym.
+
+**Plik:** `src/config/choreWeight.ts`
+
+**Wzór:**
+```
+WAGA = czas × (TRUDNOSC / MAKS_TRUDNOSC + 1)
+```
+- `czas` → `estimatedMinutes`
+- `TRUDNOSC` → `importance`
+
+**Ustawienia:**
+
+| Parametr       | Wartość | Rola                              |
+|----------------|---------|-----------------------------------|
+| `maksTrudnosc` | 5       | Skala trudności (rozszerzalna)    |
+| `maksCzasMinut`| 480     | Limit minut w formularzu          |
+| `minWaga`      | 1       | Floor wyniku                      |
+
+**Przykład (10 min):** trudność 1 → 12, trudność 3 → 16, trudność 5 → 20.
+
+**UI:** Karta w `/settings` z wzorem, limitami, tabelą przykładów.
+
+**Podpięte:** `choreZadaniaStatus`, `choreAssignees`, formularz (max czasu + lista ważności).
+
+---
+
+## 15. Mapowanie pokoi i hit-test
+
+**Opis:** Obsługa hover/zaznaczenia pokoi na mapie.
+
+- `roomForSpace()` — mapuje nazwę przestrzeni → `ChoreRoom` (Salon→living, Kuchnia→kitchen itd.)
+- Hover na mapie — `mousemove` + hit-test polygonu → kontur pokoju
+- Hover na liście — ten sam kontur na planie
+- Zaznaczony pokój — wypełnienie polygonu, gdy nie wybrano strefy
+- Klik — przez polygon, nie tylko pinezki fallback
+
+**Uwaga:** Strefy na mapie wymagają narysowanych wielokątów w Ustawienia → Strefy domu. Pusty `homeZones.json` = tylko lista pokoi bez etykiet stref.
