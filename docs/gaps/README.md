@@ -10,6 +10,7 @@ Krótki indeks — szczegóły w osobnych plikach.
 | [03-tryb-gosci.md](./03-tryb-gosci.md) | Tryb gości (`guestsMode`) | 🔜 do dopracowania |
 | [04-panic.md](./04-panic.md) | PANIC z dashboardu + zamrożony tryb mapy | ⚙️ częściowo wdrożone |
 | [09-ksztalty-mapy.md](./09-ksztalty-mapy.md) | Kształty na planie mieszkania | 🔜 TODO |
+| [10-todo.md](./10-todo.md) | Proste sprawy TODO (privacy, mapa, sync) | ⚙️ częściowo — sync OK, braki UI/model |
 
 **Gotowe (bez osobnego pliku):**
 - **§5** warstwy mapy (linie punkt→punkt + grubość, obszary jako polygon, strefy = nazwa + kontur) — zgodne z wizją.

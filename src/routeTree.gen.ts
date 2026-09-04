@@ -15,6 +15,7 @@ import { Route as StatsRouteImport } from './routes/stats'
 import { Route as SmartRouteImport } from './routes/smart'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MembersRouteImport } from './routes/members'
+import { Route as LaundryRouteImport } from './routes/laundry'
 import { Route as KitchenRouteImport } from './routes/kitchen'
 import { Route as ChoresRouteImport } from './routes/chores'
 import { Route as CalendarRouteImport } from './routes/calendar'
@@ -50,6 +51,11 @@ const MembersRoute = MembersRouteImport.update({
   path: '/members',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaundryRoute = LaundryRouteImport.update({
+  id: '/laundry',
+  path: '/laundry',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KitchenRoute = KitchenRouteImport.update({
   id: '/kitchen',
   path: '/kitchen',
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
   '/kitchen': typeof KitchenRoute
+  '/laundry': typeof LaundryRoute
   '/members': typeof MembersRoute
   '/settings': typeof SettingsRoute
   '/smart': typeof SmartRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
   '/kitchen': typeof KitchenRoute
+  '/laundry': typeof LaundryRoute
   '/members': typeof MembersRoute
   '/settings': typeof SettingsRoute
   '/smart': typeof SmartRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
   '/kitchen': typeof KitchenRoute
+  '/laundry': typeof LaundryRoute
   '/members': typeof MembersRoute
   '/settings': typeof SettingsRoute
   '/smart': typeof SmartRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/chores'
     | '/kitchen'
+    | '/laundry'
     | '/members'
     | '/settings'
     | '/smart'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/chores'
     | '/kitchen'
+    | '/laundry'
     | '/members'
     | '/settings'
     | '/smart'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/chores'
     | '/kitchen'
+    | '/laundry'
     | '/members'
     | '/settings'
     | '/smart'
@@ -152,6 +164,7 @@ export interface RootRouteChildren {
   CalendarRoute: typeof CalendarRoute
   ChoresRoute: typeof ChoresRoute
   KitchenRoute: typeof KitchenRoute
+  LaundryRoute: typeof LaundryRoute
   MembersRoute: typeof MembersRoute
   SettingsRoute: typeof SettingsRoute
   SmartRoute: typeof SmartRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MembersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/laundry': {
+      id: '/laundry'
+      path: '/laundry'
+      fullPath: '/laundry'
+      preLoaderRoute: typeof LaundryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/kitchen': {
       id: '/kitchen'
       path: '/kitchen'
@@ -240,6 +260,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalendarRoute: CalendarRoute,
   ChoresRoute: ChoresRoute,
   KitchenRoute: KitchenRoute,
+  LaundryRoute: LaundryRoute,
   MembersRoute: MembersRoute,
   SettingsRoute: SettingsRoute,
   SmartRoute: SmartRoute,

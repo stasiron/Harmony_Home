@@ -1,4 +1,10 @@
-import type { TodoHouseholdMode, TodoItem, TodoScope, User } from "@/types";
+import type {
+  TodoFolder,
+  TodoHouseholdMode,
+  TodoItem,
+  TodoScope,
+  User,
+} from "@/types";
 
 export type TodoAddInput = {
   text: string;
@@ -6,10 +12,11 @@ export type TodoAddInput = {
   householdMode?: TodoHouseholdMode;
   /** Tylko personal — id domownika */
   assignedTo?: string | null;
+  folderId?: string | null;
 };
 
 export function activeMembers(users: User[]): User[] {
-  return users.filter((u) => u.active);
+  return users.filter((u) => u.active !== false);
 }
 
 export function isTodoOpen(todo: TodoItem, users: User[]): boolean {
@@ -17,6 +24,8 @@ export function isTodoOpen(todo: TodoItem, users: User[]): boolean {
     return !todo.done;
   }
   const needed = activeMembers(users).map((u) => u.id);
+  // Brak aktywnych domowników → nie traktuj jako zrobione
+  if (needed.length === 0) return !todo.done;
   const doneSet = new Set(todo.completedBy ?? []);
   return needed.some((id) => !doneSet.has(id));
 }
@@ -81,8 +90,58 @@ export function buildTodoItem(input: TodoAddInput): TodoItem | null {
     done: false,
     createdAt: new Date().toISOString(),
     scope,
+    folderId: input.folderId ?? null,
     assignedTo,
     ...(householdMode ? { householdMode } : {}),
     completedBy: [],
   };
+}
+
+export function buildTodoFolder(name: string): TodoFolder | null {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  return {
+    id: crypto.randomUUID(),
+    name: trimmed,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function todoInFolder(
+  todo: TodoItem,
+  folderId: string | null,
+): boolean {
+  const id = todo.folderId ?? null;
+  return id === folderId;
+}
+
+export type TodoExportPayload = {
+  exportedAt: string;
+  folders: TodoFolder[];
+  todos: TodoItem[];
+};
+
+export function buildTodoExport(
+  folders: TodoFolder[],
+  todos: TodoItem[],
+): TodoExportPayload {
+  return {
+    exportedAt: new Date().toISOString(),
+    folders,
+    todos,
+  };
+}
+
+export function downloadTodoJson(payload: TodoExportPayload): void {
+  if (typeof window === "undefined") return;
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const stamp = payload.exportedAt.slice(0, 10);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `homeharmony-todos-${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

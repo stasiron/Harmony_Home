@@ -51,7 +51,7 @@ Obowiązek z zadaniami → status z **wag** zadań (50% próg), nie z własnego 
 | `content/data/chores.json` | Stałe obowiązki (rebuild) |
 | `content/data/zadania.json` | Stałe zadania (rebuild) |
 | `content/data/homeZones.json` | Strefy mapy (rebuild) |
-| localStorage | `userTasks`, `userZadania`, `progress`, users, shopping |
+| localStorage | `userTasks`, `userZadania`, `progress`, users, shopping, todos, laundryPrograms |
 | Firestore `households/homeharmony` | Sync powyższego między urządzeniami |
 
 **Zasada:** zespół powtarzalnych obowiązków = JSON + to co przyszło z Firebase. Zmiana JSON = deploy.
@@ -99,6 +99,7 @@ Tryb **PANIC na mapie** (kolory wg ważności) — **wyłączony w UI**, kod zam
 | Harmonogram | `src/lib/choreRecurrence.ts` |
 | Sync chmura | `src/lib/householdFirestore.ts` |
 | Strona obowiązków | `src/routes/chores.tsx` |
+| Strona prania | `src/routes/laundry.tsx` |
 | Globalny stan | `src/context/AppContext.tsx` |
 | Typy | `src/types/index.ts` |
 
@@ -154,6 +155,7 @@ Stack: React 19, TanStack Start/Router, Vite, Tailwind, shadcn, Firebase, Nitro�
 | Zmiana sortowania panic | `choreSort.ts`, `routes/chores.tsx`, `AppContext` `visibleTasks` |
 | Kalendarz / goście | `useGuestCalendarSync.ts`, `check-guest-calendar.server.ts` |
 | Firebase nie sync | `AuthContext`, `householdFirestore.ts`, `firestore.rules` |
+| Moduł TODO (sprawy, nie chores) | `routes/todo.tsx`, `todoHelpers.ts`, `docs/gaps/10-todo.md` |
 | Błąd po deployu | `/api/health`, `chunk-reload-guard`, `docs/STRUKTURA` §12 |
 
 ---

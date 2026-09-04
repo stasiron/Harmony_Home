@@ -7,6 +7,7 @@ import {
   Home,
   ListTodo,
   Settings,
+  Shirt,
   ShoppingBasket,
   Users,
 } from "lucide-react";
@@ -25,6 +26,7 @@ export const navItems: NavItem[] = [
   { to: "/calendar", label: "Kalendarz", icon: Calendar },
   { to: "/chores", label: "Chores", icon: CalendarCheck },
   { to: "/todo", label: "TODO", icon: ListTodo },
+  { to: "/laundry", label: "Prania", icon: Shirt },
   { to: "/kitchen", label: "Kitchen", icon: ShoppingBasket },
   { to: "/smart", label: "Smart", icon: Cpu },
   { to: "/stats", label: "Stats", icon: BarChart3 },

@@ -168,18 +168,43 @@ export type TodoScope = "personal" | "household";
 /** Domowe: ktoś jeden raz, albo każdy domownik po razie */
 export type TodoHouseholdMode = "anyone" | "everyone";
 
+/** Folder / zakładka do grupowania todo */
+export interface TodoFolder {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface TodoItem {
   id: string;
   text: string;
   done: boolean;
   createdAt: string;
   scope: TodoScope;
+  /** null / brak = bez folderu (inbox) */
+  folderId?: string | null;
   /** Tylko dla scope: personal — kto ma to zrobić */
   assignedTo?: string | null;
   /** Tylko dla scope: household */
   householdMode?: TodoHouseholdMode;
   /** Id domowników którzy odhaczyli (everyone / opcjonalnie anyone) */
   completedBy?: string[];
+}
+
+/** Instrukcja prania — jak prać dany materiał / zestaw ubrań */
+export interface LaundryProgram {
+  id: string;
+  /** Nazwa ubrań / materiałów */
+  name: string;
+  /** Tryb pralki (np. Bawełna, Delikatne) */
+  mode: string;
+  /** Temperatura w °C */
+  temperature: number;
+  /** Ilość płukań */
+  rinses: number;
+  /** Obroty wirówki */
+  spin: number;
+  createdAt: string;
 }
 
 export interface SmartHomeDevice {

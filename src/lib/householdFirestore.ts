@@ -8,10 +8,17 @@ import {
 import { getFirestoreDb } from "@/lib/firebase";
 import { PERMANENT_CHORE_IDS } from "@/config/chores";
 import { PERMANENT_ZADANIA_IDS } from "@/config/zadania";
+import {
+  normalizeLaundryProgram,
+  normalizeTodo,
+  normalizeTodoFolder,
+} from "@/lib/appStorage";
 import type {
   GuestPlan,
+  LaundryProgram,
   ShoppingItem,
   Task,
+  TodoFolder,
   TodoItem,
   User,
   Zadanie,
@@ -27,6 +34,8 @@ export type HouseholdSnapshot = {
   shopping: ShoppingItem[];
   guestPlans: GuestPlan[];
   todos: TodoItem[];
+  todoFolders: TodoFolder[];
+  laundryPrograms: LaundryProgram[];
 };
 
 function emptySnapshot(): HouseholdSnapshot {
@@ -38,6 +47,8 @@ function emptySnapshot(): HouseholdSnapshot {
     shopping: [],
     guestPlans: [],
     todos: [],
+    todoFolders: [],
+    laundryPrograms: [],
   };
 }
 
@@ -59,21 +70,19 @@ function normalizeSnapshot(data: Record<string, unknown>): HouseholdSnapshot {
       ? (data.guestPlans as GuestPlan[])
       : [],
     todos: Array.isArray(data.todos)
-      ? (data.todos as TodoItem[]).map((t) => ({
-          ...t,
-          scope: t.scope === "household" ? "household" : "personal",
-          assignedTo:
-            t.scope !== "household" && typeof t.assignedTo === "string"
-              ? t.assignedTo
-              : null,
-          householdMode:
-            t.scope === "household"
-              ? t.householdMode === "everyone"
-                ? "everyone"
-                : "anyone"
-              : undefined,
-          completedBy: Array.isArray(t.completedBy) ? t.completedBy : [],
-        }))
+      ? data.todos
+          .map(normalizeTodo)
+          .filter((t): t is TodoItem => t !== null)
+      : [],
+    todoFolders: Array.isArray(data.todoFolders)
+      ? data.todoFolders
+          .map(normalizeTodoFolder)
+          .filter((f): f is TodoFolder => f !== null)
+      : [],
+    laundryPrograms: Array.isArray(data.laundryPrograms)
+      ? data.laundryPrograms
+          .map(normalizeLaundryProgram)
+          .filter((p): p is LaundryProgram => p !== null)
       : [],
   };
 }
@@ -106,6 +115,8 @@ export function snapshotHash(snapshot: HouseholdSnapshot): string {
     shopping: snapshot.shopping,
     guestPlans: snapshot.guestPlans,
     todos: snapshot.todos,
+    todoFolders: snapshot.todoFolders,
+    laundryPrograms: snapshot.laundryPrograms,
   });
 }
 
@@ -155,6 +166,34 @@ export function isEmptyHousehold(snapshot: HouseholdSnapshot): boolean {
     snapshot.users.length === 0 &&
     snapshot.shopping.length === 0 &&
     snapshot.guestPlans.length === 0 &&
-    snapshot.todos.length === 0
+    snapshot.todos.length === 0 &&
+    snapshot.todoFolders.length === 0 &&
+    snapshot.laundryPrograms.length === 0
   );
+}
+
+/**
+ * Gdy w chmurze brakuje list (np. stare dokumenty sprzed todos),
+ * dołóż lokalne wartości zamiast je wycierać przy pierwszym syncu.
+ */
+export function seedEmptyListsFromLocal(
+  remote: HouseholdSnapshot,
+  local: HouseholdSnapshot,
+): HouseholdSnapshot {
+  return {
+    ...remote,
+    todos: remote.todos.length > 0 ? remote.todos : local.todos,
+    todoFolders:
+      remote.todoFolders.length > 0
+        ? remote.todoFolders
+        : local.todoFolders,
+    shopping: remote.shopping.length > 0 ? remote.shopping : local.shopping,
+    guestPlans:
+      remote.guestPlans.length > 0 ? remote.guestPlans : local.guestPlans,
+    users: remote.users.length > 0 ? remote.users : local.users,
+    laundryPrograms:
+      remote.laundryPrograms.length > 0
+        ? remote.laundryPrograms
+        : local.laundryPrograms,
+  };
 }

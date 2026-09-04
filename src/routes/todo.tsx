@@ -1,15 +1,35 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Home, Plus, Trash2, User } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  Download,
+  FolderPlus,
+  Home,
+  Plus,
+  Trash2,
+  User,
+} from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { Shell } from "@/components/Shell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
-import { activeMembers, isTodoOpen } from "@/lib/todoHelpers";
+import {
+  activeMembers,
+  buildTodoExport,
+  downloadTodoJson,
+  isTodoOpen,
+  todoInFolder,
+} from "@/lib/todoHelpers";
 import { cn } from "@/lib/utils";
 import type {
+  TodoFolder,
   TodoHouseholdMode,
   TodoItem,
   TodoScope,
@@ -36,12 +56,17 @@ export const Route = createFileRoute("/todo")({
 function TodoPage() {
   const {
     todos,
+    todoFolders,
     users,
     addTodo,
     toggleTodo,
     setTodoAssignee,
+    setTodoFolder,
     removeTodo,
     clearDoneTodos,
+    addTodoFolder,
+    renameTodoFolder,
+    removeTodoFolder,
   } = useApp();
   const { memberId, seeAsMemberId } = useAuth();
   const actorId = seeAsMemberId ?? memberId;
@@ -51,32 +76,66 @@ function TodoPage() {
   const [householdMode, setHouseholdMode] =
     useState<TodoHouseholdMode>("anyone");
   const [assigneeId, setAssigneeId] = useState<string | null>(actorId);
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [addingFolder, setAddingFolder] = useState(false);
 
   const members = useMemo(() => activeMembers(users), [users]);
 
   useEffect(() => {
     if (assigneeId && members.some((m) => m.id === assigneeId)) return;
-    setAssigneeId(actorId && members.some((m) => m.id === actorId) ? actorId : null);
+    setAssigneeId(
+      actorId && members.some((m) => m.id === actorId) ? actorId : null,
+    );
   }, [actorId, assigneeId, members]);
 
+  useEffect(() => {
+    if (activeFolderId === null) return;
+    if (!todoFolders.some((f) => f.id === activeFolderId)) {
+      setActiveFolderId(null);
+    }
+  }, [activeFolderId, todoFolders]);
+
+  const folderTodos = useMemo(
+    () => todos.filter((t) => todoInFolder(t, activeFolderId)),
+    [todos, activeFolderId],
+  );
+
   const personalOpen = useMemo(
-    () => todos.filter((t) => t.scope !== "household" && isTodoOpen(t, users)),
-    [todos, users],
+    () =>
+      folderTodos.filter(
+        (t) => t.scope !== "household" && isTodoOpen(t, users),
+      ),
+    [folderTodos, users],
   );
   const personalDone = useMemo(
-    () => todos.filter((t) => t.scope !== "household" && !isTodoOpen(t, users)),
-    [todos, users],
+    () =>
+      folderTodos.filter(
+        (t) => t.scope !== "household" && !isTodoOpen(t, users),
+      ),
+    [folderTodos, users],
   );
   const houseOpen = useMemo(
-    () => todos.filter((t) => t.scope === "household" && isTodoOpen(t, users)),
-    [todos, users],
+    () =>
+      folderTodos.filter(
+        (t) => t.scope === "household" && isTodoOpen(t, users),
+      ),
+    [folderTodos, users],
   );
   const houseDone = useMemo(
-    () => todos.filter((t) => t.scope === "household" && !isTodoOpen(t, users)),
-    [todos, users],
+    () =>
+      folderTodos.filter(
+        (t) => t.scope === "household" && !isTodoOpen(t, users),
+      ),
+    [folderTodos, users],
   );
 
   const doneCount = personalDone.length + houseDone.length;
+
+  const inboxCount = useMemo(
+    () => todos.filter((t) => todoInFolder(t, null)).length,
+    [todos],
+  );
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -85,20 +144,146 @@ function TodoPage() {
       scope,
       householdMode: scope === "household" ? householdMode : undefined,
       assignedTo: scope === "personal" ? assigneeId : null,
+      folderId: activeFolderId,
     });
     setDraft("");
   };
 
+  const onCreateFolder = (e: FormEvent) => {
+    e.preventDefault();
+    const id = addTodoFolder(newFolderName);
+    if (!id) return;
+    setNewFolderName("");
+    setAddingFolder(false);
+    setActiveFolderId(id);
+  };
+
+  const onExport = () => {
+    downloadTodoJson(buildTodoExport(todoFolders, todos));
+  };
+
+  const activeFolder = todoFolders.find((f) => f.id === activeFolderId);
+
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          TODO
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Osobiste (z właścicielem) albo sprawy domu — kto może, ten robi.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+            TODO
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Foldery do grupowania spraw. Eksport = ten sam JSON co w syncu.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onExport}
+          disabled={todos.length === 0 && todoFolders.length === 0}
+          className="h-10 shrink-0 rounded-2xl"
+        >
+          <Download className="size-4" />
+          Eksportuj JSON
+        </Button>
       </header>
+
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <FolderTab
+            active={activeFolderId === null}
+            onClick={() => setActiveFolderId(null)}
+            label="Bez folderu"
+            count={inboxCount}
+          />
+          {todoFolders.map((folder) => (
+            <FolderTab
+              key={folder.id}
+              active={activeFolderId === folder.id}
+              onClick={() => setActiveFolderId(folder.id)}
+              label={folder.name}
+              count={todos.filter((t) => todoInFolder(t, folder.id)).length}
+            />
+          ))}
+          {!addingFolder ? (
+            <button
+              type="button"
+              onClick={() => setAddingFolder(true)}
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+            >
+              <FolderPlus className="size-3.5" />
+              Nowy folder
+            </button>
+          ) : null}
+        </div>
+
+        {addingFolder ? (
+          <form onSubmit={onCreateFolder} className="flex max-w-md gap-2">
+            <Input
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Nazwa folderu…"
+              className="h-10 rounded-2xl border-border bg-surface px-3"
+              autoFocus
+            />
+            <Button
+              type="submit"
+              disabled={!newFolderName.trim()}
+              className="h-10 rounded-2xl"
+            >
+              Utwórz
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 rounded-2xl"
+              onClick={() => {
+                setAddingFolder(false);
+                setNewFolderName("");
+              }}
+            >
+              Anuluj
+            </Button>
+          </form>
+        ) : null}
+
+        {activeFolder ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Folder:</span>
+            <button
+              type="button"
+              className="font-medium text-foreground underline-offset-2 hover:underline"
+              onClick={() => {
+                const next = window.prompt(
+                  "Nowa nazwa folderu",
+                  activeFolder.name,
+                );
+                if (next == null) return;
+                renameTodoFolder(activeFolder.id, next);
+              }}
+            >
+              {activeFolder.name}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    `Usunąć folder „${activeFolder.name}”? Sprawy wrócą do „Bez folderu”.`,
+                  )
+                ) {
+                  return;
+                }
+                removeTodoFolder(activeFolder.id);
+                setActiveFolderId(null);
+              }}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-alert"
+            >
+              <Trash2 className="size-3.5" />
+              Usuń folder
+            </button>
+          </div>
+        ) : null}
+      </div>
 
       <form onSubmit={onSubmit} className="space-y-3">
         <div className="flex flex-wrap gap-2">
@@ -181,11 +366,13 @@ function TodoPage() {
         </div>
       </form>
 
-      {todos.length === 0 ? (
+      {folderTodos.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center">
           <h2 className="text-lg font-semibold">Pusto</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Dodaj sprawę osobistą albo dla całego domu.
+            {activeFolder
+              ? `Brak spraw w folderze „${activeFolder.name}”.`
+              : "Dodaj sprawę osobistą albo dla całego domu."}
           </p>
         </div>
       ) : (
@@ -196,9 +383,11 @@ function TodoPage() {
             open={houseOpen}
             done={houseDone}
             members={members}
+            folders={todoFolders}
             actorId={actorId}
             onToggle={toggleTodo}
             onAssign={setTodoAssignee}
+            onMoveFolder={setTodoFolder}
             onRemove={removeTodo}
           />
 
@@ -208,9 +397,11 @@ function TodoPage() {
             open={personalOpen}
             done={personalDone}
             members={members}
+            folders={todoFolders}
             actorId={actorId}
             onToggle={toggleTodo}
             onAssign={setTodoAssignee}
+            onMoveFolder={setTodoFolder}
             onRemove={removeTodo}
           />
 
@@ -218,16 +409,51 @@ function TodoPage() {
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={clearDoneTodos}
+                onClick={() => clearDoneTodos(activeFolderId)}
                 className="text-xs font-medium text-muted-foreground hover:text-foreground"
               >
-                Wyczyść wszystkie zrobione ({doneCount})
+                Wyczyść zrobione w tej zakładce ({doneCount})
               </button>
             </div>
           ) : null}
         </div>
       )}
     </div>
+  );
+}
+
+function FolderTab({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-sm font-medium transition-colors",
+        active
+          ? "border-primary/40 bg-primary/10 text-primary"
+          : "border-border bg-surface text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <span className="truncate max-w-[10rem]">{label}</span>
+      <span
+        className={cn(
+          "rounded-lg px-1.5 py-0.5 text-[10px] tabular-nums",
+          active ? "bg-primary/15" : "bg-background/70",
+        )}
+      >
+        {count}
+      </span>
+    </button>
   );
 }
 
@@ -353,9 +579,11 @@ function TodoSection({
   open,
   done,
   members,
+  folders,
   actorId,
   onToggle,
   onAssign,
+  onMoveFolder,
   onRemove,
 }: {
   title: string;
@@ -363,9 +591,11 @@ function TodoSection({
   open: TodoItem[];
   done: TodoItem[];
   members: HouseholdUser[];
+  folders: TodoFolder[];
   actorId: string | null;
   onToggle: (id: string, memberId?: string | null) => void;
   onAssign: (id: string, memberId: string | null) => void;
+  onMoveFolder: (id: string, folderId: string | null) => void;
   onRemove: (id: string) => void;
 }) {
   if (open.length === 0 && done.length === 0) {
@@ -389,9 +619,11 @@ function TodoSection({
         <TodoList
           items={open}
           members={members}
+          folders={folders}
           actorId={actorId}
           onToggle={onToggle}
           onAssign={onAssign}
+          onMoveFolder={onMoveFolder}
           onRemove={onRemove}
         />
       ) : (
@@ -408,9 +640,11 @@ function TodoSection({
           <TodoList
             items={done}
             members={members}
+            folders={folders}
             actorId={actorId}
             onToggle={onToggle}
             onAssign={onAssign}
+            onMoveFolder={onMoveFolder}
             onRemove={onRemove}
             muted
           />
@@ -423,17 +657,21 @@ function TodoSection({
 function TodoList({
   items,
   members,
+  folders,
   actorId,
   onToggle,
   onAssign,
+  onMoveFolder,
   onRemove,
   muted,
 }: {
   items: TodoItem[];
   members: HouseholdUser[];
+  folders: TodoFolder[];
   actorId: string | null;
   onToggle: (id: string, memberId?: string | null) => void;
   onAssign: (id: string, memberId: string | null) => void;
+  onMoveFolder: (id: string, folderId: string | null) => void;
   onRemove: (id: string) => void;
   muted?: boolean;
 }) {
@@ -449,9 +687,11 @@ function TodoList({
           key={item.id}
           item={item}
           members={members}
+          folders={folders}
           actorId={actorId}
           onToggle={onToggle}
           onAssign={onAssign}
+          onMoveFolder={onMoveFolder}
           onRemove={onRemove}
           bordered={idx > 0}
         />
@@ -463,17 +703,21 @@ function TodoList({
 function TodoRow({
   item,
   members,
+  folders,
   actorId,
   onToggle,
   onAssign,
+  onMoveFolder,
   onRemove,
   bordered,
 }: {
   item: TodoItem;
   members: HouseholdUser[];
+  folders: TodoFolder[];
   actorId: string | null;
   onToggle: (id: string, memberId?: string | null) => void;
   onAssign: (id: string, memberId: string | null) => void;
+  onMoveFolder: (id: string, folderId: string | null) => void;
   onRemove: (id: string) => void;
   bordered: boolean;
 }) {
@@ -484,6 +728,9 @@ function TodoRow({
   const isPersonal = item.scope !== "household";
   const completedBy = item.completedBy ?? [];
   const assignee = members.find((m) => m.id === item.assignedTo);
+  const open = isTodoOpen(item, members);
+  const actorDone =
+    isEveryone && actorId ? completedBy.includes(actorId) : !open;
 
   return (
     <div
@@ -493,7 +740,16 @@ function TodoRow({
       )}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3">
-        {!isEveryone ? (
+        {isEveryone && actorId ? (
+          <Checkbox
+            className="mt-0.5"
+            checked={actorDone}
+            onCheckedChange={() => onToggle(item.id, actorId)}
+            aria-label={
+              actorDone ? "Cofnij swoje odhaczenie" : "Oznacz że zrobiłeś/aś"
+            }
+          />
+        ) : !isEveryone ? (
           <Checkbox
             className="mt-0.5"
             checked={item.done}
@@ -507,7 +763,7 @@ function TodoRow({
           <div
             className={cn(
               "truncate font-medium",
-              item.done && "text-muted-foreground line-through",
+              !open && "text-muted-foreground line-through",
             )}
           >
             {item.text}
@@ -527,6 +783,30 @@ function TodoRow({
           )}
         </div>
       </div>
+
+      {folders.length > 0 ? (
+        <label className="sr-only" htmlFor={`folder-${item.id}`}>
+          Folder
+        </label>
+      ) : null}
+      {folders.length > 0 ? (
+        <select
+          id={`folder-${item.id}`}
+          value={item.folderId ?? ""}
+          onChange={(e) =>
+            onMoveFolder(item.id, e.target.value ? e.target.value : null)
+          }
+          className="h-9 max-w-[10rem] shrink-0 rounded-xl border border-border bg-background/60 px-2 text-xs text-foreground"
+          title="Przenieś do folderu"
+        >
+          <option value="">Bez folderu</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      ) : null}
 
       {isEveryone ? (
         <div className="flex flex-wrap gap-1.5 sm:justify-end">

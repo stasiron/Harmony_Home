@@ -1,5 +1,12 @@
 import { DEFAULT_MEMBERS } from "@/config/household";
-import type { GuestPlan, ShoppingItem, TodoItem, User } from "@/types";
+import type {
+  GuestPlan,
+  LaundryProgram,
+  ShoppingItem,
+  TodoFolder,
+  TodoItem,
+  User,
+} from "@/types";
 
 const STORAGE_KEY = "homeharmony-app";
 
@@ -8,13 +15,36 @@ type AppStorage = {
   shopping: ShoppingItem[];
   guestPlans: GuestPlan[];
   todos: TodoItem[];
+  todoFolders: TodoFolder[];
+  laundryPrograms: LaundryProgram[];
 };
 
 function emptyStorage(): AppStorage {
-  return { users: [], shopping: [], guestPlans: [], todos: [] };
+  return {
+    users: [],
+    shopping: [],
+    guestPlans: [],
+    todos: [],
+    todoFolders: [],
+    laundryPrograms: [],
+  };
 }
 
-function normalizeTodo(raw: unknown): TodoItem | null {
+export function normalizeTodoFolder(raw: unknown): TodoFolder | null {
+  if (!raw || typeof raw !== "object") return null;
+  const f = raw as Partial<TodoFolder>;
+  if (typeof f.id !== "string" || typeof f.name !== "string") return null;
+  const name = f.name.trim();
+  if (!name) return null;
+  return {
+    id: f.id,
+    name,
+    createdAt:
+      typeof f.createdAt === "string" ? f.createdAt : new Date().toISOString(),
+  };
+}
+
+export function normalizeTodo(raw: unknown): TodoItem | null {
   if (!raw || typeof raw !== "object") return null;
   const t = raw as Partial<TodoItem>;
   if (typeof t.id !== "string" || typeof t.text !== "string") return null;
@@ -32,6 +62,7 @@ function normalizeTodo(raw: unknown): TodoItem | null {
     createdAt:
       typeof t.createdAt === "string" ? t.createdAt : new Date().toISOString(),
     scope,
+    folderId: typeof t.folderId === "string" ? t.folderId : null,
     assignedTo:
       scope === "personal" && typeof t.assignedTo === "string"
         ? t.assignedTo
@@ -40,6 +71,37 @@ function normalizeTodo(raw: unknown): TodoItem | null {
     completedBy: Array.isArray(t.completedBy)
       ? t.completedBy.filter((id): id is string => typeof id === "string")
       : [],
+  };
+}
+
+export function normalizeLaundryProgram(raw: unknown): LaundryProgram | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Partial<LaundryProgram>;
+  if (typeof p.id !== "string" || typeof p.name !== "string") return null;
+  if (typeof p.mode !== "string") return null;
+  const name = p.name.trim();
+  const mode = p.mode.trim();
+  if (!name || !mode) return null;
+  const temperature = Number(p.temperature);
+  const rinses = Number(p.rinses);
+  const spin = Number(p.spin);
+  if (
+    !Number.isFinite(temperature) ||
+    !Number.isFinite(rinses) ||
+    !Number.isFinite(spin)
+  ) {
+    return null;
+  }
+  if (temperature < 0 || rinses < 0 || spin < 0) return null;
+  return {
+    id: p.id,
+    name,
+    mode,
+    temperature: Math.round(temperature),
+    rinses: Math.round(rinses),
+    spin: Math.round(spin),
+    createdAt:
+      typeof p.createdAt === "string" ? p.createdAt : new Date().toISOString(),
   };
 }
 
@@ -57,6 +119,16 @@ export function readAppStorage(): AppStorage {
         ? parsed.todos
             .map(normalizeTodo)
             .filter((t): t is TodoItem => t !== null)
+        : [],
+      todoFolders: Array.isArray(parsed.todoFolders)
+        ? parsed.todoFolders
+            .map(normalizeTodoFolder)
+            .filter((f): f is TodoFolder => f !== null)
+        : [],
+      laundryPrograms: Array.isArray(parsed.laundryPrograms)
+        ? parsed.laundryPrograms
+            .map(normalizeLaundryProgram)
+            .filter((p): p is LaundryProgram => p !== null)
         : [],
     };
   } catch {
@@ -80,6 +152,14 @@ export function loadInitialGuestPlans(): GuestPlan[] {
 
 export function loadInitialTodos(): TodoItem[] {
   return readAppStorage().todos;
+}
+
+export function loadInitialTodoFolders(): TodoFolder[] {
+  return readAppStorage().todoFolders;
+}
+
+export function loadInitialLaundryPrograms(): LaundryProgram[] {
+  return readAppStorage().laundryPrograms;
 }
 
 export function persistAppState(state: AppStorage) {
