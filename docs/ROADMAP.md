@@ -126,10 +126,14 @@ Reguły: dostęp do `households/{id}/**` tylko gdy istnieje `members/{request.au
 - [ ] Prywatne miejsca (`users/{uid}/private`) — reguły gotowe, moduły (lodówka, instrukcje) w etapach 6–7
 
 **Wdrożenie (kolejność ważna):**
-1. Deploy aplikacji (Vercel).
-2. Właściciel loguje się Google → „Przenieś HomeHarmony” → Ustawienia → Mieszkanie → „Utwórz kod”.
-3. Domownicy i tablet dołączają kodem.
-4. `firebase deploy --only firestore:rules` — od tej chwili bez członkostwa nie ma dostępu.
+
+Stare reguły produkcyjne obejmują tylko dokumenty `users/{uid}` i `households/{id}` — każda podkolekcja (`members`, `profiles`, obowiązki, `memberships`) i `invites` są zablokowane, więc migracja nie przejdzie przed deployem reguł. Dlatego reguły mają **okres przejściowy** (`legacyTransition` w `firestore.rules`): dokument `households/homeharmony` zostaje dostępny dla każdego zalogowanego, ale tylko w polach starego modelu.
+
+1. `firebase deploy --only firestore:rules` — reguły z okresem przejściowym; stara aplikacja rodziny działa dalej.
+2. Deploy aplikacji (Vercel).
+3. Właściciel loguje się Google → „Przenieś HomeHarmony” → Ustawienia → Mieszkanie → „Utwórz kod”.
+4. Domownicy i tablet dołączają kodem.
+5. Usuń `legacyTransition` z reguł (i jej test), deploy reguł, potem wygeneruj nowy kod zaproszenia — w okresie przejściowym kod był widoczny dla każdego zalogowanego.
 
 ---
 

@@ -45,6 +45,22 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
 
+    // OKRES PRZEJŚCIOWY — usuń po dołączeniu całej rodziny kodem.
+    // Stara wersja aplikacji (main) czyta i zapisuje cały stan domu w jednym
+    // dokumencie households/homeharmony. Do czasu przesiadki rodziny zostaje
+    // on dostępny dla każdego zalogowanego, jak w starych regułach — ale tylko
+    // pola starego modelu; ownerId, inviteCode, strefy itp. zmienia admin.
+    function legacyTransition(hid) {
+      return hid == 'homeharmony' && signedIn();
+    }
+
+    function legacyFieldsOnly() {
+      return changedOnly([
+        'progress', 'userTasks', 'userZadania', 'users', 'shopping',
+        'guestPlans', 'todos', 'todoFolders', 'laundryPrograms', 'updatedAt'
+      ]);
+    }
+
     match /users/{userId} {
       allow read, write: if signedIn() && request.auth.uid == userId;
 
@@ -67,10 +83,12 @@ service cloud.firestore {
     }
 
     match /households/{hid} {
-      allow read: if isMember(hid);
+      allow read: if isMember(hid) || legacyTransition(hid);
       allow create: if hasAccount()
         && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAdmin(hid);
+      allow update: if isAdmin(hid)
+        || (legacyTransition(hid) && legacyFieldsOnly());
+      allow delete: if isAdmin(hid);
 
       match /members/{uid} {
         allow read: if isMember(hid);

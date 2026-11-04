@@ -62,7 +62,8 @@ Wszystko należy do **mieszkania** (`useHousehold().householdId`). Model i decyz
 - bez członkostwa — zero dostępu (też anonimowo),
 - strefy, plan, nazwa, domownicy, zaproszenia — tylko admin (Heavy Day — każdy),
 - `locked: true` — edytuje twórca i admin, odhaczać (`lastCompleted`, `done`, `completedBy`…) może każdy,
-- zablokować może tylko twórca z kontem Google lub admin; `createdBy` nie da się podrobić.
+- zablokować może tylko twórca z kontem Google lub admin; `createdBy` nie da się podrobić,
+- **okres przejściowy** (`legacyTransition`): dokument `households/homeharmony` czyta i zapisuje (tylko stare pola) każdy zalogowany — dla starej wersji aplikacji, do czasu przesiadki rodziny. Do usunięcia, patrz ROADMAP → „Wdrożenie”.
 
 **Sync — pułapki:**
 - `useSyncedList` = `setState` + zapis różnicy do Firestore od razu (bez debounce). Odrzucony zapis cofa snapshot z serwera + toast.

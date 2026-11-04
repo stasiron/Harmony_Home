@@ -93,21 +93,77 @@ describe("prywatność mieszkania", () => {
     await assertSucceeds(getDoc(doc(dbAs("alice"), "households", HID)));
   });
 
-  it("legacy homeharmony czyta tylko właściciel", async () => {
+});
+
+describe("okres przejściowy — stary dokument homeharmony", () => {
+  const LEGACY = "homeharmony";
+
+  beforeEach(async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), "households", "homeharmony"), {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "households", LEGACY), {
         userTasks: [],
+        progress: {},
+        name: "HomeHarmony",
+        ownerId: "owner",
+        inviteCode: "LEGACY01",
+        zones: [],
+      });
+      await setDoc(doc(db, "households", LEGACY, "chores", "c1"), {
+        name: "Chore",
+        createdBy: "owner",
       });
     });
-    await assertFails(
-      getDoc(doc(dbAs("someone"), "households", "homeharmony")),
-    );
-    const owner = dbAs("owner", google("owner", "stasiron9102@gmail.com"));
-    await assertSucceeds(getDoc(doc(owner, "households", "homeharmony")));
+  });
+
+  it("stara aplikacja (każdy zalogowany) czyta i zapisuje stare pola", async () => {
+    const db = dbAs("tablet", anonymous);
+    await assertSucceeds(getDoc(doc(db, "households", LEGACY)));
     await assertSucceeds(
-      setDoc(doc(owner, "households", "homeharmony", "members", "owner"), {
+      setDoc(
+        doc(db, "households", LEGACY),
+        { userTasks: [{ id: "t" }], progress: { t: "2026-11-04" } },
+        { merge: true },
+      ),
+    );
+  });
+
+  it("obcy nie zmieni pól nowego modelu", async () => {
+    const db = dbAs("stranger");
+    for (const patch of [
+      { ownerId: "stranger" },
+      { inviteCode: "MINE" },
+      { zones: [{ id: "x" }] },
+      { name: "Hacked" },
+    ]) {
+      await assertFails(updateDoc(doc(db, "households", LEGACY), patch));
+    }
+    await assertFails(deleteDoc(doc(db, "households", LEGACY)));
+  });
+
+  it("obcy nie zostanie adminem ani nie czyta podkolekcji", async () => {
+    const db = dbAs("stranger");
+    await assertFails(
+      setDoc(doc(db, "households", LEGACY, "members", "stranger"), {
         role: "admin",
       }),
+    );
+    await assertFails(getDoc(doc(db, "households", LEGACY, "chores", "c1")));
+  });
+
+  it("właściciel migruje i jako admin zapisuje nowe pola", async () => {
+    const owner = dbAs("owner", google("owner", "stasiron9102@gmail.com"));
+    await assertSucceeds(
+      setDoc(doc(owner, "households", LEGACY, "members", "owner"), {
+        role: "admin",
+      }),
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(owner, "households", LEGACY),
+        { zones: [], migratedAt: "2026-11-04" },
+        { merge: true },
+      ),
     );
   });
 });
