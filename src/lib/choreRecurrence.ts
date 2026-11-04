@@ -53,18 +53,12 @@ export function deriveThresholds(schedule: RecurrenceSchedule): {
 export function formatScheduleLabel(schedule: RecurrenceSchedule): string {
   if (schedule.type === "interval") {
     if (schedule.unit === "days") {
-      return schedule.every === 1
-        ? "Codziennie"
-        : `Co ${schedule.every} dni`;
+      return schedule.every === 1 ? "Codziennie" : `Co ${schedule.every} dni`;
     }
     if (schedule.unit === "weeks") {
-      return schedule.every === 1
-        ? "Co tydzień"
-        : `Co ${schedule.every} tyg.`;
+      return schedule.every === 1 ? "Co tydzień" : `Co ${schedule.every} tyg.`;
     }
-    return schedule.every === 1
-      ? "Co miesiąc"
-      : `Co ${schedule.every} mies.`;
+    return schedule.every === 1 ? "Co miesiąc" : `Co ${schedule.every} mies.`;
   }
 
   const days = schedule.weekdays
@@ -72,18 +66,36 @@ export function formatScheduleLabel(schedule: RecurrenceSchedule): string {
     .map((d) => WEEKDAY_LABELS[d])
     .join(", ");
   const weekPart =
-    schedule.everyWeeks === 1
-      ? "co tydzień"
-      : `co ${schedule.everyWeeks} tyg.`;
+    schedule.everyWeeks === 1 ? "co tydzień" : `co ${schedule.everyWeeks} tyg.`;
   return `${days} · ${weekPart}`;
 }
 
-export function applyScheduleToTask<T extends Omit<Task, "lastCompleted">>(
-  task: T,
-): T & { tMin: number; tSuggested: number; tMax: number } {
-  if (task.recurrence === "once" || !task.schedule) return task;
-  const thresholds = deriveThresholds(task.schedule);
-  return { ...task, ...thresholds };
+type Thresholds = { tMin: number; tSuggested: number; tMax: number };
+
+function hasThresholds(task: Partial<Thresholds>): task is Thresholds {
+  return (
+    typeof task.tMin === "number" &&
+    typeof task.tSuggested === "number" &&
+    typeof task.tMax === "number"
+  );
+}
+
+/**
+ * Ustawia progi z harmonogramu. Bez harmonogramu zostawia istniejące progi;
+ * gdy ich brak — jednorazowe = 0, powtarzalne = DEFAULT_SCHEDULE (co 7 dni).
+ */
+export function applyScheduleToTask<
+  T extends Pick<Task, "recurrence" | "schedule"> & Partial<Thresholds>,
+>(task: T): T & Thresholds {
+  if (task.recurrence === "recurring" && task.schedule) {
+    return { ...task, ...deriveThresholds(task.schedule) };
+  }
+  if (hasThresholds(task)) return task as T & Thresholds;
+  const fallback =
+    task.recurrence === "once"
+      ? { tMin: 0, tSuggested: 0, tMax: 0 }
+      : deriveThresholds(DEFAULT_SCHEDULE);
+  return { ...task, ...fallback };
 }
 
 export function normalizeUserTask(task: Task): Task {

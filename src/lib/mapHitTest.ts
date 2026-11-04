@@ -4,10 +4,7 @@ import { polygonCentroid } from "@/lib/mapGeometry";
 import { polygonsForZone, spaceZonesWithPolygon } from "@/lib/zoneTree";
 
 function normalizeName(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
+  return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 }
 
 export function roomForSpace(zone: HomeZone): ChoreRoom | null {

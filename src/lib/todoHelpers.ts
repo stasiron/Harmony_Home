@@ -81,8 +81,7 @@ export function buildTodoItem(input: TodoAddInput): TodoItem | null {
   const scope = input.scope;
   const householdMode =
     scope === "household" ? (input.householdMode ?? "anyone") : undefined;
-  const assignedTo =
-    scope === "personal" ? (input.assignedTo ?? null) : null;
+  const assignedTo = scope === "personal" ? (input.assignedTo ?? null) : null;
 
   return {
     id: crypto.randomUUID(),
@@ -107,10 +106,7 @@ export function buildTodoFolder(name: string): TodoFolder | null {
   };
 }
 
-export function todoInFolder(
-  todo: TodoItem,
-  folderId: string | null,
-): boolean {
+export function todoInFolder(todo: TodoItem, folderId: string | null): boolean {
   const id = todo.folderId ?? null;
   return id === folderId;
 }

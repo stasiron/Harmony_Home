@@ -47,10 +47,7 @@ export function collectDescendantIds(
   return ids;
 }
 
-export function zoneById(
-  zones: HomeZone[],
-  id: string,
-): HomeZone | undefined {
+export function zoneById(zones: HomeZone[], id: string): HomeZone | undefined {
   return zones.find((z) => z.id === id);
 }
 
@@ -59,15 +56,15 @@ export function zonePathLabel(zones: HomeZone[], zoneId: string): string {
   let current = zoneById(zones, zoneId);
   while (current) {
     parts.unshift(current.name);
-    current = current.parentId
-      ? zoneById(zones, current.parentId)
-      : undefined;
+    current = current.parentId ? zoneById(zones, current.parentId) : undefined;
   }
   return parts.join(" › ");
 }
 
 export function spaceZonesWithPolygon(zones: HomeZone[]): HomeZone[] {
-  return zones.filter((z) => z.kind === "space" && (z.polygon?.length ?? 0) >= 3);
+  return zones.filter(
+    (z) => z.kind === "space" && (z.polygon?.length ?? 0) >= 3,
+  );
 }
 
 export function polygonsForZone(

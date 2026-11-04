@@ -73,11 +73,9 @@ export function choreStatusFromLinkedZadania(
   return summarizeLinkedZadania(linked, statusOfZadanie).choreStatus;
 }
 
-export function applyZadanieThresholds(
-  zadanie: Zadanie,
-  tMin: number,
-  tMax: number,
-): Zadanie {
+export function applyZadanieThresholds<
+  T extends Omit<Zadanie, "lastCompleted">,
+>(zadanie: T, tMin: number, tMax: number): T {
   const min = Math.max(0, tMin);
   const max = Math.max(min + 1, tMax);
   return {

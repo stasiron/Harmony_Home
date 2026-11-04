@@ -1,12 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Download,
-  FolderPlus,
-  Home,
-  Plus,
-  Trash2,
-  User,
-} from "lucide-react";
+import { Download, FolderPlus, Home, Plus, Trash2, User } from "lucide-react";
 import {
   useEffect,
   useMemo,

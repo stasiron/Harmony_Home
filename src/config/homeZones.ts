@@ -5,14 +5,17 @@ export const HOME_ZONES_DRAFT_KEY = "homeharmony-home-zones-draft";
 
 function migrateZone(raw: Record<string, unknown>): HomeZone {
   if (raw.kind === "group" || raw.kind === "space") {
-    return raw as HomeZone;
+    return raw as unknown as HomeZone;
   }
   const polygon = raw.polygon as HomeZone["polygon"];
   return {
     id: String(raw.id),
     name: String(raw.label ?? raw.name ?? "Strefa"),
     parentId: (raw.parentId as string | null) ?? null,
-    kind: polygon && Array.isArray(polygon) && polygon.length >= 3 ? "space" : "group",
+    kind:
+      polygon && Array.isArray(polygon) && polygon.length >= 3
+        ? "space"
+        : "group",
     polygon,
     room: raw.room as HomeZone["room"],
   };

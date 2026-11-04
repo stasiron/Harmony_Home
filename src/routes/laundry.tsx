@@ -26,8 +26,7 @@ export const Route = createFileRoute("/laundry")({
 });
 
 function LaundryPage() {
-  const { laundryPrograms, addLaundryProgram, removeLaundryProgram } =
-    useApp();
+  const { laundryPrograms, addLaundryProgram, removeLaundryProgram } = useApp();
 
   const [name, setName] = useState("");
   const [mode, setMode] = useState("");
@@ -147,13 +146,7 @@ function LaundryPage() {
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>

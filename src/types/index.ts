@@ -57,12 +57,7 @@ export interface Zadanie {
   description?: string;
   room: ChoreRoom;
   category:
-    | "kitchen"
-    | "bathroom"
-    | "living"
-    | "bedroom"
-    | "outdoor"
-    | "general";
+    "kitchen" | "bathroom" | "living" | "bedroom" | "outdoor" | "general";
   estimatedMinutes: number;
   mapShape?: TaskMapShape;
   zoneId?: string;
@@ -88,6 +83,8 @@ export interface Zadanie {
   lastCompletedBy?: string;
   /** Wiele pokoi naraz — room = pierwszy */
   rooms?: ChoreRoom[];
+  /** Wbudowane zadanie edytowane w UI — zapisywane jako nadpisanie JSON */
+  customized?: boolean;
 }
 
 export interface User {
@@ -141,6 +138,8 @@ export interface Task {
   linkedZadanieIds?: string[];
   /** Wiele pokoi naraz — room = pierwszy */
   rooms?: ChoreRoom[];
+  /** Wbudowany obowiązek edytowany w UI — zapisywany jako nadpisanie JSON */
+  customized?: boolean;
 }
 
 export interface Recipe {

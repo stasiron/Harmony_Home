@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { DEFAULT_MEMBERS } from "@/config/household";
 import { useGuestCalendarSync } from "@/hooks/useGuestCalendarSync";
 import {
   loadInitialGuestPlans,
@@ -42,11 +43,9 @@ import {
   PANIC_GUESTS_MIN_IMPORTANCE,
   resolveImportance,
 } from "@/lib/choreImportance";
+import { isGuestsModeMust, isPanicGuestsMust } from "@/lib/choreSort";
 import {
-  isGuestsModeMust,
-  isPanicGuestsMust,
-} from "@/lib/choreSort";
-import {
+  DEFAULT_HOUSEHOLD_ID,
   isEmptyHousehold,
   saveHouseholdToFirestore,
   seedEmptyListsFromLocal,
@@ -174,8 +173,7 @@ const GUEST_PRIORITY_ROOMS: ChoreRoom[] = [
 function buildUserItem(input: ChoreItemAddInput) {
   const recurrence = input.recurrence ?? "recurring";
   const defaultImportance: TaskImportance =
-    input.importance ??
-    (GUEST_PRIORITY_ROOMS.includes(input.room) ? 4 : 3);
+    input.importance ?? (GUEST_PRIORITY_ROOMS.includes(input.room) ? 4 : 3);
 
   const base = {
     id: crypto.randomUUID(),
@@ -218,7 +216,11 @@ function buildUserItem(input: ChoreItemAddInput) {
 
 function buildUserZadanie(input: ZadanieAddInput): Zadanie {
   const item = buildUserItem({ ...input, recurrence: "once" });
-  return applyZadanieThresholds(item as unknown as Zadanie, input.tMin, input.tMax);
+  return applyZadanieThresholds(
+    item as unknown as Zadanie,
+    input.tMin,
+    input.tMax,
+  );
 }
 
 function patchZadanieFromInput(
@@ -249,6 +251,7 @@ function patchZadanieFromInput(
       importance,
       isGuestPriority: importance >= 4,
       isExpressBlitz: importance >= 5,
+      customized: zadanie.source === "builtin" ? true : zadanie.customized,
     },
     input.tMin,
     input.tMax,
@@ -286,6 +289,8 @@ function patchTaskFromInput(
     isGuestPriority: importance >= 4,
     isExpressBlitz: importance >= 5,
     linkedZadanieIds: input.linkedZadanieIds,
+    // Bez tego edycja wbudowanego obowiązku znikała po odświeżeniu / syncu.
+    customized: task.source === "builtin" ? true : task.customized,
   };
 
   if (recurrence === "recurring") {
@@ -308,10 +313,9 @@ function patchTaskFromInput(
   };
 }
 
-function completeRecurringItem<T extends { id: string; recurrence: TaskRecurrence; source: Task["source"] }>(
-  items: T[],
-  id: string,
-): T[] {
+function completeRecurringItem<
+  T extends { id: string; recurrence: TaskRecurrence; source: Task["source"] },
+>(items: T[], id: string): T[] {
   const item = items.find((entry) => entry.id === id);
   if (!item) return items;
   if (item.recurrence === "once" && item.source === "user") {
@@ -324,34 +328,40 @@ function completeRecurringItem<T extends { id: string; recurrence: TaskRecurrenc
   );
 }
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const { syncUser, loading: authLoading } = useAuth();
-  const [users, setUsers] = useState<User[]>(loadInitialUsers);
-  const [tasks, setTasks] = useState<Task[]>(buildInitialTasks);
-  const [zadania, setZadania] = useState<Zadanie[]>(buildInitialZadania);
-  const [shopping, setShopping] = useState<ShoppingItem[]>(loadInitialShopping);
-  const [todos, setTodos] = useState<TodoItem[]>(loadInitialTodos);
-  const [todoFolders, setTodoFolders] = useState<TodoFolder[]>(
-    loadInitialTodoFolders,
+export function AppProvider({
+  children,
+  householdId = DEFAULT_HOUSEHOLD_ID,
+}: {
+  children: ReactNode;
+  /** Mieszkanie, którego stan trzyma provider — na razie zawsze domyślne */
+  householdId?: string;
+}) {
+  const { syncUser } = useAuth();
+  // Stan startowy = to samo co na serwerze (bez localStorage), inaczej
+  // hydracja React się nie zgadza. Dane lokalne wczytuje efekt niżej.
+  const [users, setUsers] = useState<User[]>(() => [...DEFAULT_MEMBERS]);
+  const [tasks, setTasks] = useState<Task[]>(() => buildTasksFromParts({}, []));
+  const [zadania, setZadania] = useState<Zadanie[]>(() =>
+    buildZadaniaFromParts({}, []),
   );
-  const [laundryPrograms, setLaundryPrograms] = useState<LaundryProgram[]>(
-    loadInitialLaundryPrograms,
-  );
+  const [shopping, setShopping] = useState<ShoppingItem[]>([]);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [todoFolders, setTodoFolders] = useState<TodoFolder[]>([]);
+  const [laundryPrograms, setLaundryPrograms] = useState<LaundryProgram[]>([]);
   const [recipes] = useState<Recipe[]>([]);
   const [devices, setDevices] = useState<SmartHomeDevice[]>([]);
   const [guestsMode, setGuestsMode] = useState(false);
   const [guestCalendarHint, setGuestCalendarHint] = useState<string | null>(
     null,
   );
-  const [guestPlans, setGuestPlans] = useState<GuestPlan[]>(
-    loadInitialGuestPlans,
-  );
+  const [guestPlans, setGuestPlans] = useState<GuestPlan[]>([]);
   const [panic, setPanic] = useState<PanicState | null>(null);
+  /** true po wczytaniu localStorage — wcześniej nie zapisujemy, żeby nie nadpisać cache domyślnymi */
+  const [hydrated, setHydrated] = useState(false);
 
   const remoteHashRef = useRef<string | null>(null);
   const pendingLocalHashRef = useRef<string | null>(null);
   const saveGenerationRef = useRef(0);
-  const clientHydratedRef = useRef(false);
   const initialSyncDoneRef = useRef(false);
   const [firestoreReady, setFirestoreReady] = useState(false);
 
@@ -395,11 +405,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     remoteHashRef.current = incomingHash;
     pendingLocalHashRef.current = null;
-    setTasks(
-      buildTasksFromParts(snapshot.progress, snapshot.userTasks),
-    );
+    setTasks(buildTasksFromParts(snapshot.progress, snapshot.userTasks));
     setZadania(
-      buildZadaniaFromParts(snapshot.progress, snapshot.userZadania),
+      buildZadaniaFromParts(
+        snapshot.progress,
+        snapshot.userZadania,
+        snapshot.progressBy,
+      ),
     );
     if (snapshot.users.length > 0) setUsers(snapshot.users);
     setShopping(snapshot.shopping);
@@ -414,6 +426,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const app = readAppStorage();
     return {
       progress: chores.progress,
+      progressBy: chores.progressBy,
       userTasks: chores.userTasks,
       userZadania: chores.userZadania,
       users: app.users.length > 0 ? app.users : loadInitialUsers(),
@@ -425,12 +438,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // SSR nie widzi localStorage — fallback tylko gdy brak Firestore sync.
+  // SSR nie widzi localStorage — wczytaj cache po zamontowaniu.
+  // Przy Firestore sync i tak nadpisze go stan z chmury.
   useEffect(() => {
-    if (authLoading || clientHydratedRef.current) return;
-    clientHydratedRef.current = true;
-    if (syncUser) return;
-
     setTasks(buildInitialTasks());
     setZadania(buildInitialZadania());
     setUsers(loadInitialUsers());
@@ -439,11 +449,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTodos(loadInitialTodos());
     setTodoFolders(loadInitialTodoFolders());
     setLaundryPrograms(loadInitialLaundryPrograms());
-  }, [authLoading, syncUser]);
+    setHydrated(true);
+  }, []);
 
   // Firestore: wspólny stan na wszystkich urządzeniach (chores, todos, shopping…).
   useEffect(() => {
-    if (!syncUser) {
+    if (!syncUser || !hydrated) {
       initialSyncDoneRef.current = false;
       remoteHashRef.current = null;
       pendingLocalHashRef.current = null;
@@ -454,7 +465,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const unsubscribe = subscribeHousehold(
-      (snapshot) => {
+      householdId,
+      (snapshot, missingLists) => {
         if (cancelled) return;
 
         if (!initialSyncDoneRef.current) {
@@ -467,7 +479,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
           if (isEmptyHousehold(snapshot)) {
             if (!isEmptyHousehold(local)) {
-              void saveHouseholdToFirestore(local).catch((err) => {
+              void saveHouseholdToFirestore(householdId, local).catch((err) => {
                 console.error("Firestore household upload failed:", err);
               });
               applyHouseholdSnapshot(local);
@@ -476,11 +488,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
               return;
             }
           } else {
-            const seeded = seedEmptyListsFromLocal(snapshot, local);
+            const seeded = seedEmptyListsFromLocal(
+              snapshot,
+              local,
+              missingLists,
+            );
             if (snapshotHash(seeded) !== snapshotHash(snapshot)) {
-              void saveHouseholdToFirestore(seeded).catch((err) => {
-                console.error("Firestore household seed failed:", err);
-              });
+              void saveHouseholdToFirestore(householdId, seeded).catch(
+                (err) => {
+                  console.error("Firestore household seed failed:", err);
+                },
+              );
               applyHouseholdSnapshot(seeded);
               remoteHashRef.current = snapshotHash(seeded);
               setFirestoreReady(true);
@@ -505,13 +523,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pendingLocalHashRef.current = null;
       setFirestoreReady(false);
     };
-  }, [syncUser, applyHouseholdSnapshot, buildLocalSnapshot]);
+  }, [
+    syncUser,
+    hydrated,
+    householdId,
+    applyHouseholdSnapshot,
+    buildLocalSnapshot,
+  ]);
 
   useEffect(() => {
+    if (!hydrated) return;
     persistChoreState(tasks, zadania);
-  }, [tasks, zadania]);
+  }, [hydrated, tasks, zadania]);
 
   useEffect(() => {
+    if (!hydrated) return;
     persistAppState({
       users,
       shopping,
@@ -520,7 +546,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       todoFolders,
       laundryPrograms,
     });
-  }, [users, shopping, guestPlans, todos, todoFolders, laundryPrograms]);
+  }, [
+    hydrated,
+    users,
+    shopping,
+    guestPlans,
+    todos,
+    todoFolders,
+    laundryPrograms,
+  ]);
 
   useEffect(() => {
     if (!syncUser || !firestoreReady) return;
@@ -536,7 +570,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Effect mógł się odpalić ponownie zanim timer doszedł — nie wysyłaj starego stanu.
       if (generation !== saveGenerationRef.current) return;
 
-      void saveHouseholdToFirestore(snapshot)
+      void saveHouseholdToFirestore(householdId, snapshot)
         .then(() => {
           if (generation !== saveGenerationRef.current) {
             // Stary zapis mógł nadpisać nowszy na serwerze — wypchnij aktualny stan.
@@ -544,7 +578,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const currentHash = snapshotHash(current);
             pendingLocalHashRef.current = currentHash;
             const repairGen = ++saveGenerationRef.current;
-            return saveHouseholdToFirestore(current).then(() => {
+            return saveHouseholdToFirestore(householdId, current).then(() => {
               if (repairGen !== saveGenerationRef.current) return;
               if (pendingLocalHashRef.current !== currentHash) return;
               remoteHashRef.current = currentHash;
@@ -558,11 +592,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .catch((err) => {
           if (generation !== saveGenerationRef.current) return;
           console.error("Firestore household save failed:", err);
+          // Bez tego nieudany zapis (offline, brak uprawnień) blokował
+          // na zawsze zmiany z innych urządzeń w applyHouseholdSnapshot.
+          if (pendingLocalHashRef.current === hash) {
+            pendingLocalHashRef.current = null;
+          }
         });
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [syncUser, firestoreReady, tasks, zadania, users, shopping, guestPlans, todos, todoFolders, laundryPrograms, buildCurrentSnapshot]);
+  }, [
+    syncUser,
+    householdId,
+    firestoreReady,
+    tasks,
+    zadania,
+    users,
+    shopping,
+    guestPlans,
+    todos,
+    todoFolders,
+    laundryPrograms,
+    buildCurrentSnapshot,
+  ]);
 
   const daysSince = useCallback((iso: string) => {
     const d = (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24);
@@ -709,16 +761,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTodos((prev) => [item, ...prev]);
   }, []);
 
-  const toggleTodo = useCallback(
-    (id: string, memberId?: string | null) => {
-      setTodos((prev) =>
-        prev.map((t) =>
-          t.id === id ? applyTodoToggle(t, usersRef.current, memberId ?? null) : t,
-        ),
-      );
-    },
-    [],
-  );
+  const toggleTodo = useCallback((id: string, memberId?: string | null) => {
+    setTodos((prev) =>
+      prev.map((t) =>
+        t.id === id
+          ? applyTodoToggle(t, usersRef.current, memberId ?? null)
+          : t,
+      ),
+    );
+  }, []);
 
   const removeTodo = useCallback((id: string) => {
     setTodos((prev) => prev.filter((t) => t.id !== id));
@@ -735,9 +786,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setTodoFolder = useCallback((id: string, folderId: string | null) => {
-    setTodos((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, folderId } : t)),
-    );
+    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, folderId } : t)));
   }, []);
 
   const clearDoneTodos = useCallback((folderId?: string | null) => {
@@ -769,9 +818,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeTodoFolder = useCallback((id: string) => {
     setTodoFolders((prev) => prev.filter((f) => f.id !== id));
     setTodos((prev) =>
-      prev.map((t) =>
-        t.folderId === id ? { ...t, folderId: null } : t,
-      ),
+      prev.map((t) => (t.folderId === id ? { ...t, folderId: null } : t)),
     );
   }, []);
 

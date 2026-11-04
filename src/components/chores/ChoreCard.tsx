@@ -28,8 +28,15 @@ const statusLabel: Record<string, string> = {
 };
 
 export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
-  const { users, zadania, statusOf, daysSince, completeTask, panic, guestsMode } =
-    useApp();
+  const {
+    users,
+    zadania,
+    statusOf,
+    daysSince,
+    completeTask,
+    panic,
+    guestsMode,
+  } = useApp();
   const assignees = normalizeAssignedTo(task.assignedTo)
     .map((id) => users.find((u) => u.id === id))
     .filter((u): u is NonNullable<typeof u> => u !== undefined);
@@ -42,7 +49,9 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
     linked.length > 0
       ? summarizeLinkedZadania(linked, (z) => statusOf(z))
       : null;
-  const completion = choreCompletionByAssignee(task, linked, (z) => statusOf(z));
+  const completion = choreCompletionByAssignee(task, linked, (z) =>
+    statusOf(z),
+  );
 
   return (
     <div
@@ -64,8 +73,7 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <ListChecks className="size-3" />
-              {linked.length}{" "}
-              {linked.length === 1 ? "zadanie" : "zadań"}
+              {linked.length} {linked.length === 1 ? "zadanie" : "zadań"}
               {linkedSummary
                 ? ` · ${linkedSummary.pendingCount} do zrobienia`
                 : null}

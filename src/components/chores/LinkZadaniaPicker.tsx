@@ -17,8 +17,7 @@ export function LinkZadaniaPicker({
   attachedElsewhereIds,
 }: Props) {
   const available = zadania.filter(
-    (z) =>
-      selectedIds.includes(z.id) || !attachedElsewhereIds?.has(z.id),
+    (z) => selectedIds.includes(z.id) || !attachedElsewhereIds?.has(z.id),
   );
 
   if (available.length === 0) {

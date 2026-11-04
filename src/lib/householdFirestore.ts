@@ -6,8 +6,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getFirestoreDb } from "@/lib/firebase";
-import { PERMANENT_CHORE_IDS } from "@/config/chores";
-import { PERMANENT_ZADANIA_IDS } from "@/config/zadania";
+import { splitChoreState } from "@/lib/choreStorage";
 import {
   normalizeLaundryProgram,
   normalizeTodo,
@@ -24,10 +23,19 @@ import type {
   Zadanie,
 } from "@/types";
 
-export const HOUSEHOLD_DOC_ID = "homeharmony";
+/**
+ * Id dokumentu obecnego (jedynego) mieszkania.
+ * Funkcje poniżej przyjmują `householdId`, żeby dało się dodać kolejne
+ * mieszkania bez zmian w warstwie sync — patrz docs/ROADMAP.md (etap 0).
+ */
+export const DEFAULT_HOUSEHOLD_ID = "homeharmony";
+
+/** @deprecated użyj DEFAULT_HOUSEHOLD_ID lub householdId z kontekstu */
+export const HOUSEHOLD_DOC_ID = DEFAULT_HOUSEHOLD_ID;
 
 export type HouseholdSnapshot = {
   progress: Record<string, string>;
+  progressBy: Record<string, string>;
   userTasks: Task[];
   userZadania: Zadanie[];
   users: User[];
@@ -38,9 +46,22 @@ export type HouseholdSnapshot = {
   laundryPrograms: LaundryProgram[];
 };
 
+/** Listy, które można uzupełnić z localStorage, gdy w chmurze ich jeszcze nie ma */
+const SEEDABLE_LISTS = [
+  "users",
+  "shopping",
+  "guestPlans",
+  "todos",
+  "todoFolders",
+  "laundryPrograms",
+] as const satisfies readonly (keyof HouseholdSnapshot)[];
+
+export type SeedableList = (typeof SEEDABLE_LISTS)[number];
+
 function emptySnapshot(): HouseholdSnapshot {
   return {
     progress: {},
+    progressBy: {},
     userTasks: [],
     userZadania: [],
     users: [],
@@ -52,12 +73,16 @@ function emptySnapshot(): HouseholdSnapshot {
   };
 }
 
+function normalizeRecord(value: unknown): Record<string, string> {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, string>)
+    : {};
+}
+
 function normalizeSnapshot(data: Record<string, unknown>): HouseholdSnapshot {
   return {
-    progress:
-      typeof data.progress === "object" && data.progress !== null
-        ? (data.progress as Record<string, string>)
-        : {},
+    progress: normalizeRecord(data.progress),
+    progressBy: normalizeRecord(data.progressBy),
     userTasks: Array.isArray(data.userTasks) ? (data.userTasks as Task[]) : [],
     userZadania: Array.isArray(data.userZadania)
       ? (data.userZadania as Zadanie[])
@@ -70,9 +95,7 @@ function normalizeSnapshot(data: Record<string, unknown>): HouseholdSnapshot {
       ? (data.guestPlans as GuestPlan[])
       : [],
     todos: Array.isArray(data.todos)
-      ? data.todos
-          .map(normalizeTodo)
-          .filter((t): t is TodoItem => t !== null)
+      ? data.todos.map(normalizeTodo).filter((t): t is TodoItem => t !== null)
       : [],
     todoFolders: Array.isArray(data.todoFolders)
       ? data.todoFolders
@@ -90,15 +113,11 @@ function normalizeSnapshot(data: Record<string, unknown>): HouseholdSnapshot {
 export function snapshotFromChoreState(
   tasks: Task[],
   zadania: Zadanie[],
-): Pick<HouseholdSnapshot, "progress" | "userTasks" | "userZadania"> {
-  return {
-    progress: Object.fromEntries([
-      ...tasks.map((t) => [t.id, t.lastCompleted] as const),
-      ...zadania.map((z) => [z.id, z.lastCompleted] as const),
-    ]),
-    userTasks: tasks.filter((t) => !PERMANENT_CHORE_IDS.has(t.id)),
-    userZadania: zadania.filter((z) => !PERMANENT_ZADANIA_IDS.has(z.id)),
-  };
+): Pick<
+  HouseholdSnapshot,
+  "progress" | "progressBy" | "userTasks" | "userZadania"
+> {
+  return splitChoreState(tasks, zadania);
 }
 
 /** @deprecated */
@@ -109,6 +128,7 @@ export function snapshotFromTasks(tasks: Task[]) {
 export function snapshotHash(snapshot: HouseholdSnapshot): string {
   return JSON.stringify({
     progress: snapshot.progress,
+    progressBy: snapshot.progressBy,
     userTasks: snapshot.userTasks,
     userZadania: snapshot.userZadania,
     users: snapshot.users,
@@ -120,34 +140,47 @@ export function snapshotHash(snapshot: HouseholdSnapshot): string {
   });
 }
 
+/**
+ * @param onUpdate `missingLists` — listy, których pola w ogóle nie ma
+ *   w dokumencie (np. stary dokument sprzed todo). Pusta tablica ≠ brak pola.
+ */
 export function subscribeHousehold(
-  onUpdate: (data: HouseholdSnapshot) => void,
+  householdId: string,
+  onUpdate: (
+    data: HouseholdSnapshot,
+    missingLists: ReadonlySet<SeedableList>,
+  ) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe | null {
   const db = getFirestoreDb();
   if (!db) return null;
 
-  const ref = doc(db, "households", HOUSEHOLD_DOC_ID);
+  const ref = doc(db, "households", householdId);
   return onSnapshot(
     ref,
     (snap) => {
       if (!snap.exists()) {
-        onUpdate(emptySnapshot());
+        onUpdate(emptySnapshot(), new Set(SEEDABLE_LISTS));
         return;
       }
-      onUpdate(normalizeSnapshot(snap.data()));
+      const data = snap.data();
+      const missing = new Set(
+        SEEDABLE_LISTS.filter((key) => !Array.isArray(data[key])),
+      );
+      onUpdate(normalizeSnapshot(data), missing);
     },
     (err) => onError?.(err),
   );
 }
 
 export async function saveHouseholdToFirestore(
+  householdId: string,
   snapshot: HouseholdSnapshot,
 ): Promise<void> {
   const db = getFirestoreDb();
   if (!db) throw new Error("Firestore unavailable");
 
-  const ref = doc(db, "households", HOUSEHOLD_DOC_ID);
+  const ref = doc(db, "households", householdId);
   await setDoc(
     ref,
     {
@@ -173,27 +206,21 @@ export function isEmptyHousehold(snapshot: HouseholdSnapshot): boolean {
 }
 
 /**
- * Gdy w chmurze brakuje list (np. stare dokumenty sprzed todos),
+ * Gdy w chmurze brakuje pola listy (np. stare dokumenty sprzed todos),
  * dołóż lokalne wartości zamiast je wycierać przy pierwszym syncu.
+ * Celowo wyczyszczona lista (pusta tablica w chmurze) zostaje pusta —
+ * inaczej np. wyczyszczone zakupy wracałyby z localStorage innego urządzenia.
  */
 export function seedEmptyListsFromLocal(
   remote: HouseholdSnapshot,
   local: HouseholdSnapshot,
+  missingLists: ReadonlySet<SeedableList>,
 ): HouseholdSnapshot {
-  return {
-    ...remote,
-    todos: remote.todos.length > 0 ? remote.todos : local.todos,
-    todoFolders:
-      remote.todoFolders.length > 0
-        ? remote.todoFolders
-        : local.todoFolders,
-    shopping: remote.shopping.length > 0 ? remote.shopping : local.shopping,
-    guestPlans:
-      remote.guestPlans.length > 0 ? remote.guestPlans : local.guestPlans,
-    users: remote.users.length > 0 ? remote.users : local.users,
-    laundryPrograms:
-      remote.laundryPrograms.length > 0
-        ? remote.laundryPrograms
-        : local.laundryPrograms,
-  };
+  const seeded = { ...remote };
+  for (const key of missingLists) {
+    if (local[key].length > 0) {
+      (seeded as Record<SeedableList, unknown>)[key] = local[key];
+    }
+  }
+  return seeded;
 }

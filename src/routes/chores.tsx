@@ -9,7 +9,10 @@ import { ExportChoresButton } from "@/components/chores/ExportChoresButton";
 import { ApartmentMap } from "@/components/chores/ApartmentMap";
 import { ChoreCard } from "@/components/chores/ChoreCard";
 import { ZadanieCard } from "@/components/chores/ZadanieCard";
-import { sortTasksByImportance, sortTasksForPanicGuests } from "@/lib/choreSort";
+import {
+  sortTasksByImportance,
+  sortTasksForPanicGuests,
+} from "@/lib/choreSort";
 import { resolveImportance } from "@/lib/choreImportance";
 
 export const Route = createFileRoute("/chores")({
@@ -161,7 +164,9 @@ function ChoresPage() {
                       </h3>
                       <TaskGrid
                         tasks={g.tasks}
-                        render={(task) => <ChoreCard key={task.id} task={task} />}
+                        render={(task) => (
+                          <ChoreCard key={task.id} task={task} />
+                        )}
                       />
                     </div>
                   ),

@@ -3,7 +3,10 @@ import type { Task, Status, User } from "@/types";
 import { roomLabel } from "@/config/rooms";
 import { loadHomeZones } from "@/config/homeZones";
 import { FLOOR_PLAN_ASPECT_RATIO, FLOOR_PLAN_SRC } from "@/lib/contentPaths";
-import { PANIC_GUESTS_MIN_IMPORTANCE, resolveImportance } from "@/lib/choreImportance";
+import {
+  PANIC_GUESTS_MIN_IMPORTANCE,
+  resolveImportance,
+} from "@/lib/choreImportance";
 import { ZoneMapOverlay } from "@/components/chores/ZoneMapOverlay";
 import {
   DEFAULT_MAP_LAYERS,
@@ -124,7 +127,9 @@ export function ApartmentMap({
   users: User[];
 }) {
   const [colorMode, setColorMode] = useState<MapDisplayMode>("initials");
-  const [layers, setLayers] = useState<MapGeometryLayer[]>(() => loadMapLayers());
+  const [layers, setLayers] = useState<MapGeometryLayer[]>(() =>
+    loadMapLayers(),
+  );
   const [zones, setZones] = useState(() => loadHomeZones());
 
   useEffect(() => {
@@ -271,11 +276,7 @@ export function ApartmentMap({
         </svg>
 
         {showZones && (
-          <ZoneMapOverlay
-            overlayOnly
-            zones={zones}
-            interactiveLabels
-          />
+          <ZoneMapOverlay overlayOnly zones={zones} interactiveLabels />
         )}
 
         <div className="absolute inset-0">

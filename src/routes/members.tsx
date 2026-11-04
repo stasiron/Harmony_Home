@@ -44,7 +44,8 @@ function MembersPage() {
   const selected = users.find((u) => u.id === selectedId);
   const memberTasks = selected
     ? tasks.filter((t) => {
-        if (!normalizeAssignedTo(t.assignedTo).includes(selected.id)) return false;
+        if (!normalizeAssignedTo(t.assignedTo).includes(selected.id))
+          return false;
         if (selected.heavyDay) return statusOf(t) === "must";
         return true;
       })

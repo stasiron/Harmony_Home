@@ -3,7 +3,10 @@ import { normalizeTaskImportance } from "@/lib/choreImportance";
 import { applyZadanieThresholds } from "@/lib/choreZadaniaStatus";
 import type { Zadanie } from "@/types";
 
-type ZadanieDefinition = Omit<Zadanie, "lastCompleted" | "source" | "tSuggested"> & {
+type ZadanieDefinition = Omit<
+  Zadanie,
+  "lastCompleted" | "source" | "tSuggested"
+> & {
   tMin: number;
   tMax: number;
 };

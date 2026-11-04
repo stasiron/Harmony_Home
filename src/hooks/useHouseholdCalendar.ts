@@ -58,11 +58,13 @@ export function useHouseholdCalendar(
     staleTime: 60_000,
   });
 
-  const events = feedQuery.data?.events ?? [];
+  const feedEvents = feedQuery.data?.events;
+  const events = useMemo(() => feedEvents ?? [], [feedEvents]);
   const configured = feedQuery.data?.configured ?? false;
   const eventIndex = useMemo(() => buildEventDayIndex(events), [events]);
 
-  const selectedDay = selected ?? new Date();
+  // Bez memo `new Date()` przeliczało dayBundle przy każdym renderze.
+  const selectedDay = useMemo(() => selected ?? new Date(), [selected]);
 
   const dayBundle = useMemo(
     () => ({

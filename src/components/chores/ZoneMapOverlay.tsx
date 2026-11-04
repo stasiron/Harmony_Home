@@ -1,8 +1,5 @@
 import { useRef, useState, type MouseEvent } from "react";
-import {
-  FLOOR_PLAN_ASPECT_RATIO,
-  FLOOR_PLAN_SRC,
-} from "@/lib/contentPaths";
+import { FLOOR_PLAN_ASPECT_RATIO, FLOOR_PLAN_SRC } from "@/lib/contentPaths";
 import { clickToMapPercent, polygonToPointsAttr } from "@/lib/mapGeometry";
 import {
   findSpaceAtPoint,
@@ -54,8 +51,7 @@ export function ZoneMapOverlay({
 
   const zoneIds =
     highlightZoneIds ?? (highlightZoneId ? [highlightZoneId] : []);
-  const rooms =
-    highlightRooms ?? (highlightRoom ? [highlightRoom] : []);
+  const rooms = highlightRooms ?? (highlightRoom ? [highlightRoom] : []);
   const usingZoneHighlight = zoneIds.length > 0;
 
   const highlightPolys = usingZoneHighlight
@@ -204,7 +200,8 @@ export function ZoneMapOverlay({
       >
         <div
           className={cn(
-            (onMapClick || roomMapHover) && "pointer-events-auto absolute inset-0",
+            (onMapClick || roomMapHover) &&
+              "pointer-events-auto absolute inset-0",
           )}
         >
           {inner(false)}

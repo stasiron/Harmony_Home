@@ -21,8 +21,8 @@ export function AssigneeMultiPicker({ users, selectedIds, onChange }: Props) {
     <div className="space-y-2">
       <Label>Osoby (można kilka)</Label>
       <p className="text-xs text-muted-foreground">
-        Obowiązek przypisany do domowników — % wykonania liczy się z wag
-        zadań, które dana osoba odhaczyła.
+        Obowiązek przypisany do domowników — % wykonania liczy się z wag zadań,
+        które dana osoba odhaczyła.
       </p>
       <div className="flex flex-wrap gap-1.5">
         {users.map((user) => {

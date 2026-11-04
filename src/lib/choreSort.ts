@@ -1,6 +1,7 @@
 import {
   PANIC_GUESTS_MUST_IMPORTANCE,
   resolveImportance,
+  type ImportanceFields,
 } from "@/lib/choreImportance";
 import type { Status, Task } from "@/types";
 
@@ -55,10 +56,16 @@ export function sortTasksForPanicGuests(
   });
 }
 
-export function isPanicGuestsMust(task: Task, panicActive: boolean): boolean {
+export function isPanicGuestsMust(
+  task: ImportanceFields,
+  panicActive: boolean,
+): boolean {
   return panicActive && resolveImportance(task) >= PANIC_GUESTS_MUST_IMPORTANCE;
 }
 
-export function isGuestsModeMust(task: Task, guestsMode: boolean): boolean {
+export function isGuestsModeMust(
+  task: ImportanceFields,
+  guestsMode: boolean,
+): boolean {
   return guestsMode && resolveImportance(task) >= 4;
 }

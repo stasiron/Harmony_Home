@@ -8,7 +8,13 @@ export const TASK_MAP_SHAPE_LABELS: Record<TaskMapShape, string> = {
   zone: "Cała strefa / pokój",
 };
 
-export function normalizeTaskMap(task: Task): Task {
+/** Pola geometrii mapy wspólne dla obowiązku i zadania */
+type MapFields = Pick<
+  Task,
+  "mapShape" | "mapPins" | "mapLine" | "mapLineWidth" | "mapArea" | "zoneId"
+>;
+
+export function normalizeTaskMap<T extends MapFields>(task: T): T {
   const mapShape: TaskMapShape =
     task.mapShape ??
     (task.mapLine && task.mapLine.length >= 2
@@ -25,9 +31,7 @@ export function normalizeTaskMap(task: Task): Task {
     mapPins: mapShape === "pin" ? task.mapPins : undefined,
     mapLine: mapShape === "line" ? task.mapLine : undefined,
     mapLineWidth:
-      mapShape === "line"
-        ? resolveMapLineWidth(task.mapLineWidth)
-        : undefined,
+      mapShape === "line" ? resolveMapLineWidth(task.mapLineWidth) : undefined,
     mapArea: mapShape === "area" ? task.mapArea : undefined,
     zoneId: mapShape === "zone" ? task.zoneId : task.zoneId,
   };

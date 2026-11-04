@@ -1,12 +1,5 @@
 import { useCallback, useRef, useState, type MouseEvent } from "react";
-import {
-  Check,
-  Copy,
-  FolderPlus,
-  MapPin,
-  Trash2,
-  Undo2,
-} from "lucide-react";
+import { Check, Copy, FolderPlus, MapPin, Trash2, Undo2 } from "lucide-react";
 import { FLOOR_PLAN_SRC } from "@/components/chores/MapPinPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,20 +110,14 @@ export function HomeZoneEditor() {
     const id = newZoneId();
 
     if (newKind === "group") {
-      persist([
-        ...zones,
-        { id, name, parentId, kind: "group" },
-      ]);
+      persist([...zones, { id, name, parentId, kind: "group" }]);
       setNewName("");
       setSelectedId(id);
       return;
     }
 
     if (draft.length < 3) return;
-    persist([
-      ...zones,
-      { id, name, parentId, kind: "space", polygon: draft },
-    ]);
+    persist([...zones, { id, name, parentId, kind: "space", polygon: draft }]);
     setNewName("");
     setDraft([]);
     setSelectedId(id);
@@ -138,9 +125,7 @@ export function HomeZoneEditor() {
 
   const updateSelected = (patch: Partial<HomeZone>) => {
     if (!selected) return;
-    persist(
-      zones.map((z) => (z.id === selected.id ? { ...z, ...patch } : z)),
-    );
+    persist(zones.map((z) => (z.id === selected.id ? { ...z, ...patch } : z)));
   };
 
   const removeSelected = () => {
@@ -214,9 +199,7 @@ export function HomeZoneEditor() {
                 <Label>Typ</Label>
                 <Select
                   value={newKind}
-                  onValueChange={(v) =>
-                    setNewKind(v as "group" | "space")
-                  }
+                  onValueChange={(v) => setNewKind(v as "group" | "space")}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -261,8 +244,7 @@ export function HomeZoneEditor() {
             <Button
               type="button"
               disabled={
-                !newName.trim() ||
-                (newKind === "space" && draft.length < 3)
+                !newName.trim() || (newKind === "space" && draft.length < 3)
               }
               onClick={createZone}
               data-zone-control
@@ -299,9 +281,8 @@ export function HomeZoneEditor() {
                       <SelectItem value={NO_PARENT}>— Korzeń —</SelectItem>
                       {flat
                         .filter(({ zone }) => zone.id !== selected.id)
-                        .filter(
-                          ({ zone }) =>
-                            isValidParent(zones, selected.id, zone.id),
+                        .filter(({ zone }) =>
+                          isValidParent(zones, selected.id, zone.id),
                         )
                         .map(({ zone, depth }) => (
                           <SelectItem key={zone.id} value={zone.id}>

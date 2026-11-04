@@ -66,7 +66,8 @@ export function ChoreWeightSettingsCard() {
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">
-        Konfiguracja: <code className="text-foreground">src/config/choreWeight.ts</code>
+        Konfiguracja:{" "}
+        <code className="text-foreground">src/config/choreWeight.ts</code>
       </p>
     </section>
   );

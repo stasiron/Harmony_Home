@@ -51,10 +51,18 @@ Obowiązek z zadaniami → status z **wag** zadań (50% próg), nie z własnego 
 | `content/data/chores.json` | Stałe obowiązki (rebuild) |
 | `content/data/zadania.json` | Stałe zadania (rebuild) |
 | `content/data/homeZones.json` | Strefy mapy (rebuild) |
-| localStorage | `userTasks`, `userZadania`, `progress`, users, shopping, todos, laundryPrograms |
-| Firestore `households/homeharmony` | Sync powyższego między urządzeniami |
+| localStorage | `userTasks`, `userZadania`, `progress`, `progressBy`, users, shopping, todos, laundryPrograms |
+| Firestore `households/{householdId}` | Sync powyższego między urządzeniami (dziś zawsze `DEFAULT_HOUSEHOLD_ID = "homeharmony"`) |
 
 **Zasada:** zespół powtarzalnych obowiązków = JSON + to co przyszło z Firebase. Zmiana JSON = deploy.
+
+**Edycja wbudowanych:** edytowany obowiązek/zadanie z JSON dostaje `customized: true` i zapisuje się w całości w `userTasks` / `userZadania` jako nadpisanie szablonu. `progressBy` trzyma `lastCompletedBy` wbudowanych zadań.
+
+**Sync — pułapki:**
+- `AppProvider` startuje ze stanem jak na serwerze (bez localStorage) — inaczej hydracja React się sypie. Cache wczytuje efekt po montowaniu (`hydrated`); zapis do localStorage dopiero po nim.
+- `seedEmptyListsFromLocal` uzupełnia tylko listy, których **pola brak** w dokumencie. Pusta tablica = celowo wyczyszczona — nie przywracać.
+- Cały stan to jeden dokument → dwie osoby naraz mogą sobie nadpisać zmiany. Docelowo podkolekcje (`docs/ROADMAP.md`, etap 0).
+- Lokalny `npm run dev` łączy się z **produkcyjnym** Firestore — testując w przeglądarce nie odhaczaj / nie edytuj danych domu.
 
 ---
 
@@ -188,9 +196,13 @@ Stack: React 19, TanStack Start/Router, Vite, Tailwind, shadcn, Firebase, Nitro�
 ## Szybki test po zmianach
 
 ```bash
-npm run build
+npx tsc --noEmit
 npm run lint
+npm test
+npm run build
 ```
+
+Testy (Vitest, `src/**/*.test.ts`) — logika zapisu i statusów bez przeglądarki. Formatowanie: `.prettierrc` (80 znaków, LF); końce linii wymusza `.gitattributes`.
 
 Ręcznie: `/chores` (mapa + lista), `/` (PANIC toggle), Ustawienia → strefy, dodaj obowiązek z zadaniem.
 
@@ -204,6 +216,7 @@ Ręcznie: `/chores` (mapa + lista), `/` (PANIC toggle), Ustawienia → strefy, d
 | `docs/DZIALANIE.md` | Pełny opis funkcjonalności |
 | `docs/STRUKTURA-I-TECHNOLOGIE.md` | Kod, foldery, deploy |
 | `docs/gaps/*.md` | Luki i decyzje produktowe |
+| `docs/ROADMAP.md` | Wizja multi-mieszkań, kolejność etapów, pytania otwarte |
 | `Zapis konwersacji.txt` | Archiwum rozmów (może być nieaktualne) |
 
 **Przy każdej większej zmianie produktowej** — zaktualizuj odpowiedni plik w `docs/` lub `docs/gaps/`.

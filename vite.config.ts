@@ -10,11 +10,9 @@ const vercelPreset =
 export default defineConfig({
   plugins: [
     tanstackStart({
+      // TanStack Start zawsze dzieli trasy na chunki (opcja autoCodeSplitting
+      // jest tu ignorowana). Stare chunki po deployu łapie chunk-reload-guard.
       server: { entry: "server" },
-      router: {
-        // Keep routes in the main bundle — avoids stale lazy-chunk 404 after deploy.
-        autoCodeSplitting: false,
-      },
     }),
     viteReact(),
     tailwindcss(),
