@@ -1,6 +1,6 @@
 # HomeHarmony — roadmapa rozwoju
 
-**Status:** 2026-11-04 — plan po audycie kodu vs wizja produktu. Nic z tego nie jest jeszcze wdrożone.
+**Status:** 2026-11-04 — etap 0 i 1 zrobione w kodzie (patrz „Etap 0 + 1 — stan”); reguły czekają na deploy.
 
 Powiązane: [`KONTEKST-DLA-AI.md`](./KONTEKST-DLA-AI.md) | [`DZIALANIE.md`](./DZIALANIE.md) | [`gaps/`](./gaps/)
 
@@ -111,25 +111,58 @@ Reguły: dostęp do `households/{id}/**` tylko gdy istnieje `members/{request.au
 | **7. Instrukcje** | Szablony, migracja prania | Najmniej zależności |
 | **8. Smart home** | Home Assistant per mieszkanie | Daleki plan |
 
-### Etap 0 — co już zrobione (2026-11-04)
+### Etap 0 + 1 — stan (2026-11-04)
 
-- [x] `householdId` jako parametr warstwy sync (`subscribeHousehold`, `saveHouseholdToFirestore`, `AppProvider householdId`) — domyślnie `DEFAULT_HOUSEHOLD_ID`
-- [x] Edycje wbudowanych obowiązków/zadań zapisywane jako nadpisania (`customized`) — krok w stronę „preset = kopia danych”
-- [x] Testy logiki zapisu (Vitest) + czysty `tsc` / lint
-- [ ] Reguły Firestore oparte o członkostwo — **czeka na pytania 1–3**
-- [ ] Podział dokumentu na podkolekcje
-- [ ] Domownicy / kalendarze / strefy / plan → dane mieszkania
+- [x] Wiele mieszkań: `households/{id}` + członkostwo `members/{uid}` (role admin / member) + przełącznik mieszkań (`users/{uid}/memberships`)
+- [x] Reguły Firestore oparte o członkostwo, testowane na emulatorze (`npm run test:rules`)
+- [x] Podział dokumentu na podkolekcje — dokument per element (`src/hooks/useSyncedList.ts`)
+- [x] Domownicy, strefy i plan → dane mieszkania (`profiles`, `zones`, `assets/floorPlan`)
+- [x] Blokada edycji elementów (`locked`, `createdBy`) — obowiązki, zadania, todo, pranie
+- [x] Zaproszenia kodem (`invites/{code}`), także dla urządzeń bez konta
+- [x] Kreator mieszkania: nazwa, preset (4), domownicy, opcjonalny plan; bez planu — prompt do skopiowania
+- [x] Migracja pierwszego mieszkania (`src/lib/legacyHousehold.ts`, przycisk dla właściciela)
+- [ ] Kalendarze Google per mieszkanie — dziś tylko pierwsze (`features.legacyCalendar`, `src/config/calendars`); endpointy kalendarza na serwerze nie sprawdzają logowania
 - [ ] Dynamiczne pokoje zamiast `ChoreRoom`
+- [ ] Prywatne miejsca (`users/{uid}/private`) — reguły gotowe, moduły (lodówka, instrukcje) w etapach 6–7
+
+**Wdrożenie (kolejność ważna):**
+
+Stare reguły produkcyjne obejmują tylko dokumenty `users/{uid}` i `households/{id}` — każda podkolekcja (`members`, `profiles`, obowiązki, `memberships`) i `invites` są zablokowane, więc migracja nie przejdzie przed deployem reguł. Dlatego reguły mają **okres przejściowy** (`legacyTransition` w `firestore.rules`): dokument `households/homeharmony` zostaje dostępny dla każdego zalogowanego, ale tylko w polach starego modelu.
+
+1. `firebase deploy --only firestore:rules` — reguły z okresem przejściowym; stara aplikacja rodziny działa dalej.
+2. Deploy aplikacji (Vercel).
+3. Właściciel loguje się Google → „Przenieś HomeHarmony” → Ustawienia → Mieszkanie → „Utwórz kod”.
+4. Domownicy i tablet dołączają kodem.
+5. Usuń `legacyTransition` z reguł (i jej test), deploy reguł, potem wygeneruj nowy kod zaproszenia — w okresie przejściowym kod był widoczny dla każdego zalogowanego.
 
 ---
 
-## Pytania otwarte (do decyzji przed etapem 0)
+## Decyzje (2026-11-04, odpowiedzi właściciela)
 
-1. Czy domownik może istnieć **bez konta Google** (np. tylko na tablecie w kuchni)? Dziś tak.
-2. Czy jedna osoba może należeć do **kilku mieszkań** naraz? → przełącznik mieszkań.
-3. **Role:** kto edytuje obowiązki, plan, strefy — tylko właściciel czy każdy domownik?
-4. Jakie **presety** poza studenckim (rodzinny, para, jednoosobowe)?
-5. **Migracja:** obecne mieszkanie z historią jako pierwsze, czy start od zera?
+1. **Domownik bez konta** — tak. To profil w mieszkaniu (imię, kolor), używany np. na wspólnym tablecie. Urządzenie bez konta dołącza kodem zaproszenia (sesja anonimowa). **Brak dostępu do prywatnych miejsc** (prywatna lodówka, instrukcje…) — te wymagają konta Google.
+2. **Kilka mieszkań na osobę** — tak → przełącznik mieszkań (`users/{uid}/memberships`).
+3. **Role i edycja:**
+   - a) Obowiązki, zadania, todo, zakupy, pranie, plany gości mają przycisk **„Zablokuj edycję”**. Włączyć go może tylko twórca (z kontem). Zablokowane edytuje tylko twórca i administrator; pozostali mogą je dalej **odhaczać** (zmiana pól wykonania).
+   - b) Sprawy całego mieszkania — **strefy, plan, nazwa, domownicy, zaproszenia** — tylko administrator. Wyjątek: każdy może przełączyć „Heavy Day”.
+4. **Presety:** Rodzina, Studenckie, Para, Jednoosobowe (`src/config/presets.ts`). Preset kopiuje się do mieszkania przy tworzeniu.
+5. **Migracja:** obecne mieszkanie (`households/homeharmony`) migruje się jako pierwsze, z historią. Stare pola dokumentu zostają nietknięte (rollback).
+6. **Brak zdjęcia planu** → mapa ukryta + przycisk „Skopiuj prompt” do wygenerowania planu w stylu obecnego (`src/lib/floorPlanPrompt.ts`).
+
+### Model danych (wdrożony)
+
+```
+households/{hid}                     name, preset, ownerId, zones[], floorPlan{kind}, features{}, legacy pola (homeharmony)
+households/{hid}/members/{uid}       role admin|member, profileId, anonymous, inviteCode
+households/{hid}/profiles/{id}       domownik (User) — admin
+households/{hid}/assets/floorPlan    obraz planu (data URL, ≤ ~900 KB) — admin
+households/{hid}/{chores|zadania|todos|todoFolders|shopping|laundry|guestPlans}/{id}
+                                     element + createdBy, createdAt, locked
+invites/{code}                       householdId — get dla zalogowanych, tworzy admin
+users/{uid}/memberships/{hid}        lista mieszkań użytkownika
+users/{uid}/private/**               prywatne dane — tylko konto Google
+```
+
+Reguły: `firestore.rules`, testy: `npm run test:rules` (emulator).
 
 ---
 
@@ -139,3 +172,4 @@ Reguły: dostęp do `households/{id}/**` tylko gdy istnieje `members/{request.au
 |---|---|
 | 2026-11-04 | Pierwsza wersja — audyt kodu vs wizja multi-mieszkań |
 | 2026-11-04 | Porządki + poprawki sync; pierwsze punkty etapu 0 |
+| 2026-11-04 | Decyzje 1–6; multi-mieszkania, reguły, podkolekcje, blokady, presety, kreator, migracja |

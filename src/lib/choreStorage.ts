@@ -7,8 +7,11 @@ import { applyZadanieThresholds } from "@/lib/choreZadaniaStatus";
 import { normalizeTaskMap } from "@/lib/taskMap";
 import type { Task, Zadanie } from "@/types";
 
-const STORAGE_KEY = "homeharmony-chores";
-
+/**
+ * Stary zapis obowiązków (localStorage + jeden dokument Firestore):
+ * wbudowane z content/data + postęp + nadpisania. Dziś czyta go tylko
+ * migracja pierwszego mieszkania (src/lib/legacyHousehold.ts).
+ */
 export type ChoreStorage = {
   progress: Record<string, string>;
   /** id zadania → kto ostatnio wykonał (wbudowane zadania nie trafiają do userZadania) */
@@ -21,27 +24,6 @@ export type ChoreStorage = {
 
 const defaultLastCompleted = () =>
   new Date(Date.now() - 1000 * 60 * 60 * 24 * 14).toISOString();
-
-function emptyStorage(): ChoreStorage {
-  return { progress: {}, progressBy: {}, userTasks: [], userZadania: [] };
-}
-
-function readStorage(): ChoreStorage {
-  if (typeof window === "undefined") return emptyStorage();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyStorage();
-    const parsed = JSON.parse(raw) as Partial<ChoreStorage>;
-    return {
-      progress: parsed.progress ?? {},
-      progressBy: parsed.progressBy ?? {},
-      userTasks: Array.isArray(parsed.userTasks) ? parsed.userTasks : [],
-      userZadania: Array.isArray(parsed.userZadania) ? parsed.userZadania : [],
-    };
-  } catch {
-    return emptyStorage();
-  }
-}
 
 /** Czy element trzeba zapisać w całości (własny albo edytowany wbudowany) */
 function isStoredTask(task: Task) {
@@ -164,38 +146,19 @@ export function buildZadaniaFromParts(
   return [...permanent, ...custom];
 }
 
-export function readChoreStorage(): ChoreStorage {
-  return readStorage();
+/** Obowiązek z Firestore — uzupełnia brakujące / stare pola */
+export function normalizeSyncedTask(raw: unknown): Task | null {
+  if (!raw || typeof raw !== "object") return null;
+  const task = raw as Task;
+  if (typeof task.id !== "string" || typeof task.name !== "string") return null;
+  return normalizeStoredTask(task, {});
 }
 
-export function buildInitialTasks(): Task[] {
-  const { progress, userTasks } = readStorage();
-  return buildTasksFromParts(progress, userTasks);
-}
-
-export function buildInitialZadania(): Zadanie[] {
-  const { progress, userZadania, progressBy } = readStorage();
-  return buildZadaniaFromParts(progress, userZadania, progressBy);
-}
-
-export function persistChoreState(tasks: Task[], zadania: Zadanie[]) {
-  if (typeof window === "undefined") return;
-
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(splitChoreState(tasks, zadania)),
-  );
-}
-
-export function isPermanentTask(taskId: string) {
-  return PERMANENT_CHORE_IDS.has(taskId);
-}
-
-export function isPermanentZadanie(zadanieId: string) {
-  return PERMANENT_ZADANIA_IDS.has(zadanieId);
-}
-
-/** @deprecated use persistChoreState */
-export function persistTasks(tasks: Task[]) {
-  persistChoreState(tasks, buildInitialZadania());
+export function normalizeSyncedZadanie(raw: unknown): Zadanie | null {
+  if (!raw || typeof raw !== "object") return null;
+  const zadanie = raw as Zadanie;
+  if (typeof zadanie.id !== "string" || typeof zadanie.name !== "string") {
+    return null;
+  }
+  return normalizeZadanie(zadanie, {});
 }

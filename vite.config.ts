@@ -3,11 +3,18 @@ import tailwindcss from "@tailwindcss/vite";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
+import { resolveAppVersion } from "./src/lib/appVersion.build";
+
+const appVersion = resolveAppVersion();
 
 const vercelPreset =
   process.env.VERCEL === "1" || process.env.NITRO_PRESET === "vercel";
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion.version),
+    __APP_COMMIT__: JSON.stringify(appVersion.commit),
+  },
   plugins: [
     tanstackStart({
       // TanStack Start zawsze dzieli trasy na chunki (opcja autoCodeSplitting

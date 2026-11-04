@@ -2,6 +2,7 @@ import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import {
   browserLocalPersistence,
   browserPopupRedirectResolver,
+  connectAuthEmulator,
   getAuth,
   getRedirectResult,
   initializeAuth,
@@ -9,7 +10,14 @@ import {
   type Auth,
   type UserCredential,
 } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import {
+  connectFirestoreEmulator,
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from "firebase/firestore";
 
 /** Web app harmony-home-95c3b — Firebase Console → Project settings → Your apps */
 export const firebaseConfig = {
@@ -40,6 +48,13 @@ export function getFirebaseConfig() {
   };
 }
 
+/**
+ * `VITE_FIREBASE_EMULATOR=1 npm run dev` + `npm run emulators` — lokalna baza
+ * zamiast produkcyjnej (testy w przeglądarce nie ruszają danych domu).
+ */
+export const firebaseEmulatorEnabled =
+  import.meta.env.VITE_FIREBASE_EMULATOR === "1";
+
 export function isFirebaseConfigured(): boolean {
   const { apiKey, appId } = getFirebaseConfig();
   return Boolean(apiKey && appId);
@@ -68,12 +83,33 @@ function createAuth(firebaseApp: FirebaseApp): Auth {
   }
 }
 
+function createFirestore(firebaseApp: FirebaseApp): Firestore {
+  try {
+    return initializeFirestore(firebaseApp, {
+      // Cache w IndexedDB zamiast localStorage — działa offline i per mieszkanie.
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+      ignoreUndefinedProperties: true,
+    });
+  } catch {
+    // HMR: Firestore już zainicjalizowany dla tej aplikacji
+    return getFirestore(firebaseApp);
+  }
+}
+
 function ensureFirebase(): boolean {
   if (typeof window === "undefined" || !isFirebaseConfigured()) return false;
   if (!app) {
     app = getApps().length ? getApps()[0]! : initializeApp(getFirebaseConfig());
     auth = createAuth(app);
-    db = getFirestore(app);
+    db = createFirestore(app);
+    if (firebaseEmulatorEnabled) {
+      connectAuthEmulator(auth, "http://127.0.0.1:9099", {
+        disableWarnings: true,
+      });
+      connectFirestoreEmulator(db, "127.0.0.1", 8080);
+    }
   }
   return true;
 }

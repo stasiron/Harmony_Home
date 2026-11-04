@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useApp } from "@/context/AppContext";
+import { useHousehold } from "@/context/HouseholdContext";
+import { ItemLockButton } from "@/components/household/ItemLock";
 import type { LaundryProgram } from "@/types";
 
 export const Route = createFileRoute("/laundry")({
@@ -162,6 +164,7 @@ function LaundryCard({
   program: LaundryProgram;
   onRemove: () => void;
 }) {
+  const { canEditItem } = useHousehold();
   return (
     <li className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-5 shadow-elevated">
       <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-background/60">
@@ -178,16 +181,19 @@ function LaundryCard({
           <Stat label="Obroty" value={String(program.spin)} />
         </dl>
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="shrink-0 text-muted-foreground hover:text-destructive"
-        onClick={onRemove}
-        aria-label="Usuń program"
-      >
-        <Trash2 className="size-4" />
-      </Button>
+      <ItemLockButton kind="laundry" item={program} />
+      {canEditItem(program) && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-muted-foreground hover:text-destructive"
+          onClick={onRemove}
+          aria-label="Usuń program"
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      )}
     </li>
   );
 }

@@ -8,13 +8,16 @@
   },
   "scripts": {
     "dev": "vite dev",
+    "dev:emulator": "vite dev --mode emulator",
     "build": "vite build",
     "postbuild": "node scripts/patch-vercel-function.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\"",
+    "emulators": "firebase emulators:start --only auth,firestore"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -46,9 +49,9 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.101.1",
-    "@tanstack/react-router": "^1.170.16",
-    "@tanstack/react-start": "^1.168.26",
-    "@tanstack/router-plugin": "^1.168.18",
+    "@tanstack/react-router": "^1.170.46",
+    "@tanstack/react-start": "^1.169.4",
+    "@tanstack/router-plugin": "^1.168.48",
     "@vercel/kv": "^1.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -75,6 +78,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@firebase/rules-unit-testing": "5.0.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

@@ -12,12 +12,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
-import { memberNameById } from "@/lib/memberLink";
+import { useHousehold } from "@/context/HouseholdContext";
 
 export function AuthUserBadge() {
-  const { user, memberId, seeAsMemberId, loading, setSeeAsMember, clearSeeAs } =
+  const { user, seeAsMemberId, loading, setSeeAsMember, clearSeeAs } =
     useAuth();
   const { users } = useApp();
+  const { myProfileId } = useHousehold();
   const navigate = useNavigate();
 
   if (loading && !user) {
@@ -26,8 +27,7 @@ export function AuthUserBadge() {
 
   if (!user) {
     const seeAsLabel = seeAsMemberId
-      ? (memberNameById(seeAsMemberId) ??
-        users.find((u) => u.id === seeAsMemberId)?.name)
+      ? users.find((u) => u.id === seeAsMemberId)?.name
       : null;
 
     return (
@@ -89,7 +89,7 @@ export function AuthUserBadge() {
     );
   }
 
-  const memberLabel = memberId ? memberNameById(memberId) : null;
+  const memberLabel = users.find((u) => u.id === myProfileId)?.name ?? null;
 
   return (
     <Button

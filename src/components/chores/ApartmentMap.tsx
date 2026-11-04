@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Task, Status, User } from "@/types";
 import { roomLabel } from "@/config/rooms";
-import { loadHomeZones } from "@/config/homeZones";
-import { FLOOR_PLAN_ASPECT_RATIO, FLOOR_PLAN_SRC } from "@/lib/contentPaths";
+import { useHousehold } from "@/context/HouseholdContext";
 import {
   PANIC_GUESTS_MIN_IMPORTANCE,
   resolveImportance,
@@ -130,18 +129,11 @@ export function ApartmentMap({
   const [layers, setLayers] = useState<MapGeometryLayer[]>(() =>
     loadMapLayers(),
   );
-  const [zones, setZones] = useState(() => loadHomeZones());
+  const { zones, floorPlan } = useHousehold();
 
   useEffect(() => {
     saveMapLayers(layers);
   }, [layers]);
-
-  useEffect(() => {
-    const refresh = () => setZones(loadHomeZones());
-    refresh();
-    window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
-  }, []);
 
   const renderables = useMemo(
     () =>
@@ -224,10 +216,14 @@ export function ApartmentMap({
 
       <div
         className="relative w-full overflow-hidden"
-        style={{ aspectRatio: FLOOR_PLAN_ASPECT_RATIO }}
+        style={{
+          aspectRatio: floorPlan
+            ? `${floorPlan.width} / ${floorPlan.height}`
+            : undefined,
+        }}
       >
         <img
-          src={FLOOR_PLAN_SRC}
+          src={floorPlan?.src}
           alt="Plan mieszkania"
           className="absolute inset-0 h-full w-full object-cover"
         />

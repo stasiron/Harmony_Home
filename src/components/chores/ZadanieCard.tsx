@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Check, Clock } from "lucide-react";
 import type { User, Zadanie } from "@/types";
-import { useAuth } from "@/context/AuthContext";
-import { loadHomeZones } from "@/config/homeZones";
+import { useHousehold } from "@/context/HouseholdContext";
 import { useApp } from "@/context/AppContext";
 import { EditZadanieDialog } from "@/components/chores/EditZadanieDialog";
 import { pickDefaultCompleter } from "@/lib/choreAssignees";
@@ -36,7 +35,7 @@ export function ZadanieCard({
   /** Domownicy z obowiązku — wybór kto wykonał */
   assigneeOptions?: User[];
 }) {
-  const { memberId } = useAuth();
+  const { zones, myProfileId: memberId } = useHousehold();
   const { statusOf, daysSince, completeZadanie, panic, guestsMode } = useApp();
   const [pickCompleter, setPickCompleter] = useState(false);
   const status = statusOf(zadanie);
@@ -95,7 +94,7 @@ export function ZadanieCard({
               <Clock className="size-3" /> {zadanie.estimatedMinutes} min
             </span>
             <span>Last: {d}d ago</span>
-            <span>{zadanieLocationLabel(zadanie, loadHomeZones())}</span>
+            <span>{zadanieLocationLabel(zadanie, zones)}</span>
             <span>
               próg {zadanie.tMin}d · krytyczne {zadanie.tMax}d
             </span>

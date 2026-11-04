@@ -46,23 +46,31 @@ Obowiązek z zadaniami → status z **wag** zadań (50% próg), nie z własnego 
 
 ## Skąd biorą się listy
 
+Wszystko należy do **mieszkania** (`useHousehold().householdId`). Model i decyzje: `docs/ROADMAP.md`.
+
 | Źródło | Co |
 |--------|-----|
-| `content/data/chores.json` | Stałe obowiązki (rebuild) |
-| `content/data/zadania.json` | Stałe zadania (rebuild) |
-| `content/data/homeZones.json` | Strefy mapy (rebuild) |
-| localStorage | `userTasks`, `userZadania`, `progress`, `progressBy`, users, shopping, todos, laundryPrograms |
-| Firestore `households/{householdId}` | Sync powyższego między urządzeniami (dziś zawsze `DEFAULT_HOUSEHOLD_ID = "homeharmony"`) |
+| `households/{id}` | nazwa, preset, `ownerId`, `zones`, `floorPlan`, `inviteCode`, `features` |
+| `households/{id}/members/{uid}` | konto / urządzenie, `role` admin \| member, `profileId` |
+| `households/{id}/profiles` | domownicy (`User`) |
+| `households/{id}/{chores,zadania,todos,todoFolders,shopping,laundry,guestPlans}` | dokument per element + `createdBy`, `createdAt`, `locked` |
+| `households/{id}/assets/floorPlan` | plan (data URL ≤ ~900 KB) |
+| `src/config/presets.ts` | 4 presety kopiowane przy tworzeniu mieszkania |
+| `content/data/*.json` | **tylko** migracja pierwszego mieszkania (`src/lib/legacyHousehold.ts`) |
 
-**Zasada:** zespół powtarzalnych obowiązków = JSON + to co przyszło z Firebase. Zmiana JSON = deploy.
-
-**Edycja wbudowanych:** edytowany obowiązek/zadanie z JSON dostaje `customized: true` i zapisuje się w całości w `userTasks` / `userZadania` jako nadpisanie szablonu. `progressBy` trzyma `lastCompletedBy` wbudowanych zadań.
+**Uprawnienia** (`firestore.rules`, testy `tests/firestore.rules.test.ts`):
+- bez członkostwa — zero dostępu (też anonimowo),
+- strefy, plan, nazwa, domownicy, zaproszenia — tylko admin (Heavy Day — każdy),
+- `locked: true` — edytuje twórca i admin, odhaczać (`lastCompleted`, `done`, `completedBy`…) może każdy,
+- zablokować może tylko twórca z kontem Google lub admin; `createdBy` nie da się podrobić,
+- **okres przejściowy** (`legacyTransition`): dokument `households/homeharmony` czyta i zapisuje (tylko stare pola) każdy zalogowany — dla starej wersji aplikacji, do czasu przesiadki rodziny. Do usunięcia, patrz ROADMAP → „Wdrożenie”.
 
 **Sync — pułapki:**
-- `AppProvider` startuje ze stanem jak na serwerze (bez localStorage) — inaczej hydracja React się sypie. Cache wczytuje efekt po montowaniu (`hydrated`); zapis do localStorage dopiero po nim.
-- `seedEmptyListsFromLocal` uzupełnia tylko listy, których **pola brak** w dokumencie. Pusta tablica = celowo wyczyszczona — nie przywracać.
-- Cały stan to jeden dokument → dwie osoby naraz mogą sobie nadpisać zmiany. Docelowo podkolekcje (`docs/ROADMAP.md`, etap 0).
-- Lokalny `npm run dev` łączy się z **produkcyjnym** Firestore — testując w przeglądarce nie odhaczaj / nie edytuj danych domu.
+- `useSyncedList` = `setState` + zapis różnicy do Firestore od razu (bez debounce). Odrzucony zapis cofa snapshot z serwera + toast.
+- Stan startowy pusty (SSR = pierwszy render klienta). Cache offline daje Firestore (IndexedDB), nie localStorage.
+- Nowe pole w elemencie → normalizer musi je przepuścić (`pickItemMeta` w `appStorage.ts`).
+- Kalendarze Google tylko gdy `household.features.legacyCalendar` (pierwsze mieszkanie).
+- Lokalny `npm run dev` łączy się z **produkcyjnym** Firestore. Do testów: `npm run emulators` + `npm run dev:emulator` (wymaga Javy 21).
 
 ---
 
@@ -97,15 +105,16 @@ Tryb **PANIC na mapie** (kolory wg ważności) — **wyłączony w UI**, kod zam
 
 | Chcę zmienić… | Plik |
 |---------------|------|
-| Stałe obowiązki | `content/data/chores.json` |
-| Stałe zadania | `content/data/zadania.json` |
-| Strefy / plan pokoi | `content/data/homeZones.json` lub Ustawienia → Drzewo stref |
-| Plan mieszkania (obrazek) | `content/images/apartment-floor-plan.png` |
-| Domyślni domownicy | `src/config/household.ts` |
+| Obowiązki / zadania mieszkania | UI (dane w Firestore); szablony nowych mieszkań — `src/config/presets.ts` |
+| Strefy / plan pokoi | Ustawienia → Drzewo stref (admin) |
+| Plan mieszkania (obrazek) | Ustawienia → Plan mieszkania; prompt: `src/lib/floorPlanPrompt.ts` |
+| Presety nowego mieszkania | `src/config/presets.ts` |
+| Mieszkanie, członkostwo, role | `src/context/HouseholdContext.tsx`, `src/lib/householdSetup.ts` |
+| Uprawnienia | `firestore.rules` + `tests/firestore.rules.test.ts` |
 | Wzór wagi | `src/config/choreWeight.ts` |
 | Logika statusów | `src/lib/choreZadaniaStatus.ts`, `AppContext.statusOf` |
 | Harmonogram | `src/lib/choreRecurrence.ts` |
-| Sync chmura | `src/lib/householdFirestore.ts` |
+| Sync chmura | `src/hooks/useSyncedList.ts`, `src/lib/householdSync.ts` |
 | Strona obowiązków | `src/routes/chores.tsx` |
 | Strona prania | `src/routes/laundry.tsx` |
 | Globalny stan | `src/context/AppContext.tsx` |
@@ -132,7 +141,7 @@ Stack: React 19, TanStack Start/Router, Vite, Tailwind, shadcn, Firebase, Nitro�
 3. **Nie usuwaj** zamrożonego kodu (np. mapa PANIC) — ukrywaj / dokumentuj
 4. **Obowiązek ≠ Zadanie** — nie łącz w jeden typ
 5. **Osoby tylko na obowiązku** — zadania mają `lastCompletedBy`
-6. **Po zmianie JSON w content/** — użytkownik musi zrobić rebuild/deploy
+6. **`content/data/*.json`** — dziś tylko źródło migracji pierwszego mieszkania; nowe mieszkania biorą presety
 7. **Sprawdź `docs/gaps/`** przed implementacją — może być już opisane jako TODO lub świadomie odłożone
 8. **Język odpowiedzi:** polski (użytkownik polskojęzyczny)
 9. **Wersja:** `src/version.ts` — podbij przy release jeśli proszą o wersjonowanie
@@ -157,7 +166,7 @@ Stack: React 19, TanStack Start/Router, Vite, Tailwind, shadcn, Firebase, Nitro�
 
 | Zadanie użytkownika | Pierwsze pliki |
 |---------------------|----------------|
-| Nowy stały obowiązek | `content/data/chores.json`, ewent. `zadania.json` + `linkedZadanieIds` |
+| Nowy obowiązek w presecie | `src/config/presets.ts` (`CHORES`, `ZADANIA`) |
 | Zmiana mapy / stref | `homeZones.json`, `HomeZoneEditor.tsx`, `mapHitTest.ts` |
 | Nowe pole w formularzu | `ChoreItemFormFields.tsx`, `choreItemForm.ts`, `types/index.ts` |
 | Zmiana sortowania panic | `choreSort.ts`, `routes/chores.tsx`, `AppContext` `visibleTasks` |
@@ -199,6 +208,7 @@ Stack: React 19, TanStack Start/Router, Vite, Tailwind, shadcn, Firebase, Nitro�
 npx tsc --noEmit
 npm run lint
 npm test
+npm run test:rules   # emulator, Java 21
 npm run build
 ```
 
@@ -216,7 +226,7 @@ Ręcznie: `/chores` (mapa + lista), `/` (PANIC toggle), Ustawienia → strefy, d
 | `docs/DZIALANIE.md` | Pełny opis funkcjonalności |
 | `docs/STRUKTURA-I-TECHNOLOGIE.md` | Kod, foldery, deploy |
 | `docs/gaps/*.md` | Luki i decyzje produktowe |
-| `docs/ROADMAP.md` | Wizja multi-mieszkań, kolejność etapów, pytania otwarte |
+| `docs/ROADMAP.md` | Wizja multi-mieszkań, decyzje, model danych, etapy, kolejność wdrożenia |
 | `Zapis konwersacji.txt` | Archiwum rozmów (może być nieaktualne) |
 
 **Przy każdej większej zmianie produktowej** — zaktualizuj odpowiedni plik w `docs/` lub `docs/gaps/`.

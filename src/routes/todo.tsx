@@ -13,6 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
+import { useHousehold } from "@/context/HouseholdContext";
+import { ItemLockButton } from "@/components/household/ItemLock";
 import {
   activeMembers,
   buildTodoExport,
@@ -61,8 +63,9 @@ function TodoPage() {
     renameTodoFolder,
     removeTodoFolder,
   } = useApp();
-  const { memberId, seeAsMemberId } = useAuth();
-  const actorId = seeAsMemberId ?? memberId;
+  const { seeAsMemberId } = useAuth();
+  const { myProfileId } = useHousehold();
+  const actorId = seeAsMemberId ?? myProfileId;
 
   const [draft, setDraft] = useState("");
   const [scope, setScope] = useState<TodoScope>("personal");
@@ -714,6 +717,9 @@ function TodoRow({
   onRemove: (id: string) => void;
   bordered: boolean;
 }) {
+  const { canEditItem } = useHousehold();
+  // Zablokowane: odhaczać może każdy, zmieniać tylko twórca i admin
+  const editable = canEditItem(item);
   const isEveryone =
     item.scope === "household" && item.householdMode === "everyone";
   const isAnyone =
@@ -777,12 +783,12 @@ function TodoRow({
         </div>
       </div>
 
-      {folders.length > 0 ? (
+      {editable && folders.length > 0 ? (
         <label className="sr-only" htmlFor={`folder-${item.id}`}>
           Folder
         </label>
       ) : null}
-      {folders.length > 0 ? (
+      {editable && folders.length > 0 ? (
         <select
           id={`folder-${item.id}`}
           value={item.folderId ?? ""}
@@ -825,7 +831,7 @@ function TodoRow({
         </div>
       ) : null}
 
-      {isPersonal ? (
+      {isPersonal && editable ? (
         <div className="flex flex-wrap gap-1.5 sm:justify-end">
           <button
             type="button"
@@ -862,14 +868,17 @@ function TodoRow({
         </div>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => onRemove(item.id)}
-        className="grid size-8 shrink-0 place-items-center self-end rounded-lg text-muted-foreground transition-colors hover:bg-alert/10 hover:text-alert sm:self-center"
-        aria-label="Usuń"
-      >
-        <Trash2 className="size-4" />
-      </button>
+      <ItemLockButton kind="todos" item={item} />
+      {editable && (
+        <button
+          type="button"
+          onClick={() => onRemove(item.id)}
+          className="grid size-8 shrink-0 place-items-center self-end rounded-lg text-muted-foreground transition-colors hover:bg-alert/10 hover:text-alert sm:self-center"
+          aria-label="Usuń"
+        >
+          <Trash2 className="size-4" />
+        </button>
+      )}
     </div>
   );
 }

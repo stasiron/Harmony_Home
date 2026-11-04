@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { ChoreItemFormWizard } from "@/components/chores/ChoreItemFormWizard";
-import { loadHomeZones } from "@/config/homeZones";
+import { useHousehold } from "@/context/HouseholdContext";
 import {
   canSubmitZadanieForm,
   emptyChoreItemForm,
@@ -25,11 +25,10 @@ export function AddZadanieDialog() {
   const [form, setForm] = useState<ChoreItemFormState>(() =>
     emptyChoreItemForm(),
   );
-  const [homeZones, setHomeZones] = useState(() => loadHomeZones());
+  const { zones: homeZones } = useHousehold();
 
   useEffect(() => {
     if (!open) return;
-    setHomeZones(loadHomeZones());
     setForm(emptyChoreItemForm());
     setResetToken((n) => n + 1);
   }, [open]);

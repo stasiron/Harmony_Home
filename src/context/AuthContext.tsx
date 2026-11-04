@@ -13,8 +13,10 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signInAnonymously,
+  signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
+  type Auth,
   type User,
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
@@ -71,11 +73,14 @@ function googleProvider() {
   return provider;
 }
 
+function authErrorCode(err: unknown): string {
+  return err && typeof err === "object" && "code" in err
+    ? String((err as { code: string }).code)
+    : "";
+}
+
 function authErrorMessage(err: unknown): string {
-  const code =
-    err && typeof err === "object" && "code" in err
-      ? String((err as { code: string }).code)
-      : "";
+  const code = authErrorCode(err);
 
   switch (code) {
     case "auth/unauthorized-domain":
@@ -295,6 +300,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [configured, connectCalendarIfPending, ensurePersistentCalendar]);
 
+  /**
+   * Popup zamiast samego redirectu: aplikacja działa na innej domenie niż
+   * authDomain (localhost, vercel.app), a przeglądarki blokujące storage
+   * stron trzecich gubią wtedy wynik redirectu — getRedirectResult zwraca
+   * null i po powrocie z Google nikt nie jest zalogowany.
+   */
+  const startGoogleSignIn = useCallback(
+    async (auth: Auth) => {
+      try {
+        const result = await signInWithPopup(auth, googleProvider());
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        pendingAccessTokenRef.current = credential?.accessToken ?? null;
+        const linkedMemberId = await loadAndSyncUserProfile(result.user);
+        await connectCalendarIfPending(linkedMemberId);
+      } catch (err) {
+        const code = authErrorCode(err);
+        if (
+          code === "auth/popup-blocked" ||
+          code === "auth/operation-not-supported-in-environment"
+        ) {
+          await signInWithRedirect(auth, googleProvider());
+          return;
+        }
+        if (
+          code === "auth/popup-closed-by-user" ||
+          code === "auth/cancelled-popup-request"
+        ) {
+          sessionStorage.removeItem("pendingCalendarSyncMemberId");
+          return;
+        }
+        throw err;
+      }
+    },
+    [connectCalendarIfPending],
+  );
+
   const signInWithGoogle = useCallback(async () => {
     const auth = getFirebaseAuth();
     if (!auth) {
@@ -307,11 +348,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       sessionStorage.setItem("authReturnTo", window.location.pathname);
-      await signInWithRedirect(auth, googleProvider());
+      await startGoogleSignIn(auth);
     } catch (err) {
       setError(authErrorMessage(err));
     }
-  }, []);
+  }, [startGoogleSignIn]);
 
   const connectPersistentCalendar = useCallback(() => {
     if (!memberId) {
@@ -346,11 +387,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       sessionStorage.setItem("pendingCalendarSyncMemberId", memberId);
       sessionStorage.setItem("authReturnTo", window.location.pathname);
-      await signInWithRedirect(auth, googleProvider());
+      await startGoogleSignIn(auth);
     } catch (err) {
       setError(authErrorMessage(err));
     }
-  }, [memberId, connectPersistentCalendar]);
+  }, [memberId, connectPersistentCalendar, startGoogleSignIn]);
 
   const signOut = useCallback(async () => {
     const auth = getFirebaseAuth();
