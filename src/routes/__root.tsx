@@ -41,8 +41,15 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({
+  error,
+  reset,
+}: {
+  error: unknown;
+  reset: () => void;
+}) {
   console.error(error);
+  const message = error instanceof Error ? error.message : null;
   const router = useRouter();
 
   return (
@@ -56,9 +63,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           strony w ustawieniach przeglądarki — stary cache często blokuje
           wczytanie po aktualizacji.
         </p>
-        {error?.message ? (
+        {message ? (
           <pre className="mt-4 max-h-48 overflow-auto rounded-md bg-muted p-3 text-left text-xs text-muted-foreground">
-            {error.message}
+            {message}
           </pre>
         ) : null}
         <p className="mt-3 text-xs text-muted-foreground">

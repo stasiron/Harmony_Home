@@ -9,67 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WeatherRouteImport } from './routes/weather'
-import { Route as TodoRouteImport } from './routes/todo'
-import { Route as StatsRouteImport } from './routes/stats'
-import { Route as SmartRouteImport } from './routes/smart'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as MembersRouteImport } from './routes/members'
-import { Route as LaundryRouteImport } from './routes/laundry'
-import { Route as KitchenRouteImport } from './routes/kitchen'
-import { Route as HouseholdsRouteImport } from './routes/households'
-import { Route as ChoresRouteImport } from './routes/chores'
-import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as ChoresRouteImport } from './routes/chores'
+import { Route as HouseholdsRouteImport } from './routes/households'
+import { Route as KitchenRouteImport } from './routes/kitchen'
+import { Route as LaundryRouteImport } from './routes/laundry'
+import { Route as MembersRouteImport } from './routes/members'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SmartRouteImport } from './routes/smart'
+import { Route as StatsRouteImport } from './routes/stats'
+import { Route as TodoRouteImport } from './routes/todo'
+import { Route as WeatherRouteImport } from './routes/weather'
 
-const WeatherRoute = WeatherRouteImport.update({
-  id: '/weather',
-  path: '/weather',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TodoRoute = TodoRouteImport.update({
-  id: '/todo',
-  path: '/todo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StatsRoute = StatsRouteImport.update({
-  id: '/stats',
-  path: '/stats',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SmartRoute = SmartRouteImport.update({
-  id: '/smart',
-  path: '/smart',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MembersRoute = MembersRouteImport.update({
-  id: '/members',
-  path: '/members',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaundryRoute = LaundryRouteImport.update({
-  id: '/laundry',
-  path: '/laundry',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const KitchenRoute = KitchenRouteImport.update({
-  id: '/kitchen',
-  path: '/kitchen',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HouseholdsRoute = HouseholdsRouteImport.update({
-  id: '/households',
-  path: '/households',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ChoresRoute = ChoresRouteImport.update({
-  id: '/chores',
-  path: '/chores',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendarRoute = CalendarRouteImport.update({
@@ -77,9 +32,54 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ChoresRoute = ChoresRouteImport.update({
+  id: '/chores',
+  path: '/chores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HouseholdsRoute = HouseholdsRouteImport.update({
+  id: '/households',
+  path: '/households',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KitchenRoute = KitchenRouteImport.update({
+  id: '/kitchen',
+  path: '/kitchen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaundryRoute = LaundryRouteImport.update({
+  id: '/laundry',
+  path: '/laundry',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MembersRoute = MembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SmartRoute = SmartRouteImport.update({
+  id: '/smart',
+  path: '/smart',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatsRoute = StatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TodoRoute = TodoRouteImport.update({
+  id: '/todo',
+  path: '/todo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WeatherRoute = WeatherRouteImport.update({
+  id: '/weather',
+  path: '/weather',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -188,74 +188,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/weather': {
-      id: '/weather'
-      path: '/weather'
-      fullPath: '/weather'
-      preLoaderRoute: typeof WeatherRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/todo': {
-      id: '/todo'
-      path: '/todo'
-      fullPath: '/todo'
-      preLoaderRoute: typeof TodoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/stats': {
-      id: '/stats'
-      path: '/stats'
-      fullPath: '/stats'
-      preLoaderRoute: typeof StatsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/smart': {
-      id: '/smart'
-      path: '/smart'
-      fullPath: '/smart'
-      preLoaderRoute: typeof SmartRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/members': {
-      id: '/members'
-      path: '/members'
-      fullPath: '/members'
-      preLoaderRoute: typeof MembersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/laundry': {
-      id: '/laundry'
-      path: '/laundry'
-      fullPath: '/laundry'
-      preLoaderRoute: typeof LaundryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/kitchen': {
-      id: '/kitchen'
-      path: '/kitchen'
-      fullPath: '/kitchen'
-      preLoaderRoute: typeof KitchenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/households': {
-      id: '/households'
-      path: '/households'
-      fullPath: '/households'
-      preLoaderRoute: typeof HouseholdsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/chores': {
-      id: '/chores'
-      path: '/chores'
-      fullPath: '/chores'
-      preLoaderRoute: typeof ChoresRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendar': {
@@ -265,11 +202,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/chores': {
+      id: '/chores'
+      path: '/chores'
+      fullPath: '/chores'
+      preLoaderRoute: typeof ChoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/households': {
+      id: '/households'
+      path: '/households'
+      fullPath: '/households'
+      preLoaderRoute: typeof HouseholdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kitchen': {
+      id: '/kitchen'
+      path: '/kitchen'
+      fullPath: '/kitchen'
+      preLoaderRoute: typeof KitchenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/laundry': {
+      id: '/laundry'
+      path: '/laundry'
+      fullPath: '/laundry'
+      preLoaderRoute: typeof LaundryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/members': {
+      id: '/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof MembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/smart': {
+      id: '/smart'
+      path: '/smart'
+      fullPath: '/smart'
+      preLoaderRoute: typeof SmartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats': {
+      id: '/stats'
+      path: '/stats'
+      fullPath: '/stats'
+      preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/todo': {
+      id: '/todo'
+      path: '/todo'
+      fullPath: '/todo'
+      preLoaderRoute: typeof TodoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/weather': {
+      id: '/weather'
+      path: '/weather'
+      fullPath: '/weather'
+      preLoaderRoute: typeof WeatherRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
