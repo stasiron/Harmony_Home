@@ -14,6 +14,7 @@ import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { HouseholdProvider } from "@/context/HouseholdContext";
 import { HouseholdGate } from "@/components/household/HouseholdGate";
+import { AppVersionFooter } from "@/components/AppVersionFooter";
 import { Toaster } from "@/components/ui/sonner";
 import { CHUNK_RELOAD_GUARD_SCRIPT } from "@/lib/chunk-reload-guard";
 
@@ -159,6 +160,7 @@ function RootComponent() {
               {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
               <Outlet />
             </HouseholdGate>
+            <AppVersionFooter />
             <Toaster />
           </AppProvider>
         </HouseholdProvider>

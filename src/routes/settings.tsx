@@ -19,7 +19,6 @@ import {
   setMemberCalendarEnabled,
 } from "@/lib/calendar/api";
 import { cn } from "@/lib/utils";
-import { APP_VERSION } from "@/version";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -238,10 +237,6 @@ function SettingsPage() {
           ))}
         </div>
       )}
-
-      <p className="text-center text-xs text-muted-foreground">
-        HomeHarmony {APP_VERSION}
-      </p>
     </div>
   );
 }

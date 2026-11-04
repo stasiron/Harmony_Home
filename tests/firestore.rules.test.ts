@@ -92,7 +92,6 @@ describe("prywatność mieszkania", () => {
   it("domownik czyta", async () => {
     await assertSucceeds(getDoc(doc(dbAs("alice"), "households", HID)));
   });
-
 });
 
 describe("okres przejściowy — stary dokument homeharmony", () => {
