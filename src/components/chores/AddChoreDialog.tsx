@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { ChoreItemFormWizard } from "@/components/chores/ChoreItemFormWizard";
 import { LinkZadaniaPicker } from "@/components/chores/LinkZadaniaPicker";
-import { loadHomeZones } from "@/config/homeZones";
+import { useHousehold } from "@/context/HouseholdContext";
 import {
   canSubmitChoreItemForm,
   emptyChoreItemForm,
@@ -27,7 +27,7 @@ export function AddChoreDialog() {
   const [form, setForm] = useState<ChoreItemFormState>(() =>
     emptyChoreItemForm(),
   );
-  const [homeZones, setHomeZones] = useState(() => loadHomeZones());
+  const { zones: homeZones } = useHousehold();
 
   const attachedElsewhere = useMemo(
     () => zadanieIdsAttachedElsewhere(tasks),
@@ -36,7 +36,6 @@ export function AddChoreDialog() {
 
   useEffect(() => {
     if (!open) return;
-    setHomeZones(loadHomeZones());
     setForm(emptyChoreItemForm());
     setResetToken((n) => n + 1);
   }, [open]);

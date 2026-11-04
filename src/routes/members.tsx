@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Flame, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useHousehold } from "@/context/HouseholdContext";
 import { normalizeAssignedTo } from "@/lib/choreAssignees";
 import { Shell } from "@/components/Shell";
 import { ChoreCard } from "@/components/chores/ChoreCard";
@@ -37,6 +38,8 @@ export const Route = createFileRoute("/members")({
 
 function MembersPage() {
   const { users, tasks, addUser, toggleUserHeavyDay, statusOf } = useApp();
+  // Domownicy to sprawa całego mieszkania — dodaje administrator (decyzja 3b)
+  const { isAdmin } = useHousehold();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState("");
@@ -69,38 +72,40 @@ function MembersPage() {
             Tap a person to see chores assigned to them.
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="secondary" className="shrink-0">
-              <UserPlus className="size-4" />
-              Dodaj domownika
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Dodaj domownika</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="member-name">Imię</Label>
-                <Input
-                  id="member-name"
-                  placeholder="np. Ania"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddMember()}
-                />
-              </div>
-              <Button
-                className="w-full"
-                onClick={handleAddMember}
-                disabled={!name.trim()}
-              >
-                Dodaj
+        {isAdmin && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="secondary" className="shrink-0">
+                <UserPlus className="size-4" />
+                Dodaj domownika
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Dodaj domownika</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="member-name">Imię</Label>
+                  <Input
+                    id="member-name"
+                    placeholder="np. Ania"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddMember()}
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={handleAddMember}
+                  disabled={!name.trim()}
+                >
+                  Dodaj
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </header>
 
       {users.length === 0 ? (

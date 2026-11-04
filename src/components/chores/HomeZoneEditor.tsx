@@ -1,6 +1,12 @@
-import { useCallback, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react";
 import { Check, Copy, FolderPlus, MapPin, Trash2, Undo2 } from "lucide-react";
-import { FLOOR_PLAN_SRC } from "@/components/chores/MapPinPicker";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,12 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ROOM_OPTIONS } from "@/config/rooms";
-import {
-  clearHomeZonesDraft,
-  exportHomeZonesJson,
-  loadHomeZones,
-  saveHomeZonesDraft,
-} from "@/config/homeZones";
+import { exportHomeZonesJson } from "@/config/homeZones";
+import { useHousehold } from "@/context/HouseholdContext";
 import { clickToMapPercent, polygonToPointsAttr } from "@/lib/mapGeometry";
 import {
   buildZoneTree,
@@ -78,7 +80,13 @@ function ZoneTreeList({
 
 export function HomeZoneEditor() {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [zones, setZones] = useState<HomeZone[]>(() => loadHomeZones());
+  const {
+    zones: savedZones,
+    setZones: saveZones,
+    isAdmin,
+    floorPlan,
+  } = useHousehold();
+  const [zones, setZones] = useState<HomeZone[]>(savedZones);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<MapPoint[]>([]);
   const [newName, setNewName] = useState("");
@@ -90,10 +98,21 @@ export function HomeZoneEditor() {
   const tree = buildZoneTree(zones);
   const flat = flattenZoneTree(tree);
 
-  const persist = useCallback((next: HomeZone[]) => {
-    setZones(next);
-    saveHomeZonesDraft(next);
-  }, []);
+  useEffect(() => {
+    setZones(savedZones);
+  }, [savedZones]);
+
+  // Strefy to sprawa całego mieszkania — zapisuje tylko admin (reguły też)
+  const persist = useCallback(
+    (next: HomeZone[]) => {
+      setZones(next);
+      void saveZones(next).catch(() => {
+        toast.error("Nie udało się zapisać stref.");
+        setZones(savedZones);
+      });
+    },
+    [saveZones, savedZones],
+  );
 
   const addPoint = (e: MouseEvent<HTMLDivElement>) => {
     if (!mapRef.current || newKind !== "space") return;
@@ -116,6 +135,12 @@ export function HomeZoneEditor() {
       return;
     }
 
+    if (!floorPlan) {
+      persist([...zones, { id, name, parentId, kind: "space" }]);
+      setNewName("");
+      setSelectedId(id);
+      return;
+    }
     if (draft.length < 3) return;
     persist([...zones, { id, name, parentId, kind: "space", polygon: draft }]);
     setNewName("");
@@ -160,10 +185,15 @@ export function HomeZoneEditor() {
         <p className="mt-1 text-sm text-muted-foreground">
           Twórz grupy (np. Strefa dzienna) i przestrzenie z wielokątem (np.
           Kuchnia). Obowiązki mogą wskazywać pinezkę, linię, obszar lub całą
-          strefę. Skopiuj JSON → wklej agentowi do{" "}
-          <code className="text-xs">content/data/homeZones.json</code>.
+          strefę. Strefy są wspólne dla mieszkania — zmienia je administrator.
         </p>
       </div>
+
+      {!isAdmin && (
+        <p className="rounded-2xl border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+          Podgląd — strefy edytuje administrator mieszkania.
+        </p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="space-y-2 rounded-2xl border border-border bg-muted/20 p-2">
@@ -182,278 +212,276 @@ export function HomeZoneEditor() {
           )}
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
-            <p className="text-sm font-semibold">Dodaj strefę</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="zone-name">Nazwa</Label>
-                <Input
-                  id="zone-name"
-                  placeholder="np. Strefa dzienna, Kuchnia…"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Typ</Label>
-                <Select
-                  value={newKind}
-                  onValueChange={(v) => setNewKind(v as "group" | "space")}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="group">
-                      <span className="flex items-center gap-2">
-                        <FolderPlus className="size-4" /> Grupa (folder)
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="space">
-                      <span className="flex items-center gap-2">
-                        <MapPin className="size-4" /> Przestrzeń (rysuje się)
-                      </span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Rodzic</Label>
-                <Select value={newParentId} onValueChange={setNewParentId}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_PARENT}>— Korzeń —</SelectItem>
-                    {flat.map(({ zone, depth }) => (
-                      <SelectItem key={zone.id} value={zone.id}>
-                        {"\u00A0".repeat(depth * 2)}
-                        {zone.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {newKind === "space" && (
-              <p className="text-xs text-muted-foreground">
-                Kliknij plan poniżej (min. 3 punkty), potem Dodaj strefę.
-              </p>
-            )}
-            <Button
-              type="button"
-              disabled={
-                !newName.trim() || (newKind === "space" && draft.length < 3)
-              }
-              onClick={createZone}
-              data-zone-control
-            >
-              Dodaj strefę
-            </Button>
-          </div>
-
-          {selected && (
-            <div className="rounded-2xl border border-border p-4 space-y-3">
-              <p className="text-sm font-semibold">Edycja: {selected.name}</p>
+        {isAdmin && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
+              <p className="text-sm font-semibold">Dodaj strefę</p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>Nazwa</Label>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="zone-name">Nazwa</Label>
                   <Input
-                    value={selected.name}
-                    onChange={(e) => updateSelected({ name: e.target.value })}
+                    id="zone-name"
+                    placeholder="np. Strefa dzienna, Kuchnia…"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Rodzic</Label>
+                  <Label>Typ</Label>
                   <Select
-                    value={selected.parentId ?? NO_PARENT}
-                    onValueChange={(v) => {
-                      const parentId = v === NO_PARENT ? null : v;
-                      if (!isValidParent(zones, selected.id, parentId)) return;
-                      updateSelected({ parentId });
-                    }}
+                    value={newKind}
+                    onValueChange={(v) => setNewKind(v as "group" | "space")}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={NO_PARENT}>— Korzeń —</SelectItem>
-                      {flat
-                        .filter(({ zone }) => zone.id !== selected.id)
-                        .filter(({ zone }) =>
-                          isValidParent(zones, selected.id, zone.id),
-                        )
-                        .map(({ zone, depth }) => (
-                          <SelectItem key={zone.id} value={zone.id}>
-                            {"\u00A0".repeat(depth * 2)}
-                            {zone.name}
-                          </SelectItem>
-                        ))}
+                      <SelectItem value="group">
+                        <span className="flex items-center gap-2">
+                          <FolderPlus className="size-4" /> Grupa (folder)
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="space">
+                        <span className="flex items-center gap-2">
+                          <MapPin className="size-4" /> Przestrzeń (rysuje się)
+                        </span>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Pokój (opcjonalnie)</Label>
-                  <Select
-                    value={selected.room ?? NO_PARENT}
-                    onValueChange={(v) =>
-                      updateSelected({
-                        room: v === NO_PARENT ? undefined : (v as ChoreRoom),
-                      })
-                    }
-                  >
+                  <Label>Rodzic</Label>
+                  <Select value={newParentId} onValueChange={setNewParentId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="—" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={NO_PARENT}>— Brak —</SelectItem>
-                      {ROOM_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                      <SelectItem value={NO_PARENT}>— Korzeń —</SelectItem>
+                      {flat.map(({ zone, depth }) => (
+                        <SelectItem key={zone.id} value={zone.id}>
+                          {"\u00A0".repeat(depth * 2)}
+                          {zone.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              {selected.kind === "space" && (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={loadPolygonToDraft}
-                  >
-                    Załaduj wielokąt do edycji
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={draft.length < 3}
-                    onClick={savePolygonToSelected}
-                  >
-                    Zapisz wielokąt ({draft.length})
-                  </Button>
-                </div>
+              {newKind === "space" && floorPlan && (
+                <p className="text-xs text-muted-foreground">
+                  Kliknij plan poniżej (min. 3 punkty), potem Dodaj strefę.
+                </p>
               )}
               <Button
                 type="button"
-                size="sm"
-                variant="ghost"
-                className="text-destructive"
-                disabled={zones.some((z) => z.parentId === selected.id)}
-                onClick={removeSelected}
+                disabled={
+                  !newName.trim() ||
+                  (newKind === "space" &&
+                    Boolean(floorPlan) &&
+                    draft.length < 3)
+                }
+                onClick={createZone}
+                data-zone-control
               >
-                <Trash2 className="size-4" />
-                Usuń strefę
-                {zones.some((z) => z.parentId === selected.id) &&
-                  " (najpierw usuń dzieci)"}
+                Dodaj strefę
               </Button>
             </div>
-          )}
-        </div>
+
+            {selected && (
+              <div className="rounded-2xl border border-border p-4 space-y-3">
+                <p className="text-sm font-semibold">Edycja: {selected.name}</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>Nazwa</Label>
+                    <Input
+                      value={selected.name}
+                      onChange={(e) => updateSelected({ name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Rodzic</Label>
+                    <Select
+                      value={selected.parentId ?? NO_PARENT}
+                      onValueChange={(v) => {
+                        const parentId = v === NO_PARENT ? null : v;
+                        if (!isValidParent(zones, selected.id, parentId))
+                          return;
+                        updateSelected({ parentId });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_PARENT}>— Korzeń —</SelectItem>
+                        {flat
+                          .filter(({ zone }) => zone.id !== selected.id)
+                          .filter(({ zone }) =>
+                            isValidParent(zones, selected.id, zone.id),
+                          )
+                          .map(({ zone, depth }) => (
+                            <SelectItem key={zone.id} value={zone.id}>
+                              {"\u00A0".repeat(depth * 2)}
+                              {zone.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Pokój (opcjonalnie)</Label>
+                    <Select
+                      value={selected.room ?? NO_PARENT}
+                      onValueChange={(v) =>
+                        updateSelected({
+                          room: v === NO_PARENT ? undefined : (v as ChoreRoom),
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_PARENT}>— Brak —</SelectItem>
+                        {ROOM_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {selected.kind === "space" && floorPlan && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={loadPolygonToDraft}
+                    >
+                      Załaduj wielokąt do edycji
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={draft.length < 3}
+                      onClick={savePolygonToSelected}
+                    >
+                      Zapisz wielokąt ({draft.length})
+                    </Button>
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  disabled={zones.some((z) => z.parentId === selected.id)}
+                  onClick={removeSelected}
+                >
+                  <Trash2 className="size-4" />
+                  Usuń strefę
+                  {zones.some((z) => z.parentId === selected.id) &&
+                    " (najpierw usuń dzieci)"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div
-        ref={mapRef}
-        role="button"
-        tabIndex={0}
-        onClick={addPoint}
-        onKeyDown={() => {}}
-        className={cn(
-          "relative overflow-hidden rounded-2xl border border-dashed border-primary/40",
-          newKind === "space" || selected?.kind === "space"
-            ? "cursor-crosshair"
-            : "opacity-80",
-        )}
-      >
-        <img
-          src={FLOOR_PLAN_SRC}
-          alt=""
-          className="pointer-events-none block h-auto w-full select-none"
-        />
-        <svg
-          className="pointer-events-none absolute inset-0 h-full w-full"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
+      {isAdmin && floorPlan && (
+        <div
+          ref={mapRef}
+          role="button"
+          tabIndex={0}
+          onClick={addPoint}
+          onKeyDown={() => {}}
+          className={cn(
+            "relative overflow-hidden rounded-2xl border border-dashed border-primary/40",
+            newKind === "space" || selected?.kind === "space"
+              ? "cursor-crosshair"
+              : "opacity-80",
+          )}
         >
-          {zones
-            .filter((z) => z.kind === "space" && z.polygon)
-            .map((z) => (
-              <polygon
-                key={z.id}
-                points={polygonToPointsAttr(z.polygon!)}
-                className={cn(
-                  "stroke-primary",
-                  selectedId === z.id ? "fill-primary/25" : "fill-primary/10",
-                )}
-                strokeWidth={0.4}
-                vectorEffect="non-scaling-stroke"
-              />
-            ))}
-          {draft.length > 0 && (
-            <>
-              <polyline
-                points={polygonToPointsAttr(draft)}
-                className="fill-none stroke-accent"
-                strokeWidth={0.5}
-                strokeDasharray="1 1"
-                vectorEffect="non-scaling-stroke"
-              />
-              {draft.map((p, i) => (
-                <circle
-                  key={`${p.x}-${i}`}
-                  cx={p.x}
-                  cy={p.y}
-                  r={0.8}
-                  className="fill-accent"
+          <img
+            src={floorPlan.src}
+            alt=""
+            className="pointer-events-none block h-auto w-full select-none"
+          />
+          <svg
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
+            {zones
+              .filter((z) => z.kind === "space" && z.polygon)
+              .map((z) => (
+                <polygon
+                  key={z.id}
+                  points={polygonToPointsAttr(z.polygon!)}
+                  className={cn(
+                    "stroke-primary",
+                    selectedId === z.id ? "fill-primary/25" : "fill-primary/10",
+                  )}
+                  strokeWidth={0.4}
+                  vectorEffect="non-scaling-stroke"
                 />
               ))}
-            </>
-          )}
-        </svg>
-      </div>
-
-      {(newKind === "space" || selected?.kind === "space") && (
-        <div className="flex flex-wrap gap-2" data-zone-control>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={draft.length === 0}
-            onClick={() => setDraft((p) => p.slice(0, -1))}
-          >
-            <Undo2 className="size-4" /> Cofnij punkt
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setDraft([])}
-          >
-            Wyczyść szkic
-          </Button>
+            {draft.length > 0 && (
+              <>
+                <polyline
+                  points={polygonToPointsAttr(draft)}
+                  className="fill-none stroke-accent"
+                  strokeWidth={0.5}
+                  strokeDasharray="1 1"
+                  vectorEffect="non-scaling-stroke"
+                />
+                {draft.map((p, i) => (
+                  <circle
+                    key={`${p.x}-${i}`}
+                    cx={p.x}
+                    cy={p.y}
+                    r={0.8}
+                    className="fill-accent"
+                  />
+                ))}
+              </>
+            )}
+          </svg>
         </div>
       )}
+
+      {isAdmin &&
+        floorPlan &&
+        (newKind === "space" || selected?.kind === "space") && (
+          <div className="flex flex-wrap gap-2" data-zone-control>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={draft.length === 0}
+              onClick={() => setDraft((p) => p.slice(0, -1))}
+            >
+              <Undo2 className="size-4" /> Cofnij punkt
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDraft([])}
+            >
+              Wyczyść szkic
+            </Button>
+          </div>
+        )}
 
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={copyJson} disabled={zones.length === 0}>
           <Copy className="size-4" />
           {copied ? "Skopiowano!" : "Kopiuj JSON drzewa"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            clearHomeZonesDraft();
-            setZones([]);
-            setSelectedId(null);
-            setDraft([]);
-          }}
-        >
-          Wyczyść draft
         </Button>
       </div>
     </section>

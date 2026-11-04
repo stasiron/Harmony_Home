@@ -6,6 +6,9 @@ import { Shell } from "@/components/Shell";
 import { HomeZoneEditor } from "@/components/chores/HomeZoneEditor";
 import { GoogleAccountCard } from "@/components/settings/GoogleAccountCard";
 import { ChoreWeightSettingsCard } from "@/components/settings/ChoreWeightSettingsCard";
+import { FloorPlanCard } from "@/components/household/NoFloorPlan";
+import { HouseholdSettingsCard } from "@/components/household/HouseholdSettingsCard";
+import { useHousehold } from "@/context/HouseholdContext";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -44,6 +47,8 @@ function SettingsPage() {
   const toggleDisplay = useServerFn(setMemberCalendarDisplay);
   const disconnect = useServerFn(disconnectMemberGoogle);
 
+  const { household } = useHousehold();
+  const legacyCalendar = Boolean(household?.features?.legacyCalendar);
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState<string | null>(null);
@@ -74,12 +79,6 @@ function SettingsPage() {
     }
   }, []);
 
-  if (loading && !status) {
-    return <p className="text-sm text-muted-foreground">Ładowanie ustawień…</p>;
-  }
-
-  if (!status) return null;
-
   return (
     <div className="space-y-8">
       <header>
@@ -87,8 +86,8 @@ function SettingsPage() {
           Ustawienia
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Zaloguj się Google u góry i zsynchronizuj swój kalendarz. Poniżej
-          zarządzasz kalendarzami wszystkich domowników.
+          Konto, mieszkanie, plan i strefy
+          {legacyCalendar ? ", a niżej kalendarze domowników" : ""}.
         </p>
       </header>
 
@@ -100,132 +99,145 @@ function SettingsPage() {
 
       <GoogleAccountCard />
 
-      <HomeZoneEditor />
+      {household && (
+        <>
+          <HouseholdSettingsCard />
+          <FloorPlanCard />
+          <HomeZoneEditor />
+          <ChoreWeightSettingsCard />
+        </>
+      )}
 
-      <ChoreWeightSettingsCard />
+      {/* Kalendarze Google (src/config/calendars) — tylko pierwsze mieszkanie */}
+      {legacyCalendar && loading && !status && (
+        <p className="text-sm text-muted-foreground">Ładowanie kalendarzy…</p>
+      )}
+      {legacyCalendar && status && (
+        <div className="space-y-4">
+          {status.members.map((member) => (
+            <section
+              key={member.memberId}
+              className="rounded-3xl border border-border bg-gradient-to-br from-surface-elevated via-surface to-card p-5 shadow-elevated"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">{member.memberName}</h2>
+                  {member.connected && member.connection ? (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {member.connection.googleEmail} ·{" "}
+                      {member.connection.calendars.length} kalendarzy
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Nie połączono z Google
+                    </p>
+                  )}
+                </div>
 
-      <div className="space-y-4">
-        {status.members.map((member) => (
-          <section
-            key={member.memberId}
-            className="rounded-3xl border border-border bg-gradient-to-br from-surface-elevated via-surface to-card p-5 shadow-elevated"
-          >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">{member.memberName}</h2>
-                {member.connected && member.connection ? (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {member.connection.googleEmail} ·{" "}
-                    {member.connection.calendars.length} kalendarzy
-                  </p>
-                ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Nie połączono z Google
-                  </p>
-                )}
+                <div className="flex shrink-0 gap-2">
+                  {status.oauthServerConfigured && (
+                    <Button
+                      asChild
+                      variant={member.connected ? "outline" : "default"}
+                    >
+                      <a href={`/api/auth/google?memberId=${member.memberId}`}>
+                        {member.connected ? "Połącz ponownie" : "Połącz Google"}
+                      </a>
+                    </Button>
+                  )}
+                  {member.connected && (
+                    <Button
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={async () => {
+                        await disconnect({
+                          data: { memberId: member.memberId },
+                        });
+                        await refresh();
+                      }}
+                    >
+                      Odłącz
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              <div className="flex shrink-0 gap-2">
-                {status.oauthServerConfigured && (
-                  <Button
-                    asChild
-                    variant={member.connected ? "outline" : "default"}
-                  >
-                    <a href={`/api/auth/google?memberId=${member.memberId}`}>
-                      {member.connected ? "Połącz ponownie" : "Połącz Google"}
-                    </a>
-                  </Button>
-                )}
-                {member.connected && (
-                  <Button
-                    variant="ghost"
-                    className="text-muted-foreground"
-                    onClick={async () => {
-                      await disconnect({ data: { memberId: member.memberId } });
-                      await refresh();
-                    }}
-                  >
-                    Odłącz
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {member.connection && member.connection.calendars.length > 0 && (
-              <ul className="mt-5 space-y-3 border-t border-border pt-4">
-                {member.connection.calendars.map((calendar) => (
-                  <li
-                    key={calendar.googleCalendarId}
-                    className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium">{calendar.summary}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {calendar.label}
-                        {calendar.display === "busy"
-                          ? " · tylko zajęty/wolny"
-                          : " · pełne szczegóły"}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id={`${member.memberId}-${calendar.googleCalendarId}-enabled`}
-                          checked={calendar.enabled}
-                          onCheckedChange={async (enabled) => {
-                            await toggleEnabled({
-                              data: {
-                                memberId: member.memberId,
-                                googleCalendarId: calendar.googleCalendarId,
-                                enabled,
-                              },
-                            });
-                            await refresh();
-                          }}
-                        />
-                        <Label
-                          htmlFor={`${member.memberId}-${calendar.googleCalendarId}-enabled`}
-                          className="text-xs"
-                        >
-                          Widoczny
-                        </Label>
+              {member.connection && member.connection.calendars.length > 0 && (
+                <ul className="mt-5 space-y-3 border-t border-border pt-4">
+                  {member.connection.calendars.map((calendar) => (
+                    <li
+                      key={calendar.googleCalendarId}
+                      className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium">{calendar.summary}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {calendar.label}
+                          {calendar.display === "busy"
+                            ? " · tylko zajęty/wolny"
+                            : " · pełne szczegóły"}
+                        </p>
                       </div>
 
-                      <div className="flex gap-1 rounded-xl border border-border p-1">
-                        {(["full", "busy"] as const).map((mode) => (
-                          <button
-                            key={mode}
-                            type="button"
-                            className={cn(
-                              "rounded-lg px-2 py-1 text-xs font-medium transition-colors",
-                              calendar.display === mode
-                                ? "bg-primary text-primary-foreground"
-                                : "text-muted-foreground hover:bg-muted",
-                            )}
-                            onClick={async () => {
-                              await toggleDisplay({
+                      <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            id={`${member.memberId}-${calendar.googleCalendarId}-enabled`}
+                            checked={calendar.enabled}
+                            onCheckedChange={async (enabled) => {
+                              await toggleEnabled({
                                 data: {
                                   memberId: member.memberId,
                                   googleCalendarId: calendar.googleCalendarId,
-                                  display: mode,
+                                  enabled,
                                 },
                               });
                               await refresh();
                             }}
+                          />
+                          <Label
+                            htmlFor={`${member.memberId}-${calendar.googleCalendarId}-enabled`}
+                            className="text-xs"
                           >
-                            {mode === "full" ? "Szczegóły" : "Zajęty"}
-                          </button>
-                        ))}
+                            Widoczny
+                          </Label>
+                        </div>
+
+                        <div className="flex gap-1 rounded-xl border border-border p-1">
+                          {(["full", "busy"] as const).map((mode) => (
+                            <button
+                              key={mode}
+                              type="button"
+                              className={cn(
+                                "rounded-lg px-2 py-1 text-xs font-medium transition-colors",
+                                calendar.display === mode
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-muted",
+                              )}
+                              onClick={async () => {
+                                await toggleDisplay({
+                                  data: {
+                                    memberId: member.memberId,
+                                    googleCalendarId: calendar.googleCalendarId,
+                                    display: mode,
+                                  },
+                                });
+                                await refresh();
+                              }}
+                            >
+                              {mode === "full" ? "Szczegóły" : "Zajęty"}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ))}
-      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ))}
+        </div>
+      )}
 
       <p className="text-center text-xs text-muted-foreground">
         HomeHarmony {APP_VERSION}

@@ -1,6 +1,7 @@
 import { useRef, useState, type MouseEvent } from "react";
 import { Check, Undo2, X } from "lucide-react";
-import { FLOOR_PLAN_SRC } from "@/components/chores/MapPinPicker";
+import { NoFloorPlanNote } from "@/components/household/NoFloorPlan";
+import { useHousehold } from "@/context/HouseholdContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { clickToMapPercent, polygonToPointsAttr } from "@/lib/mapGeometry";
@@ -33,6 +34,7 @@ export function MapGeometryPicker({
 }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [areaDraft, setAreaDraft] = useState<MapPoint[]>([]);
+  const { floorPlan } = useHousehold();
 
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     if (!mapRef.current) return;
@@ -65,6 +67,8 @@ export function MapGeometryPicker({
       : shape === "line"
         ? "Kliknij 2 punkty — początek i koniec linii."
         : "Kliknij wierzchołki obszaru, potem Zamknij obszar.";
+
+  if (!floorPlan) return <NoFloorPlanNote />;
 
   return (
     <div className="space-y-2">
@@ -105,7 +109,7 @@ export function MapGeometryPicker({
         className="relative cursor-crosshair overflow-hidden rounded-2xl border border-dashed border-primary/40"
       >
         <img
-          src={FLOOR_PLAN_SRC}
+          src={floorPlan.src}
           alt=""
           className="pointer-events-none block h-auto w-full select-none"
         />

@@ -20,6 +20,7 @@ import type { GuestPlan, Task } from "@/types";
 import { CALENDAR_VIEW_OPTIONS } from "@/lib/calendarView";
 import type { CalendarFeedEvent } from "@/lib/calendar-feed-types";
 import { useHouseholdCalendar } from "@/hooks/useHouseholdCalendar";
+import { useHousehold } from "@/context/HouseholdContext";
 import { cn } from "@/lib/utils";
 
 function formatEventTime(iso: string) {
@@ -28,7 +29,13 @@ function formatEventTime(iso: string) {
 
 export function HouseholdCalendar() {
   const { tasks, guestPlans, guestsMode, users } = useApp();
-  const cal = useHouseholdCalendar(tasks, guestPlans, guestsMode);
+  const { household } = useHousehold();
+  const cal = useHouseholdCalendar(
+    tasks,
+    guestPlans,
+    guestsMode,
+    Boolean(household?.features?.legacyCalendar),
+  );
 
   return (
     <div className="space-y-4">

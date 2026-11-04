@@ -12,6 +12,9 @@ import { type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { HouseholdProvider } from "@/context/HouseholdContext";
+import { HouseholdGate } from "@/components/household/HouseholdGate";
+import { Toaster } from "@/components/ui/sonner";
 import { CHUNK_RELOAD_GUARD_SCRIPT } from "@/lib/chunk-reload-guard";
 
 function NotFoundComponent() {
@@ -143,10 +146,15 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppProvider>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </AppProvider>
+        <HouseholdProvider>
+          <AppProvider>
+            <HouseholdGate>
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+            </HouseholdGate>
+            <Toaster />
+          </AppProvider>
+        </HouseholdProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

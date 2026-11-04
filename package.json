@@ -8,13 +8,16 @@
   },
   "scripts": {
     "dev": "vite dev",
+    "dev:emulator": "vite dev --mode emulator",
     "build": "vite build",
     "postbuild": "node scripts/patch-vercel-function.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:rules": "firebase emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts\"",
+    "emulators": "firebase emulators:start --only auth,firestore"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -75,6 +78,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@firebase/rules-unit-testing": "5.0.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

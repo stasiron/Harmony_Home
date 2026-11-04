@@ -1,6 +1,7 @@
 import homeZonesData from "@content/data/homeZones.json";
 import type { HomeZone } from "@/types";
 
+/** Szkic z dawnego edytora (localStorage) — czyta go tylko migracja */
 export const HOME_ZONES_DRAFT_KEY = "homeharmony-home-zones-draft";
 
 function migrateZone(raw: Record<string, unknown>): HomeZone {
@@ -53,19 +54,6 @@ export function loadHomeZones(): HomeZone[] {
   }
 
   return [];
-}
-
-export function saveHomeZonesDraft(zones: HomeZone[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(
-    HOME_ZONES_DRAFT_KEY,
-    JSON.stringify({ version: 2, zones }, null, 2),
-  );
-}
-
-export function clearHomeZonesDraft() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(HOME_ZONES_DRAFT_KEY);
 }
 
 export function exportHomeZonesJson(zones: HomeZone[]): string {

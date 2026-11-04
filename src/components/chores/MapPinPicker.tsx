@@ -3,7 +3,8 @@ import { X } from "lucide-react";
 import type { MapPin } from "@/types";
 import { cn } from "@/lib/utils";
 
-import { FLOOR_PLAN_SRC } from "@/lib/contentPaths";
+import { NoFloorPlanNote } from "@/components/household/NoFloorPlan";
+import { useHousehold } from "@/context/HouseholdContext";
 
 type Props = {
   pins: MapPin[];
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function MapPinPicker({ pins, onChange, className }: Props) {
+  const { floorPlan } = useHousehold();
   const addPin = (e: MouseEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest("[data-pin-remove]")) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -23,6 +25,8 @@ export function MapPinPicker({ pins, onChange, className }: Props) {
   const removePin = (index: number) => {
     onChange(pins.filter((_, i) => i !== index));
   };
+
+  if (!floorPlan) return <NoFloorPlanNote className={className} />;
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -37,7 +41,7 @@ export function MapPinPicker({ pins, onChange, className }: Props) {
         className="relative cursor-crosshair overflow-hidden rounded-2xl border border-dashed border-primary/40 bg-surface"
       >
         <img
-          src={FLOOR_PLAN_SRC}
+          src={floorPlan.src}
           alt=""
           className="pointer-events-none block h-auto w-full select-none"
         />
@@ -79,5 +83,3 @@ export function MapPinPicker({ pins, onChange, className }: Props) {
     </div>
   );
 }
-
-export { FLOOR_PLAN_SRC };

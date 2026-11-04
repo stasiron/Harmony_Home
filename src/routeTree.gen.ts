@@ -17,6 +17,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as LaundryRouteImport } from './routes/laundry'
 import { Route as KitchenRouteImport } from './routes/kitchen'
+import { Route as HouseholdsRouteImport } from './routes/households'
 import { Route as ChoresRouteImport } from './routes/chores'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
@@ -61,6 +62,11 @@ const KitchenRoute = KitchenRouteImport.update({
   path: '/kitchen',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HouseholdsRoute = HouseholdsRouteImport.update({
+  id: '/households',
+  path: '/households',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChoresRoute = ChoresRouteImport.update({
   id: '/chores',
   path: '/chores',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
+  '/households': typeof HouseholdsRoute
   '/kitchen': typeof KitchenRoute
   '/laundry': typeof LaundryRoute
   '/members': typeof MembersRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
+  '/households': typeof HouseholdsRoute
   '/kitchen': typeof KitchenRoute
   '/laundry': typeof LaundryRoute
   '/members': typeof MembersRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
+  '/households': typeof HouseholdsRoute
   '/kitchen': typeof KitchenRoute
   '/laundry': typeof LaundryRoute
   '/members': typeof MembersRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/calendar'
     | '/chores'
+    | '/households'
     | '/kitchen'
     | '/laundry'
     | '/members'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/calendar'
     | '/chores'
+    | '/households'
     | '/kitchen'
     | '/laundry'
     | '/members'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/calendar'
     | '/chores'
+    | '/households'
     | '/kitchen'
     | '/laundry'
     | '/members'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalendarRoute: typeof CalendarRoute
   ChoresRoute: typeof ChoresRoute
+  HouseholdsRoute: typeof HouseholdsRoute
   KitchenRoute: typeof KitchenRoute
   LaundryRoute: typeof LaundryRoute
   MembersRoute: typeof MembersRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KitchenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/households': {
+      id: '/households'
+      path: '/households'
+      fullPath: '/households'
+      preLoaderRoute: typeof HouseholdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chores': {
       id: '/chores'
       path: '/chores'
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalendarRoute: CalendarRoute,
   ChoresRoute: ChoresRoute,
+  HouseholdsRoute: HouseholdsRoute,
   KitchenRoute: KitchenRoute,
   LaundryRoute: LaundryRoute,
   MembersRoute: MembersRoute,

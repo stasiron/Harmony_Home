@@ -1,12 +1,164 @@
 rules_version = '2';
+
+// Model i decyzje: docs/ROADMAP.md → „Decyzje” i „Model danych”.
+// Testy: npm run test:rules (emulator).
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    function signedIn() {
+      return request.auth != null;
     }
 
-    match /households/{householdId} {
-      allow read, write: if request.auth != null;
+    function hasAccount() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function householdPath(hid) {
+      return /databases/$(database)/documents/households/$(hid);
+    }
+
+    function memberPath(hid) {
+      return /databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid);
+    }
+
+    // Pierwsze mieszkanie sprzed multi-mieszkań — właściciel musi móc je
+    // zmigrować, zanim powstanie jego dokument członkostwa.
+    function isLegacyOwner(hid) {
+      return hid == 'homeharmony'
+        && hasAccount()
+        && request.auth.token.email == 'stasiron9102@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isMember(hid) {
+      return signedIn() && (exists(memberPath(hid)) || isLegacyOwner(hid));
+    }
+
+    function isAdmin(hid) {
+      return signedIn()
+        && ((exists(memberPath(hid)) && get(memberPath(hid)).data.role == 'admin')
+          || isLegacyOwner(hid));
+    }
+
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+
+      match /memberships/{hid} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      // Prywatna lodówka, instrukcje… — tylko z kontem (decyzja 1)
+      match /private/{document=**} {
+        allow read, write: if hasAccount() && request.auth.uid == userId;
+      }
+    }
+
+    match /invites/{code} {
+      // get po znanym kodzie tak, list nie — kodów nie da się wyliczyć
+      allow get: if signedIn();
+      allow create: if isAdmin(request.resource.data.householdId)
+        && request.resource.data.createdBy == request.auth.uid;
+      allow delete: if isAdmin(resource.data.householdId);
+    }
+
+    match /households/{hid} {
+      allow read: if isMember(hid);
+      allow create: if hasAccount()
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAdmin(hid);
+
+      match /members/{uid} {
+        allow read: if isMember(hid);
+
+        allow create: if signedIn() && request.auth.uid == uid && (
+          // Twórca mieszkania — w tym samym batchu co dokument mieszkania
+          (request.resource.data.role == 'admin'
+            && getAfter(householdPath(hid)).data.ownerId == request.auth.uid)
+          // Zmigrowane pierwsze mieszkanie
+          || (request.resource.data.role == 'admin' && isLegacyOwner(hid))
+          // Dołączenie kodem zaproszenia
+          || (request.resource.data.role == 'member'
+            && request.resource.data.inviteCode is string
+            && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode))
+            && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.householdId == hid)
+        );
+
+        allow update: if isAdmin(hid)
+          || (signedIn() && request.auth.uid == uid
+            && changedOnly(['profileId', 'displayName']));
+
+        // Admin usuwa, każdy może wyjść sam
+        allow delete: if isAdmin(hid) || (signedIn() && request.auth.uid == uid);
+      }
+
+      // Domownicy (też bez konta) — lista osób mieszkania
+      match /profiles/{profileId} {
+        allow read: if isMember(hid);
+        allow create, delete: if isAdmin(hid);
+        allow update: if isAdmin(hid)
+          || (isMember(hid) && changedOnly(['heavyDay']));
+      }
+
+      match /assets/{assetId} {
+        allow read: if isMember(hid);
+        allow write: if isAdmin(hid);
+      }
+
+      // Elementy z przyciskiem „Zablokuj edycję” (decyzja 3a)
+      match /{collection}/{itemId} {
+        function lockable() {
+          return collection in [
+            'chores', 'zadania', 'todos', 'todoFolders',
+            'shopping', 'laundry', 'guestPlans'
+          ];
+        }
+
+        function isCreator() {
+          return resource.data.createdBy == request.auth.uid;
+        }
+
+        function wasLocked() {
+          return resource.data.get('locked', false) == true;
+        }
+
+        function willBeLocked() {
+          return request.resource.data.get('locked', false) == true;
+        }
+
+        function canEdit() {
+          return !wasLocked() || isCreator() || isAdmin(hid);
+        }
+
+        // Odhaczanie zablokowanego elementu — każdy domownik
+        function progressOnly() {
+          return changedOnly([
+            'lastCompleted', 'lastCompletedBy', 'done', 'completedBy', 'checked'
+          ]);
+        }
+
+        function lockChangeAllowed() {
+          return wasLocked() == willBeLocked()
+            || (hasAccount() && (isCreator() || isAdmin(hid)));
+        }
+
+        allow read: if lockable() && isMember(hid);
+
+        allow create: if lockable() && isMember(hid)
+          && request.resource.data.createdBy == request.auth.uid
+          && (!willBeLocked() || hasAccount());
+
+        allow update: if lockable() && isMember(hid)
+          && request.resource.data.get('createdBy', null) == resource.data.get('createdBy', null)
+          && lockChangeAllowed()
+          && (canEdit() || progressOnly());
+
+        allow delete: if lockable() && isMember(hid) && canEdit();
+      }
     }
   }
 }
