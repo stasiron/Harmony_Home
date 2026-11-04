@@ -127,7 +127,7 @@ Reguły: dostęp do `households/{id}/**` tylko gdy istnieje `members/{request.au
 
 **Wdrożenie (kolejność ważna):**
 
-Stare reguły produkcyjne obejmują tylko dokumenty `users/{uid}` i `households/{id}` — każda podkolekcja (`members`, `profiles`, obowiązki, `memberships`) i `invites` są zablokowane, więc migracja nie przejdzie przed deployem reguł. Dlatego reguły mają **okres przejściowy** (`legacyTransition` w `firestore.rules`): dokument `households/homeharmony` zostaje dostępny dla każdego zalogowanego, ale tylko w polach starego modelu.
+Stare reguły produkcyjne obejmują tylko dokumenty `users/{uid}` i `households/{id}` — każda podkolekcja (`members`, `profiles`, obowiązki, `memberships`) i `invites` są zablokowane, więc migracja nie przejdzie przed deployem reguł. Dlatego reguły mają **okres przejściowy** (`legacyTransition` w `firestore.rules`): dokument `households/homeharmony` zostaje **do odczytu** dla każdego zalogowanego (stara aplikacja pokazuje dane), ale zapisuje go już tylko admin. Stary sync wysyła cały dokument przy każdej zmianie i dwie karty potrafią odbijać zapisy w kółko — 2026-11-04 zrobiło to ~12 tys. zapisów/h i wyczerpało dzienny limit Spark.
 
 1. `firebase deploy --only firestore:rules` — reguły z okresem przejściowym; stara aplikacja rodziny działa dalej.
 2. Deploy aplikacji (Vercel).

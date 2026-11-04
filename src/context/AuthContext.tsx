@@ -25,6 +25,8 @@ import {
   getCalendarConnectionStatus,
 } from "@/lib/calendar/api";
 import { guessMemberId } from "@/lib/memberLink";
+import { guardWriteBudget } from "@/lib/householdSync";
+import { isProfileFresh } from "@/lib/profileSync";
 import {
   clearSeeAsMemberId,
   readSeeAsMemberId,
@@ -109,19 +111,24 @@ async function loadAndSyncUserProfile(user: User): Promise<string | null> {
     const existingMemberId =
       typeof snap.data()?.memberId === "string" ? snap.data()!.memberId : null;
     const memberId = fromEmail ?? existingMemberId ?? fromStorage;
+    const profile = {
+      uid: user.uid,
+      email: user.email ?? null,
+      displayName: user.displayName ?? null,
+      photoURL: user.photoURL ?? null,
+      ...(memberId ? { memberId } : {}),
+    };
 
-    await setDoc(
-      ref,
-      {
-        uid: user.uid,
-        email: user.email ?? null,
-        displayName: user.displayName ?? null,
-        photoURL: user.photoURL ?? null,
-        lastLoginAt: serverTimestamp(),
-        ...(memberId ? { memberId } : {}),
-      },
-      { merge: true },
-    );
+    // Każde wczytanie strony to był zapis — teraz tylko przy zmianie
+    // albo raz na PROFILE_REFRESH_MS (lastLoginAt).
+    if (!isProfileFresh(snap.data(), profile, Date.now())) {
+      guardWriteBudget();
+      await setDoc(
+        ref,
+        { ...profile, lastLoginAt: serverTimestamp() },
+        { merge: true },
+      );
+    }
 
     if (memberId) writeStoredMemberId(memberId);
     return memberId;
@@ -411,6 +418,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!currentUser || !db) return;
 
     try {
+      guardWriteBudget();
       await setDoc(
         doc(db, "users", currentUser.uid),
         { memberId: nextMemberId },

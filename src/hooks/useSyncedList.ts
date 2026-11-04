@@ -5,6 +5,7 @@ import {
   indexById,
   subscribeCollection,
   writeCollectionDiff,
+  WriteBudgetExceededError,
   type SyncedCollection,
 } from "@/lib/householdSync";
 import type { ItemMeta } from "@/types";
@@ -34,6 +35,7 @@ export function byCreatedAt<T extends ItemMeta & { id: string }>(
 }
 
 function writeErrorMessage(err: unknown): string {
+  if (err instanceof WriteBudgetExceededError) return err.message;
   const code =
     err && typeof err === "object" && "code" in err
       ? String((err as { code: string }).code)
@@ -132,7 +134,8 @@ export function useSyncedList<T extends ItemMeta & { id: string }>({
       knownRef.current = indexById(stamped);
       void writeCollectionDiff(targetId, name, diff).catch((err) => {
         console.error(`Firestore ${name} save failed:`, err);
-        toast.error(writeErrorMessage(err));
+        // Stałe id — przy serii odrzuconych zapisów jeden toast, nie dziesiątki
+        toast.error(writeErrorMessage(err), { id: "firestore-write-error" });
       });
     },
     [name],

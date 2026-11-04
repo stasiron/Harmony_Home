@@ -115,10 +115,11 @@ describe("okres przejściowy — stary dokument homeharmony", () => {
     });
   });
 
-  it("stara aplikacja (każdy zalogowany) czyta i zapisuje stare pola", async () => {
+  it("stara aplikacja (każdy zalogowany) czyta, ale nie zapisuje", async () => {
     const db = dbAs("tablet", anonymous);
     await assertSucceeds(getDoc(doc(db, "households", LEGACY)));
-    await assertSucceeds(
+    // Stary sync wysyła cały dokument — zablokowany, żeby nie odbijał zapisów
+    await assertFails(
       setDoc(
         doc(db, "households", LEGACY),
         { userTasks: [{ id: "t" }], progress: { t: "2026-11-04" } },

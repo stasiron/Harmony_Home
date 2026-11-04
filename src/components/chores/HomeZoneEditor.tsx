@@ -78,6 +78,8 @@ function ZoneTreeList({
   );
 }
 
+const ZONE_NAME_SAVE_DELAY_MS = 800;
+
 export function HomeZoneEditor() {
   const mapRef = useRef<HTMLDivElement>(null);
   const {
@@ -98,13 +100,23 @@ export function HomeZoneEditor() {
   const tree = buildZoneTree(zones);
   const flat = flattenZoneTree(tree);
 
+  // Nazwa strefy zapisuje się po przerwie w pisaniu, nie przy każdej literze —
+  // każdy zapis to cały dokument mieszkania, wysyłany do każdego domownika.
+  const pendingRef = useRef<HomeZone[] | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
+    // Nie nadpisuj nazwy, którą ktoś właśnie wpisuje
+    if (pendingRef.current) return;
     setZones(savedZones);
   }, [savedZones]);
 
   // Strefy to sprawa całego mieszkania — zapisuje tylko admin (reguły też)
   const persist = useCallback(
     (next: HomeZone[]) => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+      pendingRef.current = null;
       setZones(next);
       void saveZones(next).catch(() => {
         toast.error("Nie udało się zapisać stref.");
@@ -113,6 +125,25 @@ export function HomeZoneEditor() {
     },
     [saveZones, savedZones],
   );
+
+  const flushPending = useCallback(() => {
+    const next = pendingRef.current;
+    if (next) persist(next);
+  }, [persist]);
+
+  const flushRef = useRef(flushPending);
+  flushRef.current = flushPending;
+  useEffect(() => () => flushRef.current(), []);
+
+  const persistDeferred = (next: HomeZone[]) => {
+    setZones(next);
+    pendingRef.current = next;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(
+      () => flushRef.current(),
+      ZONE_NAME_SAVE_DELAY_MS,
+    );
+  };
 
   const addPoint = (e: MouseEvent<HTMLDivElement>) => {
     if (!mapRef.current || newKind !== "space") return;
@@ -148,9 +179,17 @@ export function HomeZoneEditor() {
     setSelectedId(id);
   };
 
+  const patchSelected = (patch: Partial<HomeZone>) =>
+    zones.map((z) => (z.id === selected?.id ? { ...z, ...patch } : z));
+
   const updateSelected = (patch: Partial<HomeZone>) => {
     if (!selected) return;
-    persist(zones.map((z) => (z.id === selected.id ? { ...z, ...patch } : z)));
+    persist(patchSelected(patch));
+  };
+
+  const renameSelected = (name: string) => {
+    if (!selected) return;
+    persistDeferred(patchSelected({ name }));
   };
 
   const removeSelected = () => {
@@ -295,7 +334,9 @@ export function HomeZoneEditor() {
                     <Label>Nazwa</Label>
                     <Input
                       value={selected.name}
-                      onChange={(e) => updateSelected({ name: e.target.value })}
+                      onChange={(e) => renameSelected(e.target.value)}
+                      onBlur={flushPending}
+                      onKeyDown={(e) => e.key === "Enter" && flushPending()}
                     />
                   </div>
                   <div className="space-y-1.5">

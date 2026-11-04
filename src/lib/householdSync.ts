@@ -88,12 +88,52 @@ type PlannedWrite =
   | { kind: "set"; path: string[]; data: Record<string, unknown> }
   | { kind: "delete"; path: string[] };
 
+/**
+ * Bezpiecznik: pętla zapisów (dwie karty odbijające sobie zmiany) potrafi
+ * wyczerpać dzienny limit Firestore w godzinę — 2026-11-04 stary sync zrobił
+ * ~12k zapisów/h. Człowiek nie robi 40 zapisów na minutę.
+ */
+export const WRITE_BUDGET = { commits: 40, windowMs: 60_000 } as const;
+
+export class WriteBudgetExceededError extends Error {
+  constructor() {
+    super(
+      "Wstrzymano zapisy — aplikacja zapisywała podejrzanie często. Odśwież stronę.",
+    );
+    this.name = "WriteBudgetExceededError";
+  }
+}
+
+const recentCommits: number[] = [];
+
+/** Rejestruje commit, jeśli mieści się w budżecie; `times` modyfikowane w miejscu */
+export function takeWriteBudget(
+  times: number[],
+  now: number,
+  budget: { commits: number; windowMs: number } = WRITE_BUDGET,
+): boolean {
+  while (times.length > 0 && now - times[0]! >= budget.windowMs) times.shift();
+  if (times.length >= budget.commits) return false;
+  times.push(now);
+  return true;
+}
+
+/** Wspólny budżet dla wszystkich zapisów aplikacji; rzuca, gdy wyczerpany */
+export function guardWriteBudget(): void {
+  if (takeWriteBudget(recentCommits, Date.now())) return;
+  console.error(
+    `Firestore write budget exceeded (${WRITE_BUDGET.commits}/min) — writes paused`,
+  );
+  throw new WriteBudgetExceededError();
+}
+
 /** Zapis wielu dokumentów w paczkach ≤ BATCH_LIMIT */
 export async function commitWrites(
   db: Firestore,
   writes: readonly PlannedWrite[],
 ): Promise<void> {
   for (let i = 0; i < writes.length; i += BATCH_LIMIT) {
+    guardWriteBudget();
     const batch = writeBatch(db);
     for (const write of writes.slice(i, i + BATCH_LIMIT)) {
       const [first, ...rest] = write.path;

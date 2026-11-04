@@ -15,6 +15,7 @@ import { loadHomeZones } from "@/config/homeZones";
 import { getFirestoreDb } from "@/lib/firebase";
 import {
   commitWrites,
+  guardWriteBudget,
   diffCollection,
   itemWrites,
   type ItemCollection,
@@ -79,6 +80,7 @@ function memberFor(
 }
 
 function writeMembership(uid: string, membership: Membership) {
+  guardWriteBudget();
   const db = requireDb();
   return setDoc(
     doc(db, "users", uid, "memberships", membership.householdId),
@@ -229,6 +231,7 @@ export async function regenerateInvite(
   uid: string,
   previousCode?: string,
 ): Promise<string> {
+  guardWriteBudget();
   const db = requireDb();
   const code = generateInviteCode();
   await setDoc(doc(db, "invites", code), {
@@ -329,6 +332,7 @@ export function subscribeMemberships(
 }
 
 export async function removeMembership(uid: string, householdId: string) {
+  guardWriteBudget();
   await deleteDoc(doc(requireDb(), "users", uid, "memberships", householdId));
 }
 
@@ -386,6 +390,7 @@ export async function updateHouseholdMeta(
   householdId: string,
   patch: Partial<Pick<HouseholdMeta, "name" | "zones" | "floorPlan">>,
 ) {
+  guardWriteBudget();
   await updateDoc(doc(requireDb(), "households", householdId), patch);
 }
 
@@ -394,6 +399,7 @@ export async function updateMember(
   uid: string,
   patch: Partial<Pick<HouseholdMember, "role" | "profileId" | "displayName">>,
 ) {
+  guardWriteBudget();
   await updateDoc(
     doc(requireDb(), "households", householdId, "members", uid),
     patch,
@@ -401,5 +407,6 @@ export async function updateMember(
 }
 
 export async function removeMember(householdId: string, uid: string) {
+  guardWriteBudget();
   await deleteDoc(doc(requireDb(), "households", householdId, "members", uid));
 }

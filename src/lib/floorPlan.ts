@@ -6,6 +6,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getFirestoreDb } from "@/lib/firebase";
+import { guardWriteBudget } from "@/lib/householdSync";
 import {
   updateHouseholdMeta,
   type FloorPlanUpload,
@@ -69,6 +70,7 @@ export async function saveFloorPlan(
   householdId: string,
   plan: FloorPlanUpload,
 ): Promise<void> {
+  guardWriteBudget();
   const db = getFirestoreDb();
   if (!db) throw new Error("Firestore niedostępny");
   const updatedAt = new Date().toISOString();
@@ -87,6 +89,7 @@ export async function saveFloorPlan(
 }
 
 export async function removeFloorPlan(householdId: string): Promise<void> {
+  guardWriteBudget();
   const db = getFirestoreDb();
   if (!db) throw new Error("Firestore niedostępny");
   await updateHouseholdMeta(householdId, { floorPlan: { kind: "none" } });

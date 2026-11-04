@@ -63,13 +63,15 @@ Wszystko należy do **mieszkania** (`useHousehold().householdId`). Model i decyz
 - strefy, plan, nazwa, domownicy, zaproszenia — tylko admin (Heavy Day — każdy),
 - `locked: true` — edytuje twórca i admin, odhaczać (`lastCompleted`, `done`, `completedBy`…) może każdy,
 - zablokować może tylko twórca z kontem Google lub admin; `createdBy` nie da się podrobić,
-- **okres przejściowy** (`legacyTransition`): dokument `households/homeharmony` czyta i zapisuje (tylko stare pola) każdy zalogowany — dla starej wersji aplikacji, do czasu przesiadki rodziny. Do usunięcia, patrz ROADMAP → „Wdrożenie”.
+- **okres przejściowy** (`legacyTransition`): dokument `households/homeharmony` czyta każdy zalogowany (stara wersja aplikacji), zapisuje tylko admin — do czasu przesiadki rodziny. Do usunięcia, patrz ROADMAP → „Wdrożenie”.
 
 **Sync — pułapki:**
 - `useSyncedList` = `setState` + zapis różnicy do Firestore od razu (bez debounce). Odrzucony zapis cofa snapshot z serwera + toast.
 - Stan startowy pusty (SSR = pierwszy render klienta). Cache offline daje Firestore (IndexedDB), nie localStorage.
 - Nowe pole w elemencie → normalizer musi je przepuścić (`pickItemMeta` w `appStorage.ts`).
 - Kalendarze Google tylko gdy `household.features.legacyCalendar` (pierwsze mieszkanie).
+- Plan Spark: 20 tys. zapisów / 50 tys. odczytów dziennie. Każdy zapis aplikacji przechodzi przez bezpiecznik (`guardWriteBudget` w `householdSync.ts`, `WRITE_BUDGET`: 40 zapisów/min → `WriteBudgetExceededError` + toast) na wypadek pętli zapisów — nowy kod zapisujący do Firestore też musi go wołać. Pola tekstowe nie zapisują na każdą literę (np. nazwa strefy: 800 ms po ostatniej literze). Profil `users/{uid}` zapisywany tylko przy zmianie albo raz na 12 h (`src/lib/profileSync.ts`).
+- Nigdy nie testuj na produkcyjnej bazie (`npm run dev`) — karty zostawione otwarte po zatrzymaniu serwera dalej synchronizują.
 - Lokalny `npm run dev` łączy się z **produkcyjnym** Firestore. Do testów: `npm run emulators` + `npm run dev:emulator` (wymaga Javy 21).
 
 ---
