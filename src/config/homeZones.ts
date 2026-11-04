@@ -1,18 +1,22 @@
 import homeZonesData from "@content/data/homeZones.json";
 import type { HomeZone } from "@/types";
 
+/** Szkic z dawnego edytora (localStorage) — czyta go tylko migracja */
 export const HOME_ZONES_DRAFT_KEY = "homeharmony-home-zones-draft";
 
 function migrateZone(raw: Record<string, unknown>): HomeZone {
   if (raw.kind === "group" || raw.kind === "space") {
-    return raw as HomeZone;
+    return raw as unknown as HomeZone;
   }
   const polygon = raw.polygon as HomeZone["polygon"];
   return {
     id: String(raw.id),
     name: String(raw.label ?? raw.name ?? "Strefa"),
     parentId: (raw.parentId as string | null) ?? null,
-    kind: polygon && Array.isArray(polygon) && polygon.length >= 3 ? "space" : "group",
+    kind:
+      polygon && Array.isArray(polygon) && polygon.length >= 3
+        ? "space"
+        : "group",
     polygon,
     room: raw.room as HomeZone["room"],
   };
@@ -50,19 +54,6 @@ export function loadHomeZones(): HomeZone[] {
   }
 
   return [];
-}
-
-export function saveHomeZonesDraft(zones: HomeZone[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(
-    HOME_ZONES_DRAFT_KEY,
-    JSON.stringify({ version: 2, zones }, null, 2),
-  );
-}
-
-export function clearHomeZonesDraft() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(HOME_ZONES_DRAFT_KEY);
 }
 
 export function exportHomeZonesJson(zones: HomeZone[]): string {

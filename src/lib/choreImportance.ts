@@ -14,13 +14,20 @@ export const PANIC_GUESTS_MIN_IMPORTANCE = 3 as TaskImportance;
 /** Min. ważność, żeby w PANIC_GOSCIE status = must */
 export const PANIC_GUESTS_MUST_IMPORTANCE = 4 as TaskImportance;
 
-export function resolveImportance(task: Task): TaskImportance {
+/** Pola ważności wspólne dla obowiązku (`Task`) i zadania (`Zadanie`) */
+export type ImportanceFields = Partial<
+  Pick<Task, "importance" | "isExpressBlitz" | "isGuestPriority">
+>;
+
+export function resolveImportance(task: ImportanceFields): TaskImportance {
   if (task.importance) return task.importance;
   if (task.isExpressBlitz) return 5;
   if (task.isGuestPriority) return 4;
   return 3;
 }
 
-export function normalizeTaskImportance(task: Task): Task {
+export function normalizeTaskImportance<T extends ImportanceFields>(
+  task: T,
+): T & { importance: TaskImportance } {
   return { ...task, importance: resolveImportance(task) };
 }

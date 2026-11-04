@@ -1,8 +1,5 @@
 import { useRef, useState, type MouseEvent } from "react";
-import {
-  FLOOR_PLAN_ASPECT_RATIO,
-  FLOOR_PLAN_SRC,
-} from "@/lib/contentPaths";
+import { useHousehold } from "@/context/HouseholdContext";
 import { clickToMapPercent, polygonToPointsAttr } from "@/lib/mapGeometry";
 import {
   findSpaceAtPoint,
@@ -49,13 +46,13 @@ export function ZoneMapOverlay({
   const mapRef = useRef<HTMLDivElement>(null);
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
   const [hoveredSpaceId, setHoveredSpaceId] = useState<string | null>(null);
+  const { floorPlan } = useHousehold();
 
   const labelZones = zonesWithMapLabel(zones);
 
   const zoneIds =
     highlightZoneIds ?? (highlightZoneId ? [highlightZoneId] : []);
-  const rooms =
-    highlightRooms ?? (highlightRoom ? [highlightRoom] : []);
+  const rooms = highlightRooms ?? (highlightRoom ? [highlightRoom] : []);
   const usingZoneHighlight = zoneIds.length > 0;
 
   const highlightPolys = usingZoneHighlight
@@ -113,13 +110,18 @@ export function ZoneMapOverlay({
     className,
   );
 
-  const frameStyle = { aspectRatio: FLOOR_PLAN_ASPECT_RATIO };
+  // Bez planu nie ma czego podświetlać — strefy wybiera się z listy
+  if (!floorPlan) return null;
+
+  const frameStyle = {
+    aspectRatio: `${floorPlan.width} / ${floorPlan.height}`,
+  };
 
   const inner = (withImage: boolean) => (
     <>
       {withImage && (
         <img
-          src={FLOOR_PLAN_SRC}
+          src={floorPlan.src}
           alt="Plan mieszkania"
           className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
         />
@@ -204,7 +206,8 @@ export function ZoneMapOverlay({
       >
         <div
           className={cn(
-            (onMapClick || roomMapHover) && "pointer-events-auto absolute inset-0",
+            (onMapClick || roomMapHover) &&
+              "pointer-events-auto absolute inset-0",
           )}
         >
           {inner(false)}

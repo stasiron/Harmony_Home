@@ -9,10 +9,7 @@ import type {
   TaskRecurrence,
   Zadanie,
 } from "@/types";
-import {
-  MAP_LINE_SETTINGS,
-  resolveMapLineWidth,
-} from "@/config/mapLine";
+import { MAP_LINE_SETTINGS, resolveMapLineWidth } from "@/config/mapLine";
 import {
   defaultRecurrenceForm,
   formToSchedule,
@@ -96,8 +93,7 @@ export type ZadanieAddInput = ChoreItemAddInput & {
 
 function resolveLocationFromForm(form: ChoreItemFormState) {
   const zoneIds = form.zoneIds.length > 0 ? form.zoneIds : undefined;
-  const rooms =
-    !zoneIds && form.rooms.length > 0 ? form.rooms : undefined;
+  const rooms = !zoneIds && form.rooms.length > 0 ? form.rooms : undefined;
   if (!zoneIds && !rooms) return null;
 
   return {
@@ -149,8 +145,7 @@ export function formToZadanieInput(
   form: ChoreItemFormState,
 ): ZadanieAddInput | null {
   const minutesRaw = form.estimatedMinutes.trim();
-  const minutes =
-    minutesRaw === "" ? 15 : Number.parseInt(minutesRaw, 10);
+  const minutes = minutesRaw === "" ? 15 : Number.parseInt(minutesRaw, 10);
   if (!form.name.trim() || Number.isNaN(minutes) || minutes < 1) return null;
 
   const location = resolveLocationFromForm(form);
@@ -212,9 +207,7 @@ export function taskToChoreItemForm(task: Task): ChoreItemFormState {
     assignedToIds: normalizeAssignedTo(task.assignedTo),
     mapPins: task.mapPins ?? [],
     mapLine: task.mapLine ?? [],
-    mapLineWidth: String(
-      task.mapLineWidth ?? MAP_LINE_SETTINGS.defaultWidth,
-    ),
+    mapLineWidth: String(task.mapLineWidth ?? MAP_LINE_SETTINGS.defaultWidth),
     mapArea: task.mapArea ?? [],
     mapShape: task.mapShape ?? (zoneIds.length > 0 ? "zone" : "pin"),
     zoneId: zoneIds[0] ?? "",
@@ -223,7 +216,9 @@ export function taskToChoreItemForm(task: Task): ChoreItemFormState {
     recurrenceForm: task.schedule
       ? scheduleToForm(task.schedule)
       : defaultRecurrenceForm(),
-    importance: String(resolveImportanceSafe(task.importance)) as `${TaskImportance}`,
+    importance: String(
+      resolveImportanceSafe(task.importance),
+    ) as `${TaskImportance}`,
     linkedZadanieIds: task.linkedZadanieIds ?? [],
     tMinDays: "3",
     tMaxDays: "7",
@@ -269,7 +264,9 @@ export function zadanieToChoreItemForm(zadanie: Zadanie): ChoreItemFormState {
   };
 }
 
-function resolveImportanceSafe(value: TaskImportance | undefined): TaskImportance {
+function resolveImportanceSafe(
+  value: TaskImportance | undefined,
+): TaskImportance {
   if (value == null || Number.isNaN(Number(value))) return 3;
   return Math.min(5, Math.max(1, Number(value))) as TaskImportance;
 }
@@ -345,8 +342,7 @@ function hasLocation(form: ChoreItemFormState): boolean {
 /** Soft check for Dalej — puste pola → domyślne wartości. */
 function canProceedZadaniePlace(form: ChoreItemFormState): boolean {
   const minutesRaw = form.estimatedMinutes.trim();
-  const minutes =
-    minutesRaw === "" ? 15 : Number.parseInt(minutesRaw, 10);
+  const minutes = minutesRaw === "" ? 15 : Number.parseInt(minutesRaw, 10);
   if (Number.isNaN(minutes) || minutes < 1) return false;
 
   const tMinRaw = form.tMinDays.trim();

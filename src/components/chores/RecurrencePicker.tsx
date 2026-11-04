@@ -12,10 +12,7 @@ import { WEEKDAY_LABELS } from "@/lib/choreRecurrence";
 import type { RecurrenceSchedule, Weekday } from "@/types";
 
 export type RecurrenceMode =
-  | "interval-days"
-  | "interval-weeks"
-  | "interval-months"
-  | "weekly";
+  "interval-days" | "interval-weeks" | "interval-months" | "weekly";
 
 export type RecurrenceForm = {
   mode: RecurrenceMode;

@@ -12,6 +12,17 @@ export type ChoreRoom =
 
 export type MapPin = { x: number; y: number };
 
+/**
+ * Kto stworzył element i czy zablokował edycję (docs/ROADMAP.md, decyzja 3a).
+ * Zablokowany edytuje tylko twórca i administrator — reszta może odhaczać.
+ */
+export interface ItemMeta {
+  /** uid konta Firebase, które stworzyło element */
+  createdBy?: string;
+  createdAt?: string;
+  locked?: boolean;
+}
+
 /** Wierzchołek wielokąta na planie (% 0–100) */
 export type MapPoint = MapPin;
 
@@ -51,18 +62,13 @@ export type RecurrenceSchedule =
   | { type: "interval"; unit: "days" | "weeks" | "months"; every: number }
   | { type: "weekly"; weekdays: Weekday[]; everyWeeks: number };
 
-export interface Zadanie {
+export interface Zadanie extends ItemMeta {
   id: string;
   name: string;
   description?: string;
   room: ChoreRoom;
   category:
-    | "kitchen"
-    | "bathroom"
-    | "living"
-    | "bedroom"
-    | "outdoor"
-    | "general";
+    "kitchen" | "bathroom" | "living" | "bedroom" | "outdoor" | "general";
   estimatedMinutes: number;
   mapShape?: TaskMapShape;
   zoneId?: string;
@@ -88,9 +94,11 @@ export interface Zadanie {
   lastCompletedBy?: string;
   /** Wiele pokoi naraz — room = pierwszy */
   rooms?: ChoreRoom[];
+  /** Wbudowane zadanie edytowane w UI — zapisywane jako nadpisanie JSON */
+  customized?: boolean;
 }
 
-export interface User {
+export interface User extends ItemMeta {
   id: string;
   name: string;
   avatar: string; // emoji or initial — easy to swap for image url
@@ -99,7 +107,7 @@ export interface User {
   heavyDay: boolean;
 }
 
-export interface Task {
+export interface Task extends ItemMeta {
   id: string;
   name: string;
   description?: string;
@@ -141,6 +149,8 @@ export interface Task {
   linkedZadanieIds?: string[];
   /** Wiele pokoi naraz — room = pierwszy */
   rooms?: ChoreRoom[];
+  /** Wbudowany obowiązek edytowany w UI — zapisywany jako nadpisanie JSON */
+  customized?: boolean;
 }
 
 export interface Recipe {
@@ -154,7 +164,7 @@ export interface Recipe {
 export type ShoppingCategory =
   "produce" | "dairy" | "bakery" | "pantry" | "frozen" | "household";
 
-export interface ShoppingItem {
+export interface ShoppingItem extends ItemMeta {
   id: string;
   name: string;
   category: ShoppingCategory;
@@ -169,13 +179,13 @@ export type TodoScope = "personal" | "household";
 export type TodoHouseholdMode = "anyone" | "everyone";
 
 /** Folder / zakładka do grupowania todo */
-export interface TodoFolder {
+export interface TodoFolder extends ItemMeta {
   id: string;
   name: string;
   createdAt: string;
 }
 
-export interface TodoItem {
+export interface TodoItem extends ItemMeta {
   id: string;
   text: string;
   done: boolean;
@@ -192,7 +202,7 @@ export interface TodoItem {
 }
 
 /** Instrukcja prania — jak prać dany materiał / zestaw ubrań */
-export interface LaundryProgram {
+export interface LaundryProgram extends ItemMeta {
   id: string;
   /** Nazwa ubrań / materiałów */
   name: string;
@@ -219,7 +229,7 @@ export interface SmartHomeDevice {
   generatesTask?: string;
 }
 
-export interface GuestPlan {
+export interface GuestPlan extends ItemMeta {
   id: string;
   when: string; // ISO
   notes: string;
@@ -227,4 +237,53 @@ export interface GuestPlan {
 
 export interface PanicState {
   active: boolean;
+}
+
+export type HouseholdRole = "admin" | "member";
+
+export type HouseholdPresetId = "family" | "student" | "couple" | "single";
+
+/** Skąd brać plan mieszkania */
+export type FloorPlanRef =
+  | { kind: "none" }
+  /** Obrazek z content/images — tylko zmigrowane mieszkanie testowe */
+  | { kind: "bundled" }
+  /** households/{id}/assets/floorPlan */
+  | { kind: "upload"; width: number; height: number; updatedAt: string };
+
+export interface HouseholdMeta {
+  id: string;
+  name: string;
+  preset: HouseholdPresetId | null;
+  ownerId: string;
+  createdAt: string;
+  zones: HomeZone[];
+  floorPlan: FloorPlanRef;
+  /** Aktualny kod zaproszenia (invites/{code}) */
+  inviteCode?: string;
+  features?: {
+    /** Kalendarze Google z src/config/calendars — tylko pierwsze mieszkanie */
+    legacyCalendar?: boolean;
+  };
+}
+
+/** Konto (lub urządzenie bez konta) z dostępem do mieszkania */
+export interface HouseholdMember {
+  uid: string;
+  role: HouseholdRole;
+  /** Który domownik (User.id) to ten człowiek */
+  profileId: string | null;
+  anonymous: boolean;
+  displayName: string | null;
+  email: string | null;
+  joinedAt: string;
+  inviteCode?: string;
+}
+
+/** Wpis w users/{uid}/memberships — lista mieszkań użytkownika */
+export interface Membership {
+  householdId: string;
+  name: string;
+  role: HouseholdRole;
+  joinedAt: string;
 }

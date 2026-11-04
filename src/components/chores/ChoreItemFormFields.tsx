@@ -20,7 +20,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { HomeZone, TaskImportance, TaskMapShape, TaskRecurrence, User } from "@/types";
+import type {
+  HomeZone,
+  TaskImportance,
+  TaskMapShape,
+  TaskRecurrence,
+  User,
+} from "@/types";
 
 type Props = {
   form: ChoreItemFormState;
@@ -102,7 +108,8 @@ export function ChoreItemFormFields({
             ...form,
             zoneIds: [],
             zoneId: "",
-            rooms: form.rooms.length > 0 ? form.rooms : [form.room || "kitchen"],
+            rooms:
+              form.rooms.length > 0 ? form.rooms : [form.room || "kitchen"],
             mapShape: form.mapShape === "zone" ? "pin" : form.mapShape,
           });
           return;
@@ -210,9 +217,7 @@ export function ChoreItemFormFields({
       <Label>Ważność</Label>
       <Select
         value={form.importance}
-        onValueChange={(v) =>
-          setForm({ importance: v as `${TaskImportance}` })
-        }
+        onValueChange={(v) => setForm({ importance: v as `${TaskImportance}` })}
       >
         <SelectTrigger>
           <SelectValue />
@@ -280,8 +285,8 @@ export function ChoreItemFormFields({
             className="w-full accent-primary"
           />
           <p className="text-xs text-muted-foreground">
-            Od {MAP_LINE_SETTINGS.minWidth} do {MAP_LINE_SETTINGS.maxWidth}{" "}
-            — widoczna na mapie i w podglądzie poniżej.
+            Od {MAP_LINE_SETTINGS.minWidth} do {MAP_LINE_SETTINGS.maxWidth} —
+            widoczna na mapie i w podglądzie poniżej.
           </p>
         </div>
       )}
@@ -306,13 +311,12 @@ export function ChoreItemFormFields({
     <div className="space-y-4">
       {show("basics") && nameFields}
 
-      {show("place") &&
-        mode === "zadanie" && (
-          <>
-            {minutesField}
-            {zadanieThresholds}
-          </>
-        )}
+      {show("place") && mode === "zadanie" && (
+        <>
+          {minutesField}
+          {zadanieThresholds}
+        </>
+      )}
 
       {show("details") &&
         (mode === "chore" ? (

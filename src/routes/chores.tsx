@@ -2,6 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { useApp } from "@/context/AppContext";
+import { useHousehold } from "@/context/HouseholdContext";
+import {
+  CopyFloorPlanPromptButton,
+  FloorPlanUploadButton,
+} from "@/components/household/NoFloorPlan";
 import { Shell } from "@/components/Shell";
 import { AddChoreDialog } from "@/components/chores/AddChoreDialog";
 import { AddZadanieDialog } from "@/components/chores/AddZadanieDialog";
@@ -9,7 +14,10 @@ import { ExportChoresButton } from "@/components/chores/ExportChoresButton";
 import { ApartmentMap } from "@/components/chores/ApartmentMap";
 import { ChoreCard } from "@/components/chores/ChoreCard";
 import { ZadanieCard } from "@/components/chores/ZadanieCard";
-import { sortTasksByImportance, sortTasksForPanicGuests } from "@/lib/choreSort";
+import {
+  sortTasksByImportance,
+  sortTasksForPanicGuests,
+} from "@/lib/choreSort";
 import { resolveImportance } from "@/lib/choreImportance";
 
 export const Route = createFileRoute("/chores")({
@@ -39,6 +47,7 @@ function ChoresPage() {
     panic,
     users,
   } = useApp();
+  const { household, floorPlan, isAdmin } = useHousehold();
 
   const heavyDayNames = users.filter((u) => u.heavyDay).map((u) => u.name);
 
@@ -96,7 +105,23 @@ function ChoresPage() {
 
   return (
     <div className="space-y-8">
-      <ApartmentMap tasks={visibleTasks} statusOf={statusOf} users={users} />
+      {floorPlan ? (
+        <ApartmentMap tasks={visibleTasks} statusOf={statusOf} users={users} />
+      ) : (
+        household && (
+          <section className="space-y-3 rounded-3xl border border-dashed border-border bg-surface/50 p-5">
+            <p className="text-sm text-muted-foreground">
+              To mieszkanie nie ma planu, więc mapa jest ukryta. Skopiuj prompt
+              i wygeneruj plan w stylu mieszkania testowego
+              {isAdmin ? ", potem go wgraj." : " — wgra go administrator."}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <CopyFloorPlanPromptButton householdName={household.name} />
+              {isAdmin && <FloorPlanUploadButton />}
+            </div>
+          </section>
+        )
+      )}
 
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
         <div className="min-w-0">
@@ -161,7 +186,9 @@ function ChoresPage() {
                       </h3>
                       <TaskGrid
                         tasks={g.tasks}
-                        render={(task) => <ChoreCard key={task.id} task={task} />}
+                        render={(task) => (
+                          <ChoreCard key={task.id} task={task} />
+                        )}
                       />
                     </div>
                   ),

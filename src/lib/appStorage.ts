@@ -1,32 +1,13 @@
-import { DEFAULT_MEMBERS } from "@/config/household";
-import type {
-  GuestPlan,
-  LaundryProgram,
-  ShoppingItem,
-  TodoFolder,
-  TodoItem,
-  User,
-} from "@/types";
+import type { ItemMeta, LaundryProgram, TodoFolder, TodoItem } from "@/types";
 
-const STORAGE_KEY = "homeharmony-app";
-
-type AppStorage = {
-  users: User[];
-  shopping: ShoppingItem[];
-  guestPlans: GuestPlan[];
-  todos: TodoItem[];
-  todoFolders: TodoFolder[];
-  laundryPrograms: LaundryProgram[];
-};
-
-function emptyStorage(): AppStorage {
+/** Pola ItemMeta z surowego dokumentu — normalizery budują obiekt od zera */
+export function pickItemMeta(raw: object): ItemMeta {
+  const meta = raw as ItemMeta;
   return {
-    users: [],
-    shopping: [],
-    guestPlans: [],
-    todos: [],
-    todoFolders: [],
-    laundryPrograms: [],
+    ...(typeof meta.createdBy === "string"
+      ? { createdBy: meta.createdBy }
+      : {}),
+    ...(meta.locked === true ? { locked: true } : {}),
   };
 }
 
@@ -37,6 +18,7 @@ export function normalizeTodoFolder(raw: unknown): TodoFolder | null {
   const name = f.name.trim();
   if (!name) return null;
   return {
+    ...pickItemMeta(f),
     id: f.id,
     name,
     createdAt:
@@ -56,6 +38,7 @@ export function normalizeTodo(raw: unknown): TodoItem | null {
         : "anyone"
       : undefined;
   return {
+    ...pickItemMeta(t),
     id: t.id,
     text: t.text,
     done: Boolean(t.done),
@@ -94,6 +77,7 @@ export function normalizeLaundryProgram(raw: unknown): LaundryProgram | null {
   }
   if (temperature < 0 || rinses < 0 || spin < 0) return null;
   return {
+    ...pickItemMeta(p),
     id: p.id,
     name,
     mode,
@@ -103,66 +87,4 @@ export function normalizeLaundryProgram(raw: unknown): LaundryProgram | null {
     createdAt:
       typeof p.createdAt === "string" ? p.createdAt : new Date().toISOString(),
   };
-}
-
-export function readAppStorage(): AppStorage {
-  if (typeof window === "undefined") return emptyStorage();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyStorage();
-    const parsed = JSON.parse(raw) as Partial<AppStorage>;
-    return {
-      users: Array.isArray(parsed.users) ? parsed.users : [],
-      shopping: Array.isArray(parsed.shopping) ? parsed.shopping : [],
-      guestPlans: Array.isArray(parsed.guestPlans) ? parsed.guestPlans : [],
-      todos: Array.isArray(parsed.todos)
-        ? parsed.todos
-            .map(normalizeTodo)
-            .filter((t): t is TodoItem => t !== null)
-        : [],
-      todoFolders: Array.isArray(parsed.todoFolders)
-        ? parsed.todoFolders
-            .map(normalizeTodoFolder)
-            .filter((f): f is TodoFolder => f !== null)
-        : [],
-      laundryPrograms: Array.isArray(parsed.laundryPrograms)
-        ? parsed.laundryPrograms
-            .map(normalizeLaundryProgram)
-            .filter((p): p is LaundryProgram => p !== null)
-        : [],
-    };
-  } catch {
-    return emptyStorage();
-  }
-}
-
-export function loadInitialUsers(): User[] {
-  const stored = readAppStorage().users;
-  if (stored.length > 0) return stored;
-  return [...DEFAULT_MEMBERS];
-}
-
-export function loadInitialShopping(): ShoppingItem[] {
-  return readAppStorage().shopping;
-}
-
-export function loadInitialGuestPlans(): GuestPlan[] {
-  return readAppStorage().guestPlans;
-}
-
-export function loadInitialTodos(): TodoItem[] {
-  return readAppStorage().todos;
-}
-
-export function loadInitialTodoFolders(): TodoFolder[] {
-  return readAppStorage().todoFolders;
-}
-
-export function loadInitialLaundryPrograms(): LaundryProgram[] {
-  return readAppStorage().laundryPrograms;
-}
-
-export function persistAppState(state: AppStorage) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }

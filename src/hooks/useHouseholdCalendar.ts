@@ -27,6 +27,8 @@ export function useHouseholdCalendar(
   tasks: Task[],
   guestPlans: GuestPlan[],
   guestsMode: boolean,
+  /** Google Calendar tylko w pierwszym mieszkaniu (src/config/calendars) */
+  googleEnabled: boolean,
 ) {
   const loadEvents = useServerFn(fetchCalendarEvents);
 
@@ -56,13 +58,16 @@ export function useHouseholdCalendar(
         data: { from: range.from.toISOString(), to: range.to.toISOString() },
       }),
     staleTime: 60_000,
+    enabled: googleEnabled,
   });
 
-  const events = feedQuery.data?.events ?? [];
+  const feedEvents = feedQuery.data?.events;
+  const events = useMemo(() => feedEvents ?? [], [feedEvents]);
   const configured = feedQuery.data?.configured ?? false;
   const eventIndex = useMemo(() => buildEventDayIndex(events), [events]);
 
-  const selectedDay = selected ?? new Date();
+  // Bez memo `new Date()` przeliczało dayBundle przy każdym renderze.
+  const selectedDay = useMemo(() => selected ?? new Date(), [selected]);
 
   const dayBundle = useMemo(
     () => ({

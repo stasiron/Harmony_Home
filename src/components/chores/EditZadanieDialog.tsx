@@ -2,7 +2,8 @@ import { Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { ChoreItemFormWizard } from "@/components/chores/ChoreItemFormWizard";
-import { loadHomeZones } from "@/config/homeZones";
+import { useHousehold } from "@/context/HouseholdContext";
+import { ItemLockControl, LockedBadge } from "@/components/household/ItemLock";
 import {
   canSubmitZadanieForm,
   formToZadanieInput,
@@ -31,11 +32,10 @@ export function EditZadanieDialog({
   const [form, setForm] = useState<ChoreItemFormState>(() =>
     zadanieToChoreItemForm(zadanie),
   );
-  const [homeZones, setHomeZones] = useState(() => loadHomeZones());
+  const { zones: homeZones, canEditItem } = useHousehold();
 
   useEffect(() => {
     if (!open) return;
-    setHomeZones(loadHomeZones());
     setForm(zadanieToChoreItemForm(zadanie));
     setResetToken((n) => n + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open only
@@ -47,6 +47,9 @@ export function EditZadanieDialog({
     updateZadanie(zadanie.id, input);
     setOpen(false);
   };
+
+  if (!canEditItem(zadanie))
+    return <LockedBadge className={compact ? "size-7" : undefined} />;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -72,6 +75,7 @@ export function EditZadanieDialog({
         <DialogHeader>
           <DialogTitle>Edytuj zadanie</DialogTitle>
         </DialogHeader>
+        <ItemLockControl kind="zadania" item={zadanie} />
         <ChoreItemFormWizard
           mode="zadanie"
           form={form}

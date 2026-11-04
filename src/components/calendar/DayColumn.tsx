@@ -27,6 +27,12 @@ type DayColumnProps = {
   users: { id: string; name: string }[];
 };
 
+function currentMinute() {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  return now;
+}
+
 export function DayColumn({
   day,
   events,
@@ -36,11 +42,12 @@ export function DayColumn({
   users,
 }: DayColumnProps) {
   const today = isToday(day);
-  const [now, setNow] = useState(() => new Date());
+  // Pełne minuty — ta sama pozycja linii „teraz” na serwerze i w przeglądarce.
+  const [now, setNow] = useState(currentMinute);
 
   useEffect(() => {
     if (!today) return;
-    const id = setInterval(() => setNow(new Date()), 60_000);
+    const id = setInterval(() => setNow(currentMinute()), 60_000);
     return () => clearInterval(id);
   }, [today]);
 

@@ -3,7 +3,12 @@ import { normalizeTaskImportance } from "@/lib/choreImportance";
 import { applyScheduleToTask } from "@/lib/choreRecurrence";
 import type { Task } from "@/types";
 
-type ChoreDefinition = Omit<Task, "lastCompleted" | "source">;
+/** Wpis w chores.json — progi tMin/tMax liczy harmonogram */
+type ChoreDefinition = Omit<
+  Task,
+  "lastCompleted" | "source" | "tMin" | "tSuggested" | "tMax"
+> &
+  Partial<Pick<Task, "tMin" | "tSuggested" | "tMax">>;
 
 /**
  * Stałe obowiązki — edytuj content/data/chores.json.
@@ -14,7 +19,7 @@ export const PERMANENT_CHORES: Omit<Task, "lastCompleted">[] =
   choresData.chores.map((chore) =>
     normalizeTaskImportance(
       applyScheduleToTask({
-        ...(chore as ChoreDefinition),
+        ...(chore as unknown as ChoreDefinition),
         source: "builtin",
       }),
     ),

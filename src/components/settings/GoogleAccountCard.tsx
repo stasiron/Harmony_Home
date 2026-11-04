@@ -10,15 +10,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DEFAULT_MEMBERS } from "@/config/household";
+import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
+import { useHousehold } from "@/context/HouseholdContext";
 import { getCalendarConnectionStatus } from "@/lib/calendar/api";
 import { firebaseProjectId } from "@/lib/firebase";
-import { guessMemberId, memberNameById } from "@/lib/memberLink";
+import { guessMemberId } from "@/lib/memberLink";
 
 type Status = Awaited<ReturnType<typeof getCalendarConnectionStatus>>;
 
 export function GoogleAccountCard() {
+  const { users } = useApp();
+  const { household, myProfileId, linkProfile } = useHousehold();
+  // Kalendarze Google są skonfigurowane tylko dla pierwszego mieszkania
+  const legacyCalendar = Boolean(household?.features?.legacyCalendar);
   const {
     user,
     memberId,
@@ -49,11 +54,12 @@ export function GoogleAccountCard() {
   }, [loadStatus]);
 
   useEffect(() => {
+    if (!legacyCalendar) return;
     void refreshStatus();
-  }, [calendarSyncTick, refreshStatus]);
+  }, [legacyCalendar, calendarSyncTick, refreshStatus]);
 
   useEffect(() => {
-    if (!user || memberId || !status) return;
+    if (!legacyCalendar || !user || memberId || !status) return;
 
     const byEmail = status.members.find(
       (member) =>
@@ -64,12 +70,17 @@ export function GoogleAccountCard() {
     if (suggested) {
       void linkMember(suggested);
     }
-  }, [user, memberId, status, linkMember]);
+  }, [legacyCalendar, user, memberId, status, linkMember]);
 
   const myMember = status?.members.find(
     (member) => member.memberId === memberId,
   );
-  const memberLabel = memberId ? memberNameById(memberId) : null;
+  const memberLabel = users.find((u) => u.id === myProfileId)?.name ?? null;
+
+  const chooseProfile = (profileId: string) => {
+    void linkProfile(profileId);
+    if (legacyCalendar) void linkMember(profileId);
+  };
   const persistentMode = status?.oauthServerConfigured ?? false;
 
   return (
@@ -156,20 +167,20 @@ export function GoogleAccountCard() {
         )}
       </div>
 
-      {user && (
+      {user && household && (
         <div className="mt-5 space-y-4 border-t border-border pt-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-2">
               <p className="text-sm font-medium">Twój profil domownika</p>
               <Select
-                value={memberId ?? undefined}
-                onValueChange={(value) => void linkMember(value)}
+                value={myProfileId ?? undefined}
+                onValueChange={chooseProfile}
               >
                 <SelectTrigger className="w-full sm:w-[220px]">
                   <SelectValue placeholder="Wybierz domownika" />
                 </SelectTrigger>
                 <SelectContent>
-                  {DEFAULT_MEMBERS.map((member) => (
+                  {users.map((member) => (
                     <SelectItem key={member.id} value={member.id}>
                       {member.name}
                     </SelectItem>
@@ -178,25 +189,25 @@ export function GoogleAccountCard() {
               </Select>
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="self-start sm:self-auto"
-              onClick={() => void refreshStatus()}
-              disabled={statusLoading}
-            >
-              <RefreshCw
-                className={statusLoading ? "animate-spin" : undefined}
-              />
-              Odśwież status
-            </Button>
+            {legacyCalendar && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="self-start sm:self-auto"
+                onClick={() => void refreshStatus()}
+                disabled={statusLoading}
+              >
+                <RefreshCw
+                  className={statusLoading ? "animate-spin" : undefined}
+                />
+                Odśwież status
+              </Button>
+            )}
           </div>
 
-          {!memberId ? (
+          {!legacyCalendar ? null : !memberId ? (
             <p className="text-sm text-muted-foreground">
-              Wybierz domownika — dla{" "}
-              <code className="text-foreground">stasiron9102@gmail.com</code>{" "}
-              ustawiamy automatycznie Stas.
+              Wybierz domownika, żeby połączyć kalendarz.
             </p>
           ) : myMember?.connected && myMember.connection ? (
             <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">

@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { ChoreItemFormWizard } from "@/components/chores/ChoreItemFormWizard";
 import { LinkZadaniaPicker } from "@/components/chores/LinkZadaniaPicker";
-import { loadHomeZones } from "@/config/homeZones";
+import { useHousehold } from "@/context/HouseholdContext";
+import { ItemLockControl, LockedBadge } from "@/components/household/ItemLock";
 import {
   canSubmitChoreItemForm,
   formToChoreItemInput,
@@ -27,7 +28,7 @@ export function EditChoreDialog({ task }: { task: Task }) {
   const [form, setForm] = useState<ChoreItemFormState>(() =>
     taskToChoreItemForm(task),
   );
-  const [homeZones, setHomeZones] = useState(() => loadHomeZones());
+  const { zones: homeZones, canEditItem } = useHousehold();
 
   const attachedElsewhere = useMemo(
     () => zadanieIdsAttachedElsewhere(tasks, task.id),
@@ -36,7 +37,6 @@ export function EditChoreDialog({ task }: { task: Task }) {
 
   useEffect(() => {
     if (!open) return;
-    setHomeZones(loadHomeZones());
     setForm(taskToChoreItemForm(task));
     setResetToken((n) => n + 1);
     // Reset tylko przy otwarciu, nie przy nowej referencji task.
@@ -54,6 +54,8 @@ export function EditChoreDialog({ task }: { task: Task }) {
 
     setOpen(false);
   };
+
+  if (!canEditItem(task)) return <LockedBadge />;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -75,6 +77,7 @@ export function EditChoreDialog({ task }: { task: Task }) {
         <DialogHeader>
           <DialogTitle>Edytuj obowiązek</DialogTitle>
         </DialogHeader>
+        <ItemLockControl kind="chores" item={task} />
         <ChoreItemFormWizard
           mode="chore"
           form={form}

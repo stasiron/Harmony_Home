@@ -6,11 +6,7 @@ import { normalizeAssignedTo } from "@/lib/choreAssignees";
 import { resolveImportance } from "@/lib/choreImportance";
 import { resolveMapLineWidth } from "@/config/mapLine";
 import { normalizeTaskMap } from "@/lib/taskMap";
-import {
-  polygonsForZone,
-  tasksInZoneTree,
-  zoneById,
-} from "@/lib/zoneTree";
+import { polygonsForZone, tasksInZoneTree, zoneById } from "@/lib/zoneTree";
 
 export type MapGeometryLayer = "pins" | "lines" | "areas" | "zones";
 
@@ -92,10 +88,10 @@ export function polygonToPointsAttr(polygon: MapPoint[]): string {
 
 export function polygonCentroid(polygon: MapPoint[]): MapPoint {
   if (polygon.length === 0) return { x: 50, y: 50 };
-  const sum = polygon.reduce(
-    (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
-    { x: 0, y: 0 },
-  );
+  const sum = polygon.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), {
+    x: 0,
+    y: 0,
+  });
   return {
     x: Math.round((sum.x / polygon.length) * 10) / 10,
     y: Math.round((sum.y / polygon.length) * 10) / 10,
@@ -234,7 +230,6 @@ export function resolveMapRenderables(
         visualStatus,
       });
     }
-
   }
 
   return result;

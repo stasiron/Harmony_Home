@@ -3,11 +3,7 @@ import { ROOM_OPTIONS } from "@/config/rooms";
 import { ZoneMapOverlay } from "@/components/chores/ZoneMapOverlay";
 import { findRoomAtPoint, roomForSpace } from "@/lib/mapHitTest";
 import { Label } from "@/components/ui/label";
-import {
-  buildZoneTree,
-  flattenZoneTree,
-  zonePathLabel,
-} from "@/lib/zoneTree";
+import { buildZoneTree, flattenZoneTree, zonePathLabel } from "@/lib/zoneTree";
 import type { ChoreRoom, HomeZone } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -49,11 +45,7 @@ export function ChoreLocationPicker(props: Props) {
   );
   const hasZoneGroups = zoneGroups.length > 0;
 
-  const selectedRooms = multi
-    ? props.rooms
-    : !props.zoneId
-      ? [props.room]
-      : [];
+  const selectedRooms = multi ? props.rooms : !props.zoneId ? [props.room] : [];
   const selectedZoneIds = multi
     ? props.zoneIds
     : props.zoneId

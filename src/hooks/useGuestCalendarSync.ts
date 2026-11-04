@@ -7,10 +7,16 @@ const GUEST_CALENDAR_REFRESH_MS = 15 * 60 * 1000;
 export function useGuestCalendarSync(
   setGuestsMode: (v: boolean) => void,
   setGuestCalendarHint: (v: string | null) => void,
+  enabled: boolean,
 ) {
   const runCheck = useServerFn(checkGuestCalendar);
 
   useEffect(() => {
+    if (!enabled) {
+      setGuestsMode(false);
+      setGuestCalendarHint(null);
+      return;
+    }
     let cancelled = false;
 
     const sync = async () => {
@@ -30,5 +36,5 @@ export function useGuestCalendarSync(
       cancelled = true;
       clearInterval(id);
     };
-  }, [runCheck, setGuestsMode, setGuestCalendarHint]);
+  }, [enabled, runCheck, setGuestsMode, setGuestCalendarHint]);
 }
