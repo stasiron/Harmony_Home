@@ -32,6 +32,8 @@ import {
 import { guessMemberId } from "@/lib/memberLink";
 import { guardWriteBudget } from "@/lib/householdSync";
 import { isProfileFresh } from "@/lib/profileSync";
+import { clearCachedFeeds } from "@/lib/calendar/feedCache";
+import { currentIdToken } from "@/lib/idToken";
 import {
   clearSeeAsMemberId,
   readSeeAsMemberId,
@@ -283,6 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             memberId: targetMemberId,
             accessToken,
             expiresIn: 3600,
+            idToken: await currentIdToken(),
           },
         });
         pendingAccessTokenRef.current = null;
@@ -308,7 +311,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (linkedMemberId: string | null) => {
       if (!linkedMemberId) return;
 
-      const status = await loadCalendarStatusRef.current();
+      const status = await loadCalendarStatusRef.current({
+        data: { idToken: await currentIdToken() },
+      });
       const mine = status.members.find(
         (member) => member.memberId === linkedMemberId,
       );
@@ -538,7 +543,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setError(null);
     try {
-      const status = await loadCalendarStatusRef.current();
+      const status = await loadCalendarStatusRef.current({
+        data: { idToken: await currentIdToken() },
+      });
       if (status.oauthServerConfigured) {
         connectPersistentCalendar();
         return;
@@ -556,6 +563,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     if (!auth) return;
     setError(null);
+    // Prywatne wydarzenia nie zostają na (być może wspólnym) urządzeniu
+    clearCachedFeeds();
     await firebaseSignOut(auth);
   }, []);
 

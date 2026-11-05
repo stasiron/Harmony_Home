@@ -17,6 +17,7 @@ import { LoginDialog } from "@/components/auth/LoginDialog";
 import { getCalendarConnectionStatus } from "@/lib/calendar/api";
 import { firebaseProjectId } from "@/lib/firebase";
 import { guessMemberId } from "@/lib/memberLink";
+import { currentIdToken } from "@/lib/idToken";
 
 type Status = Awaited<ReturnType<typeof getCalendarConnectionStatus>>;
 
@@ -47,7 +48,9 @@ export function GoogleAccountCard() {
   const refreshStatus = useCallback(async () => {
     setStatusLoading(true);
     try {
-      setStatus(await loadStatus());
+      setStatus(
+        await loadStatus({ data: { idToken: await currentIdToken() } }),
+      );
     } finally {
       setStatusLoading(false);
     }

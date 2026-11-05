@@ -11,6 +11,13 @@ import {
 } from "@/lib/calendarView";
 import { fetchCalendarEvents } from "@/lib/calendar/api";
 import {
+  msUntilStale,
+  readCachedFeed,
+  writeCachedFeed,
+} from "@/lib/calendar/feedCache";
+import { useAuth } from "@/context/AuthContext";
+import { effectiveAssignees } from "@/lib/rotation";
+import {
   choresDueOnDate,
   dateHasChoreDue,
   guestPlansOnDate,
@@ -23,14 +30,42 @@ function startOfToday(): Date {
   return d;
 }
 
+export type CalendarFilters = {
+  /** Tylko moje wydarzenia (bez wspólnego kalendarza domu) i moje obowiązki */
+  onlyMine: boolean;
+  /** calendarId ukrytych kalendarzy */
+  hiddenCalendarIds: string[];
+  myProfileId: string | null;
+};
+
+export type CalendarSource = {
+  calendarId: string;
+  label: string;
+  memberName: string;
+  color: string;
+  shared: boolean;
+};
+
 export function useHouseholdCalendar(
-  tasks: Task[],
+  allTasks: Task[],
   guestPlans: GuestPlan[],
   guestsMode: boolean,
   /** Google Calendar tylko w pierwszym mieszkaniu (src/config/calendars) */
   googleEnabled: boolean,
+  filters: CalendarFilters,
 ) {
   const loadEvents = useServerFn(fetchCalendarEvents);
+  const { syncUser } = useAuth();
+  const viewerUid = syncUser?.uid ?? null;
+  const { onlyMine, hiddenCalendarIds, myProfileId } = filters;
+
+  const tasks = useMemo(
+    () =>
+      onlyMine && myProfileId
+        ? allTasks.filter((t) => effectiveAssignees(t).includes(myProfileId))
+        : allTasks,
+    [allTasks, onlyMine, myProfileId],
+  );
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>("3");
   const [anchor, setAnchor] = useState(startOfToday);
@@ -51,18 +86,59 @@ export function useHouseholdCalendar(
 
   const rangeKey = `${range.from.toISOString()}|${range.to.toISOString()}`;
 
+  // Prywatne: serwer oddaje tylko wydarzenia tej osoby (+ wspólne domu),
+  // więc pamięć podręczna też jest per konto
+  const cacheKey = `${viewerUid ?? "none"}:${rangeKey}`;
+  const cached = useMemo(
+    () => (typeof window === "undefined" ? null : readCachedFeed(cacheKey)),
+    [cacheKey],
+  );
+
   const feedQuery = useQuery({
-    queryKey: ["calendar-feed", rangeKey],
-    queryFn: () =>
-      loadEvents({
-        data: { from: range.from.toISOString(), to: range.to.toISOString() },
-      }),
-    staleTime: 60_000,
-    enabled: googleEnabled,
+    queryKey: ["calendar-feed", viewerUid, rangeKey],
+    queryFn: async () => {
+      const idToken = (await syncUser?.getIdToken()) ?? null;
+      const data = await loadEvents({
+        data: {
+          from: range.from.toISOString(),
+          to: range.to.toISOString(),
+          idToken,
+        },
+      });
+      writeCachedFeed(cacheKey, data);
+      return data;
+    },
+    initialData: cached?.data,
+    initialDataUpdatedAt: cached?.fetchedAt,
+    // Rzadko: do najbliższej 8:00 i najwyżej kilka godzin (feedCache.ts)
+    staleTime: (query) => msUntilStale(query.state.dataUpdatedAt, Date.now()),
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    enabled: googleEnabled && Boolean(viewerUid),
   });
 
   const feedEvents = feedQuery.data?.events;
-  const events = useMemo(() => feedEvents ?? [], [feedEvents]);
+  const sources = useMemo((): CalendarSource[] => {
+    const byId = new Map<string, CalendarSource>();
+    for (const e of feedEvents ?? []) {
+      if (byId.has(e.calendarId)) continue;
+      byId.set(e.calendarId, {
+        calendarId: e.calendarId,
+        label: e.calendarLabel,
+        memberName: e.memberName,
+        color: e.color,
+        shared: e.memberId === "household",
+      });
+    }
+    return [...byId.values()];
+  }, [feedEvents]);
+  const events = useMemo(() => {
+    const hidden = new Set(hiddenCalendarIds);
+    return (feedEvents ?? []).filter(
+      (e) =>
+        !hidden.has(e.calendarId) && !(onlyMine && e.memberId === "household"),
+    );
+  }, [feedEvents, hiddenCalendarIds, onlyMine]);
   const configured = feedQuery.data?.configured ?? false;
   const eventIndex = useMemo(() => buildEventDayIndex(events), [events]);
 
@@ -131,6 +207,9 @@ export function useHouseholdCalendar(
     errorDetail:
       feedQuery.error instanceof Error ? feedQuery.error.message : null,
     refresh: feedQuery.refetch,
+    refreshing: feedQuery.isFetching,
+    lastSyncedAt: feedQuery.dataUpdatedAt || null,
+    sources,
     modifiers,
     selectedDay,
     dayBundle,

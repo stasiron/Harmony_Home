@@ -71,6 +71,8 @@ Wszystko należy do **mieszkania** (`useHousehold().householdId`). Model i decyz
 
 **Logowanie i kalendarz:** logowanie Google prosi tylko o e-mail i profil, bez zakresu kalendarza, więc bez ekranu zgody. Kalendarz łączy się osobno przez OAuth na serwerze z refresh tokenem w Redis — konfiguracja w `docs/KALENDARZ.md`.
 
+**Kalendarz — prywatny i rzadki:** serwer weryfikuje Firebase ID token (`src/lib/firebaseToken.server.ts`, certyfikaty Google, bez firebase-admin) i oddaje tylko wydarzenia właściciela + wspólny kalendarz domu (`viewerMemberIds`). Zmiany ustawień kalendarza wymagają tokenu właściciela. Klient trzyma wydarzenia w localStorage per konto (`src/lib/calendar/feedCache.ts`): pobiera po wejściu w zakładkę, gdy dane są sprzed ostatniej 8:00 albo starsze niż 3 h; czyści przy wylogowaniu. Kalendarz nie używa Firestore.
+
 **Sync — pułapki:**
 - `useSyncedList` = `setState` + zapis różnicy do Firestore od razu (bez debounce). Odrzucony zapis cofa snapshot z serwera + toast.
 - Stan startowy pusty (SSR = pierwszy render klienta). Cache offline daje Firestore (IndexedDB), nie localStorage.

@@ -5,10 +5,13 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  EyeOff,
   MapPin,
+  RefreshCw,
+  UserRound,
   Users,
 } from "lucide-react";
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { DayColumn } from "@/components/calendar/DayColumn";
 import { Button } from "@/components/ui/button";
@@ -28,18 +31,130 @@ function formatEventTime(iso: string) {
   return format(new Date(iso), "HH:mm", { locale: pl });
 }
 
+/** Filtry kalendarza zapamiętane na tym urządzeniu */
+function useStoredFilter<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(initial);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) setValue(JSON.parse(raw) as T);
+    } catch {
+      // brak zapisu — domyślne
+    }
+  }, [key]);
+  const update = (next: T) => {
+    setValue(next);
+    try {
+      localStorage.setItem(key, JSON.stringify(next));
+    } catch {
+      // prywatne okno
+    }
+  };
+  return [value, update] as const;
+}
+
 export function HouseholdCalendar() {
   const { tasks, guestPlans, guestsMode, users } = useApp();
-  const { household } = useHousehold();
+  const { household, myProfileId } = useHousehold();
+  const [onlyMine, setOnlyMine] = useStoredFilter("calendar-only-mine", false);
+  const [hiddenCalendarIds, setHiddenCalendarIds] = useStoredFilter<string[]>(
+    "calendar-hidden",
+    [],
+  );
   const cal = useHouseholdCalendar(
     tasks,
     guestPlans,
     guestsMode,
     Boolean(household?.features?.legacyCalendar),
+    { onlyMine, hiddenCalendarIds, myProfileId },
   );
+
+  const toggleCalendar = (calendarId: string) =>
+    setHiddenCalendarIds(
+      hiddenCalendarIds.includes(calendarId)
+        ? hiddenCalendarIds.filter((id) => id !== calendarId)
+        : [...hiddenCalendarIds, calendarId],
+    );
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface/60 px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setOnlyMine(!onlyMine)}
+          aria-pressed={onlyMine}
+          disabled={!myProfileId}
+          title={
+            myProfileId
+              ? "Tylko Twoje wydarzenia i obowiązki"
+              : "Wybierz swój profil w Ustawieniach"
+          }
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50",
+            onlyMine
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border hover:bg-muted",
+          )}
+        >
+          <UserRound className="size-3.5" />
+          Tylko moje
+        </button>
+        {cal.sources.map((source) => {
+          const hidden = hiddenCalendarIds.includes(source.calendarId);
+          return (
+            <button
+              key={source.calendarId}
+              type="button"
+              onClick={() => toggleCalendar(source.calendarId)}
+              aria-pressed={!hidden}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs transition-colors",
+                hidden
+                  ? "border-dashed border-border text-muted-foreground line-through"
+                  : "border-border bg-background hover:bg-muted",
+              )}
+              title={hidden ? "Pokaż ten kalendarz" : "Ukryj ten kalendarz"}
+            >
+              {hidden ? (
+                <EyeOff className="size-3" />
+              ) : (
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: `var(--${source.color})` }}
+                />
+              )}
+              {source.label}
+              {source.shared && (
+                <span className="text-muted-foreground">· wspólny</span>
+              )}
+            </button>
+          );
+        })}
+        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+          {cal.lastSyncedAt && (
+            <span>
+              Synchronizacja{" "}
+              {format(new Date(cal.lastSyncedAt), "d MMM, HH:mm", {
+                locale: pl,
+              })}
+            </span>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 rounded-lg px-2"
+            onClick={() => void cal.refresh()}
+            disabled={cal.refreshing}
+            aria-label="Odśwież kalendarz"
+          >
+            <RefreshCw
+              className={cn("size-3.5", cal.refreshing && "animate-spin")}
+            />
+          </Button>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Button

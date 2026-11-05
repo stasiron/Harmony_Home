@@ -20,6 +20,33 @@ import {
   googleEventToIsoRange,
 } from "@/lib/googleOAuth.server";
 import type { RegisteredCalendar } from "@/config/calendars";
+import type { VerifiedViewer } from "@/lib/firebaseToken.server";
+import { memberIdFromEmail } from "@/lib/memberLink";
+
+/** Kalendarz wspólny domu (goście) — widzi każdy domownik */
+const SHARED_MEMBER_ID = "household";
+
+/**
+ * Prywatność: osobiste kalendarze widzi tylko ich właściciel (konto z
+ * tym samym e-mailem), wspólny kalendarz domu — każdy.
+ */
+export function viewerMemberIds(
+  viewer: VerifiedViewer | null,
+  connections: MemberConnection[],
+): Set<string> {
+  const ids = new Set<string>([SHARED_MEMBER_ID]);
+  if (!viewer || viewer.anonymous || !viewer.emailVerified || !viewer.email) {
+    return ids;
+  }
+  const fromConfig = memberIdFromEmail(viewer.email);
+  if (fromConfig) ids.add(fromConfig);
+  for (const connection of connections) {
+    if (connection.googleEmail?.toLowerCase() === viewer.email) {
+      ids.add(connection.memberId);
+    }
+  }
+  return ids;
+}
 
 export function resolveEnvCalendarUrl(envKey: string): string {
   return process.env[envKey]?.trim() ?? "";
@@ -167,9 +194,13 @@ async function fetchOAuthMemberEvents(
 export async function fetchAllMemberCalendarEvents(
   rangeStart: Date,
   rangeEnd: Date,
+  viewer: VerifiedViewer | null,
 ): Promise<{ configured: boolean; events: CalendarFeedEvent[] }> {
   const store = await readCalendarConnectionsStore();
-  const oauthMembers = Object.values(store.members);
+  const allConnections = Object.values(store.members);
+  const visible = viewerMemberIds(viewer, allConnections);
+  // Cudzych kalendarzy nawet nie pobieramy z Google
+  const oauthMembers = allConnections.filter((c) => visible.has(c.memberId));
   const events: CalendarFeedEvent[] = [];
 
   for (const connection of oauthMembers) {
@@ -188,14 +219,14 @@ export async function fetchAllMemberCalendarEvents(
   const icalEvents = await fetchIcalSources(
     rangeStart,
     rangeEnd,
-    getIcalFallbackSources(),
+    getIcalFallbackSources().filter((s) => visible.has(s.memberId)),
   );
   events.push(...icalEvents);
 
   const hasIcalEnv = getIcalFallbackSources().some((s) =>
     resolveEnvCalendarUrl(s.envKey),
   );
-  const configured = oauthMembers.length > 0 || hasIcalEnv;
+  const configured = allConnections.length > 0 || hasIcalEnv;
 
   events.sort(
     (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
@@ -206,6 +237,13 @@ export async function fetchAllMemberCalendarEvents(
 export async function fetchCalendarEventsImpl(data: {
   from: string;
   to: string;
+  idToken?: string | null;
 }): Promise<CalendarFeedResult> {
-  return fetchAllMemberCalendarEvents(new Date(data.from), new Date(data.to));
+  const { verifyFirebaseIdToken } = await import("@/lib/firebaseToken.server");
+  const viewer = await verifyFirebaseIdToken(data.idToken);
+  return fetchAllMemberCalendarEvents(
+    new Date(data.from),
+    new Date(data.to),
+    viewer,
+  );
 }

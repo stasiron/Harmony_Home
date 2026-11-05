@@ -7,7 +7,9 @@ export type {
 } from "@/lib/calendar-feed-types";
 
 export const fetchCalendarEvents = createServerFn({ method: "POST" })
-  .validator((data: { from: string; to: string }) => data)
+  .validator(
+    (data: { from: string; to: string; idToken?: string | null }) => data,
+  )
   .handler(async ({ data }) => {
     const { fetchCalendarEventsImpl } =
       await import("@/lib/memberCalendars.server");
@@ -22,18 +24,25 @@ export const checkGuestCalendar = createServerFn({ method: "GET" }).handler(
   },
 );
 
+/** POST — ID token nie może trafić do adresu URL (logi) */
 export const getCalendarConnectionStatus = createServerFn({
-  method: "GET",
-}).handler(async () => {
-  const { getCalendarConnectionStatusImpl } =
-    await import("@/lib/calendar-settings.server");
-  return getCalendarConnectionStatusImpl();
-});
+  method: "POST",
+})
+  .validator((data: { idToken?: string | null }) => data)
+  .handler(async ({ data }) => {
+    const { getCalendarConnectionStatusImpl } =
+      await import("@/lib/calendar-settings.server");
+    return getCalendarConnectionStatusImpl(data);
+  });
 
 export const setMemberCalendarEnabled = createServerFn({ method: "POST" })
   .validator(
-    (data: { memberId: string; googleCalendarId: string; enabled: boolean }) =>
-      data,
+    (data: {
+      memberId: string;
+      googleCalendarId: string;
+      enabled: boolean;
+      idToken?: string | null;
+    }) => data,
   )
   .handler(async ({ data }) => {
     const { setMemberCalendarEnabledImpl } =
@@ -47,6 +56,7 @@ export const setMemberCalendarDisplay = createServerFn({ method: "POST" })
       memberId: string;
       googleCalendarId: string;
       display: "full" | "busy";
+      idToken?: string | null;
     }) => data,
   )
   .handler(async ({ data }) => {
@@ -56,7 +66,7 @@ export const setMemberCalendarDisplay = createServerFn({ method: "POST" })
   });
 
 export const disconnectMemberGoogle = createServerFn({ method: "POST" })
-  .validator((data: { memberId: string }) => data)
+  .validator((data: { memberId: string; idToken?: string | null }) => data)
   .handler(async ({ data }) => {
     const { disconnectMemberGoogleImpl } =
       await import("@/lib/calendar-settings.server");
@@ -65,8 +75,12 @@ export const disconnectMemberGoogle = createServerFn({ method: "POST" })
 
 export const connectCalendarFromFirebase = createServerFn({ method: "POST" })
   .validator(
-    (data: { memberId: string; accessToken: string; expiresIn?: number }) =>
-      data,
+    (data: {
+      memberId: string;
+      accessToken: string;
+      expiresIn?: number;
+      idToken?: string | null;
+    }) => data,
   )
   .handler(async ({ data }) => {
     const { saveFirebaseCalendarConnection } =
