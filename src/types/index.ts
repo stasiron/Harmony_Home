@@ -16,11 +16,20 @@ export type MapPin = { x: number; y: number };
  * Kto stworzył element i czy zablokował edycję (docs/ROADMAP.md, decyzja 3a).
  * Zablokowany edytuje tylko twórca i administrator — reszta może odhaczać.
  */
+/**
+ * Publiczne (domyślnie) — widzi każdy domownik, choć może należeć do jednej
+ * osoby. Prywatne — wyjątek: zapisane w households/{id}/private/{uid}/…,
+ * widzi tylko autor (wymaga konta).
+ */
+export type ItemVisibility = "public" | "private";
+
 export interface ItemMeta {
   /** uid konta Firebase, które stworzyło element */
   createdBy?: string;
   createdAt?: string;
   locked?: boolean;
+  /** Brak = publiczne */
+  visibility?: ItemVisibility;
 }
 
 /** Wierzchołek wielokąta na planie (% 0–100) */

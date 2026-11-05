@@ -1,5 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, FolderPlus, Home, Plus, Trash2, User } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  FolderPlus,
+  Home,
+  Lock,
+  Plus,
+  Trash2,
+  User,
+} from "lucide-react";
 import {
   useEffect,
   useMemo,
@@ -15,6 +24,7 @@ import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
 import { ItemLockButton } from "@/components/household/ItemLock";
+import { PrivateBadge } from "@/components/VisibilityPicker";
 import {
   activeMembers,
   buildTodoExport,
@@ -68,7 +78,13 @@ function TodoPage() {
   const actorId = seeAsMemberId ?? myProfileId;
 
   const [draft, setDraft] = useState("");
-  const [scope, setScope] = useState<TodoScope>("personal");
+  // Domyślnie wspólne — „do szuflady” tylko świadomie (prywatne)
+  const [kind, setKind] = useState<"household" | "person" | "private">(
+    "household",
+  );
+  const scope: TodoScope = kind === "household" ? "household" : "personal";
+  const [showOthers, setShowOthers] = useState(false);
+  const { hasAccount } = useHousehold();
   const [householdMode, setHouseholdMode] =
     useState<TodoHouseholdMode>("anyone");
   const [assigneeId, setAssigneeId] = useState<string | null>(actorId);
@@ -97,20 +113,27 @@ function TodoPage() {
     [todos, activeFolderId],
   );
 
-  const personalOpen = useMemo(
-    () =>
-      folderTodos.filter(
-        (t) => t.scope !== "household" && isTodoOpen(t, users),
-      ),
-    [folderTodos, users],
+  // Sprawy osób: moje / prywatne / innych (innych nie podsuwamy, ale można
+  // podejrzeć, co ktoś ma do zrobienia)
+  const isPrivateTodo = (t: TodoItem) => t.visibility === "private";
+  const isMineTodo = (t: TodoItem) =>
+    !t.assignedTo || (actorId !== null && t.assignedTo === actorId);
+  const personalTodos = useMemo(
+    () => folderTodos.filter((t) => t.scope !== "household"),
+    [folderTodos],
   );
-  const personalDone = useMemo(
-    () =>
-      folderTodos.filter(
-        (t) => t.scope !== "household" && !isTodoOpen(t, users),
-      ),
-    [folderTodos, users],
+  const privateTodos = personalTodos.filter(isPrivateTodo);
+  const mineTodos = personalTodos.filter(
+    (t) => !isPrivateTodo(t) && isMineTodo(t),
   );
+  const othersTodos = personalTodos.filter(
+    (t) => !isPrivateTodo(t) && !isMineTodo(t),
+  );
+  const personalOpen = mineTodos.filter((t) => isTodoOpen(t, users));
+  const personalDone = mineTodos.filter((t) => !isTodoOpen(t, users));
+  const privateOpen = privateTodos.filter((t) => isTodoOpen(t, users));
+  const privateDone = privateTodos.filter((t) => !isTodoOpen(t, users));
+  const othersOpen = othersTodos.filter((t) => isTodoOpen(t, users));
   const houseOpen = useMemo(
     () =>
       folderTodos.filter(
@@ -126,7 +149,7 @@ function TodoPage() {
     [folderTodos, users],
   );
 
-  const doneCount = personalDone.length + houseDone.length;
+  const doneCount = personalDone.length + houseDone.length + privateDone.length;
 
   const inboxCount = useMemo(
     () => todos.filter((t) => todoInFolder(t, null)).length,
@@ -139,8 +162,10 @@ function TodoPage() {
       text: draft,
       scope,
       householdMode: scope === "household" ? householdMode : undefined,
-      assignedTo: scope === "personal" ? assigneeId : null,
+      assignedTo:
+        kind === "private" ? actorId : kind === "person" ? assigneeId : null,
       folderId: activeFolderId,
+      visibility: kind === "private" ? "private" : "public",
     });
     setDraft("");
   };
@@ -284,20 +309,34 @@ function TodoPage() {
       <form onSubmit={onSubmit} className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <ScopeChip
-            active={scope === "personal"}
-            onClick={() => setScope("personal")}
-            icon={<User className="size-3.5" />}
-            label="Osobiste"
-          />
-          <ScopeChip
-            active={scope === "household"}
-            onClick={() => setScope("household")}
+            active={kind === "household"}
+            onClick={() => setKind("household")}
             icon={<Home className="size-3.5" />}
             label="Dla domu"
           />
+          <ScopeChip
+            active={kind === "person"}
+            onClick={() => setKind("person")}
+            icon={<User className="size-3.5" />}
+            label="Dla osoby"
+          />
+          <ScopeChip
+            active={kind === "private"}
+            onClick={() => hasAccount && setKind("private")}
+            icon={<Lock className="size-3.5" />}
+            label={hasAccount ? "Prywatne" : "Prywatne (wymaga konta)"}
+            tone="private"
+            disabled={!hasAccount}
+          />
         </div>
 
-        {scope === "personal" ? (
+        {kind === "private" ? (
+          <p className="rounded-2xl border border-warn/40 bg-warn/10 px-4 py-2 text-sm text-warn">
+            <Lock className="mr-1 inline size-3.5" />
+            Tylko Ty to zobaczysz — nikt inny, nawet administrator. Sprawy dla
+            domu albo dla kogoś zapisuj jako „Dla domu” / „Dla osoby”.
+          </p>
+        ) : kind === "person" ? (
           <div className="space-y-2">
             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Dla kogo
@@ -342,11 +381,13 @@ function TodoPage() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder={
-              scope === "household"
+              kind === "household"
                 ? householdMode === "everyone"
                   ? "Np. przeczytać regulamin, odebrać klucz…"
                   : "Np. wynieść kartony, kupić żarówkę…"
-                : "Np. oddać książkę, zadzwonić do dentysty…"
+                : kind === "private"
+                  ? "Np. prezent dla kogoś, prywatna sprawa…"
+                  : "Np. oddać książkę, zadzwonić do dentysty…"
             }
             className="h-12 rounded-2xl border-border bg-surface px-4 text-base"
             autoFocus
@@ -388,8 +429,8 @@ function TodoPage() {
           />
 
           <TodoSection
-            title="Osobiste"
-            emptyHint="Brak osobistych spraw."
+            title="Moje"
+            emptyHint="Nic nie czeka na Ciebie."
             open={personalOpen}
             done={personalDone}
             members={members}
@@ -400,6 +441,60 @@ function TodoPage() {
             onMoveFolder={setTodoFolder}
             onRemove={removeTodo}
           />
+
+          {privateTodos.length > 0 && (
+            <TodoSection
+              title="Prywatne — tylko Ty"
+              emptyHint=""
+              open={privateOpen}
+              done={privateDone}
+              members={members}
+              folders={todoFolders}
+              actorId={actorId}
+              onToggle={toggleTodo}
+              onAssign={setTodoAssignee}
+              onMoveFolder={setTodoFolder}
+              onRemove={removeTodo}
+            />
+          )}
+
+          {othersOpen.length > 0 && (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowOthers(!showOthers)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+              >
+                <ChevronDown
+                  className={cn(
+                    "size-3.5 transition-transform",
+                    showOthers && "rotate-180",
+                  )}
+                />
+                {showOthers ? "Ukryj" : "Podejrzyj"} sprawy innych (
+                {othersOpen.length})
+              </button>
+              {showOthers &&
+                members
+                  .filter((m) => othersOpen.some((t) => t.assignedTo === m.id))
+                  .map((m) => (
+                    <TodoSection
+                      key={m.id}
+                      title={`Do zrobienia: ${m.name}`}
+                      emptyHint=""
+                      open={othersOpen.filter((t) => t.assignedTo === m.id)}
+                      done={[]}
+                      members={members}
+                      folders={todoFolders}
+                      actorId={actorId}
+                      onToggle={toggleTodo}
+                      onAssign={setTodoAssignee}
+                      onMoveFolder={setTodoFolder}
+                      onRemove={removeTodo}
+                    />
+                  ))}
+            </div>
+          )}
 
           {doneCount > 0 ? (
             <div className="flex justify-end">
@@ -458,21 +553,30 @@ function ScopeChip({
   onClick,
   icon,
   label,
+  tone = "default",
+  disabled,
 }: {
   active: boolean;
   onClick: () => void;
   icon: ReactNode;
   label: string;
+  tone?: "default" | "private";
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-sm font-medium transition-colors",
+        "inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         active
-          ? "border-primary/40 bg-primary/10 text-primary"
-          : "border-border bg-surface text-muted-foreground hover:text-foreground",
+          ? tone === "private"
+            ? "border-warn/60 bg-warn/15 text-warn"
+            : "border-primary/40 bg-primary/10 text-primary"
+          : tone === "private"
+            ? "border-dashed border-border bg-surface text-muted-foreground hover:text-foreground"
+            : "border-border bg-surface text-muted-foreground hover:text-foreground",
       )}
     >
       {icon}
@@ -718,8 +822,10 @@ function TodoRow({
   bordered: boolean;
 }) {
   const { canEditItem } = useHousehold();
+  const { setTodoVisibility } = useApp();
   // Zablokowane: odhaczać może każdy, zmieniać tylko twórca i admin
   const editable = canEditItem(item);
+  const isPrivate = item.visibility === "private";
   const isEveryone =
     item.scope === "household" && item.householdMode === "everyone";
   const isAnyone =
@@ -766,6 +872,7 @@ function TodoRow({
             )}
           >
             {item.text}
+            {isPrivate && <PrivateBadge className="ml-2 align-middle" />}
           </div>
           {item.scope === "household" ? (
             <div className="mt-0.5 text-xs text-muted-foreground">
@@ -776,8 +883,21 @@ function TodoRow({
                   : null}
             </div>
           ) : (
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              {assignee ? `Dla: ${assignee.name}` : "Bez przypisania"}
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+              {isPrivate
+                ? "Widzisz tylko Ty"
+                : assignee
+                  ? `Dla: ${assignee.name} · widoczne dla domu`
+                  : "Bez przypisania · widoczne dla domu"}
+              {isPrivate && (
+                <button
+                  type="button"
+                  onClick={() => setTodoVisibility(item.id, "public")}
+                  className="font-medium text-primary hover:underline"
+                >
+                  Pokaż domownikom
+                </button>
+              )}
             </div>
           )}
         </div>

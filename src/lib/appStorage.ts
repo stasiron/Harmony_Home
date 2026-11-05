@@ -8,6 +8,7 @@ export function pickItemMeta(raw: object): ItemMeta {
       ? { createdBy: meta.createdBy }
       : {}),
     ...(meta.locked === true ? { locked: true } : {}),
+    ...(meta.visibility === "private" ? { visibility: "private" } : {}),
   };
 }
 

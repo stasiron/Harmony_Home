@@ -4,6 +4,7 @@ import { useApp } from "@/context/AppContext";
 import { EditChoreDialog } from "@/components/chores/EditChoreDialog";
 import { ZadanieCard } from "@/components/chores/ZadanieCard";
 import { TurnQueueLine } from "@/components/chores/TurnQueueLine";
+import { PrivateBadge } from "@/components/VisibilityPicker";
 import { formatScheduleLabel } from "@/lib/choreRecurrence";
 import { IMPORTANCE_LABELS, resolveImportance } from "@/lib/choreImportance";
 import { choreCompletionByAssignee } from "@/lib/choreAssignees";
@@ -88,6 +89,7 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
               </span>
             )}
             <TurnQueueLine item={task} users={users} />
+            {task.visibility === "private" && <PrivateBadge />}
           </div>
         </div>
         {assignees.length > 0 && (

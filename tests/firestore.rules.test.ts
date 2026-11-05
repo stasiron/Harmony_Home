@@ -472,6 +472,61 @@ describe("blokada edycji", () => {
   });
 });
 
+describe("prywatne obowiązki, zadania i todo", () => {
+  const path = (owner: string) =>
+    ["households", HID, "private", owner, "todos", "t1"] as const;
+
+  it("autor z kontem zapisuje i czyta swoje", async () => {
+    const db = dbAs("alice");
+    await assertSucceeds(
+      setDoc(doc(db, ...path("alice")), {
+        text: "prezent",
+        createdBy: "alice",
+      }),
+    );
+    await assertSucceeds(getDoc(doc(db, ...path("alice"))));
+  });
+
+  it("nikt inny nie widzi — domownik, tablet ani administrator ogólny", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), ...path("alice")), { text: "x" });
+    });
+    await assertFails(getDoc(doc(dbAs("admin"), ...path("alice"))));
+    await assertFails(getDoc(doc(dbAs("tablet", anonymous), ...path("alice"))));
+    await assertFails(
+      getDoc(
+        doc(
+          dbAs("boss", google("boss", "stasiron9102@gmail.com")),
+          ...path("alice"),
+        ),
+      ),
+    );
+  });
+
+  it("bez konta nie ma prywatnych", async () => {
+    await assertFails(
+      setDoc(doc(dbAs("tablet", anonymous), ...path("tablet")), { text: "x" }),
+    );
+  });
+
+  it("tylko obowiązki, zadania i todo", async () => {
+    await assertFails(
+      setDoc(
+        doc(
+          dbAs("alice"),
+          "households",
+          HID,
+          "private",
+          "alice",
+          "shopping",
+          "s",
+        ),
+        { name: "x" },
+      ),
+    );
+  });
+});
+
 describe("prywatne miejsca", () => {
   it("wymagają konta", async () => {
     await assertFails(

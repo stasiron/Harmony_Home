@@ -3,6 +3,7 @@ import { MapGeometryPicker } from "@/components/chores/MapGeometryPicker";
 import { RecurrencePicker } from "@/components/chores/RecurrencePicker";
 import { AssigneeMultiPicker } from "@/components/chores/AssigneeMultiPicker";
 import { TurnRotationFields } from "@/components/chores/TurnRotationFields";
+import { VisibilityPicker } from "@/components/VisibilityPicker";
 import { IMPORTANCE_LABELS } from "@/lib/choreImportance";
 import { CHORE_WEIGHT_SETTINGS } from "@/config/choreWeight";
 import { MAP_LINE_SETTINGS } from "@/config/mapLine";
@@ -311,7 +312,20 @@ export function ChoreItemFormFields({
 
   return (
     <div className="space-y-4">
-      {show("basics") && nameFields}
+      {show("basics") && (
+        <>
+          {nameFields}
+          <VisibilityPicker
+            value={form.visibility}
+            onChange={(visibility) => setForm({ visibility })}
+            publicHint={
+              mode === "chore"
+                ? "Widzą wszyscy — przypisani mają go na liście"
+                : "Widzą wszyscy domownicy"
+            }
+          />
+        </>
+      )}
 
       {show("place") && mode === "zadanie" && (
         <>

@@ -12,6 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
 import { useGuestCalendarSync } from "@/hooks/useGuestCalendarSync";
 import { byCreatedAt, useSyncedList } from "@/hooks/useSyncedList";
+import { useVisibilityList } from "@/hooks/useVisibilityList";
 import {
   normalizeLaundryProgram,
   normalizeTodo,
@@ -66,6 +67,7 @@ import type {
   TaskMapShape,
   TaskRecurrence,
   TurnRotation,
+  ItemVisibility,
   TodoFolder,
   TodoItem,
   User,
@@ -107,6 +109,8 @@ interface AppState {
   addTodo: (input: TodoAddInput) => void;
   toggleTodo: (id: string, memberId?: string | null) => void;
   setTodoAssignee: (id: string, memberId: string | null) => void;
+  /** Prywatne ↔ publiczne — przenosi sprawę między ścieżkami */
+  setTodoVisibility: (id: string, visibility: ItemVisibility) => void;
   setTodoFolder: (id: string, folderId: string | null) => void;
   removeTodo: (id: string) => void;
   clearDoneTodos: (folderId?: string | null) => void;
@@ -168,6 +172,13 @@ const GUEST_PRIORITY_ROOMS: ChoreRoom[] = [
   "whole",
 ];
 
+/** Publiczne nie mają pola — tylko prywatne są oznaczone */
+function privateOrUndefined(
+  visibility: ItemVisibility | undefined,
+): "private" | undefined {
+  return visibility === "private" ? "private" : undefined;
+}
+
 function buildUserItem(input: ChoreItemAddInput) {
   const recurrence = input.recurrence ?? "recurring";
   const defaultImportance: TaskImportance =
@@ -184,6 +195,7 @@ function buildUserItem(input: ChoreItemAddInput) {
     assignedTo: normalizeAssignedTo(input.assignedTo),
     rotation: input.rotation,
     rotationTurn: input.rotationTurn,
+    visibility: privateOrUndefined(input.visibility),
     mapShape: input.mapShape,
     zoneId: input.zoneId,
     zoneIds: input.zoneIds,
@@ -243,6 +255,7 @@ function patchZadanieFromInput(
       estimatedMinutes: input.estimatedMinutes,
       rotation: input.rotation,
       rotationTurn: input.rotationTurn,
+      visibility: privateOrUndefined(input.visibility),
       mapShape: input.mapShape,
       zoneId: input.zoneId,
       zoneIds: input.zoneIds,
@@ -281,6 +294,7 @@ function patchTaskFromInput(
     assignedTo: normalizeAssignedTo(input.assignedTo ?? task.assignedTo),
     rotation: input.rotation,
     rotationTurn: input.rotationTurn,
+    visibility: privateOrUndefined(input.visibility),
     mapShape: input.mapShape,
     zoneId: input.zoneId,
     zoneIds: input.zoneIds,
@@ -340,6 +354,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { syncUser } = useAuth();
   const { householdId, household } = useHousehold();
   const uid = syncUser?.uid ?? null;
+  // Prywatne obowiązki / zadania / todo — tylko z kontem (decyzja 1)
+  const privateOwner = syncUser && !syncUser.isAnonymous ? syncUser.uid : null;
   // Każda lista = podkolekcja mieszkania (src/hooks/useSyncedList.ts).
   // Stan startowy pusty — tak samo na serwerze i w przeglądarce.
   const [users, setUsers] = useSyncedList<User>({
@@ -348,17 +364,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     uid,
     sort: byCreatedAt("asc"),
   });
-  const [tasks, setTasks] = useSyncedList<Task>({
+  const [tasks, setTasks] = useVisibilityList<Task>({
     householdId,
     name: "chores",
     uid,
+    privateOwner,
     normalize: normalizeSyncedTask,
     sort: byCreatedAt("asc"),
   });
-  const [zadania, setZadania] = useSyncedList<Zadanie>({
+  const [zadania, setZadania] = useVisibilityList<Zadanie>({
     householdId,
     name: "zadania",
     uid,
+    privateOwner,
     normalize: normalizeSyncedZadanie,
     sort: byCreatedAt("asc"),
   });
@@ -368,10 +386,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     uid,
     sort: byCreatedAt("asc"),
   });
-  const [todos, setTodos] = useSyncedList<TodoItem>({
+  const [todos, setTodos] = useVisibilityList<TodoItem>({
     householdId,
     name: "todos",
     uid,
+    privateOwner,
     normalize: normalizeTodo,
     sort: byCreatedAt("desc"),
   });
@@ -605,6 +624,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         prev.map((t) =>
           t.id === id && t.scope === "personal"
             ? { ...t, assignedTo: memberId }
+            : t,
+        ),
+      );
+    },
+    [setTodos],
+  );
+
+  const setTodoVisibility = useCallback(
+    (id: string, visibility: ItemVisibility) => {
+      setTodos((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? { ...t, visibility: privateOrUndefined(visibility) }
             : t,
         ),
       );
@@ -864,6 +896,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addTodo,
     toggleTodo,
     setTodoAssignee,
+    setTodoVisibility,
     setTodoFolder,
     removeTodo,
     clearDoneTodos,

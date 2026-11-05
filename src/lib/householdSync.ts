@@ -67,16 +67,35 @@ export function indexById<T extends { id: string }>(
   return new Map(items.map((item) => [item.id, stableStringify(item)]));
 }
 
+/** Kolekcje, które mogą mieć elementy prywatne */
+export const PRIVATE_COLLECTIONS = ["chores", "zadania", "todos"] as const;
+
+/**
+ * Ścieżka listy: publiczna `households/{id}/{name}` albo prywatna
+ * `households/{id}/private/{owner}/{name}` (widzi tylko właściciel).
+ */
+export function collectionPath(
+  householdId: string,
+  name: SyncedCollection,
+  privateOwner?: string | null,
+): string[] {
+  return privateOwner
+    ? ["households", householdId, "private", privateOwner, name]
+    : ["households", householdId, name];
+}
+
 export function subscribeCollection<T extends { id: string }>(
   householdId: string,
   name: SyncedCollection,
   onData: (items: T[]) => void,
   onError?: (err: Error) => void,
+  privateOwner?: string | null,
 ): Unsubscribe | null {
   const db = getFirestoreDb();
   if (!db) return null;
+  const [first, ...rest] = collectionPath(householdId, name, privateOwner);
   return onSnapshot(
-    collection(db, "households", householdId, name),
+    collection(db, first!, ...rest),
     (snap) => {
       onData(snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T));
     },
@@ -149,16 +168,18 @@ export function itemWrites<T extends { id: string }>(
   householdId: string,
   name: SyncedCollection,
   diff: CollectionDiff<T>,
+  privateOwner?: string | null,
 ): PlannedWrite[] {
+  const base = collectionPath(householdId, name, privateOwner);
   return [
     ...diff.upserts.map((item): PlannedWrite => ({
       kind: "set",
-      path: ["households", householdId, name, item.id],
+      path: [...base, item.id],
       data: item as Record<string, unknown>,
     })),
     ...diff.deletes.map((id): PlannedWrite => ({
       kind: "delete",
-      path: ["households", householdId, name, id],
+      path: [...base, id],
     })),
   ];
 }
@@ -167,8 +188,9 @@ export async function writeCollectionDiff<T extends { id: string }>(
   householdId: string,
   name: SyncedCollection,
   diff: CollectionDiff<T>,
+  privateOwner?: string | null,
 ): Promise<void> {
   const db = getFirestoreDb();
   if (!db) throw new Error("Firestore unavailable");
-  await commitWrites(db, itemWrites(householdId, name, diff));
+  await commitWrites(db, itemWrites(householdId, name, diff, privateOwner));
 }

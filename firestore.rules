@@ -148,6 +148,15 @@ service cloud.firestore {
         allow write: if isAdmin(hid);
       }
 
+      // Prywatne obowiązki / zadania / todo — tylko autor (z kontem).
+      // Nawet administrator ogólny ich nie widzi.
+      match /private/{ownerUid}/{collection}/{itemId} {
+        allow read, write: if hasAccount()
+          && request.auth.uid == ownerUid
+          && collection in ['chores', 'zadania', 'todos']
+          && exists(memberPath(hid));
+      }
+
       // Elementy z przyciskiem „Zablokuj edycję” (decyzja 3a)
       match /{collection}/{itemId} {
         function lockable() {

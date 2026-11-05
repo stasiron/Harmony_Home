@@ -8,6 +8,7 @@ import type {
   TaskMapShape,
   TaskRecurrence,
   Zadanie,
+  ItemVisibility,
 } from "@/types";
 import { MAP_LINE_SETTINGS, resolveMapLineWidth } from "@/config/mapLine";
 import {
@@ -32,6 +33,8 @@ export type ChoreItemFormState = {
   rotationOn: boolean;
   /** Indeks w assignedToIds — czyja tura teraz */
   rotationTurn: number;
+  /** Publiczne (domyślnie) albo prywatne — tylko autor */
+  visibility: ItemVisibility;
   mapPins: MapPin[];
   mapLine: MapPoint[];
   mapLineWidth: string;
@@ -59,6 +62,7 @@ export function emptyChoreItemForm(): ChoreItemFormState {
     assignedToIds: [],
     rotationOn: false,
     rotationTurn: 0,
+    visibility: "public",
     mapPins: [],
     mapLine: [],
     mapLineWidth: String(MAP_LINE_SETTINGS.defaultWidth),
@@ -85,6 +89,8 @@ export type ChoreItemAddInput = {
   /** Kolejka „na zmianę” (≥ 2 osoby) albo undefined */
   rotation?: string[];
   rotationTurn?: number;
+  /** "private" = tylko autor; brak = publiczne */
+  visibility?: ItemVisibility;
   mapShape?: TaskMapShape;
   zoneId?: string;
   zoneIds?: string[];
@@ -168,6 +174,7 @@ export function formToChoreItemInput(
     estimatedMinutes: 1,
     assignedTo: form.assignedToIds,
     ...rotationFromForm(form, "chore"),
+    visibility: form.visibility,
     mapShape: undefined,
     zoneId: undefined,
     zoneIds: undefined,
@@ -208,6 +215,7 @@ export function formToZadanieInput(
     ...location,
     estimatedMinutes: minutes,
     ...rotationFromForm(form, "zadanie"),
+    visibility: form.visibility,
     mapPins:
       location.mapShape === "pin" && form.mapPins.length > 0
         ? form.mapPins
@@ -249,6 +257,7 @@ export function taskToChoreItemForm(task: Task): ChoreItemFormState {
     rooms,
     estimatedMinutes: String(task.estimatedMinutes),
     ...rotationToForm(task, normalizeAssignedTo(task.assignedTo)),
+    visibility: task.visibility === "private" ? "private" : "public",
     mapPins: task.mapPins ?? [],
     mapLine: task.mapLine ?? [],
     mapLineWidth: String(task.mapLineWidth ?? MAP_LINE_SETTINGS.defaultWidth),
@@ -288,6 +297,7 @@ export function zadanieToChoreItemForm(zadanie: Zadanie): ChoreItemFormState {
     rooms: rooms.length > 0 ? rooms : ["kitchen"],
     estimatedMinutes: String(zadanie.estimatedMinutes || 15),
     ...rotationToForm(zadanie, []),
+    visibility: zadanie.visibility === "private" ? "private" : "public",
     mapPins: zadanie.mapPins ?? [],
     mapLine: zadanie.mapLine ?? [],
     mapLineWidth: String(

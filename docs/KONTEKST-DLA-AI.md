@@ -73,6 +73,8 @@ Wszystko należy do **mieszkania** (`useHousehold().householdId`). Model i decyz
 
 **Kalendarz — prywatny i rzadki:** serwer weryfikuje Firebase ID token (`src/lib/firebaseToken.server.ts`, certyfikaty Google, bez firebase-admin) i oddaje tylko wydarzenia właściciela + wspólny kalendarz domu (`viewerMemberIds`). Zmiany ustawień kalendarza wymagają tokenu właściciela. Klient trzyma wydarzenia w localStorage per konto (`src/lib/calendar/feedCache.ts`): pobiera po wejściu w zakładkę, gdy dane są sprzed ostatniej 8:00 albo starsze niż 3 h; czyści przy wylogowaniu. Kalendarz nie używa Firestore.
 
+**Publiczne / prywatne** (obowiązki, zadania, todo): domyślnie publiczne (`households/{id}/{kolekcja}`, bez pola `visibility`). Prywatne to wyjątek: `visibility: "private"` w `households/{id}/private/{uid}/{kolekcja}` — reguły wpuszczają tylko autora z kontem, nawet admin ogólny nie widzi. `useVisibilityList` łączy obie listy i przy zapisie rozdziela je po `visibility` (zmiana widoczności = przeniesienie). TODO: „Dla domu” (domyślnie) / „Dla osoby” (publiczne, sprawy innych schowane pod „Podejrzyj”) / „Prywatne”.
+
 **Sync — pułapki:**
 - `useSyncedList` = `setState` + zapis różnicy do Firestore od razu (bez debounce). Odrzucony zapis cofa snapshot z serwera + toast.
 - Stan startowy pusty (SSR = pierwszy render klienta). Cache offline daje Firestore (IndexedDB), nie localStorage.

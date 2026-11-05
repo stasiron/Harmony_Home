@@ -5,6 +5,7 @@ import { useHousehold } from "@/context/HouseholdContext";
 import { useApp } from "@/context/AppContext";
 import { EditZadanieDialog } from "@/components/chores/EditZadanieDialog";
 import { TurnQueueLine } from "@/components/chores/TurnQueueLine";
+import { PrivateBadge } from "@/components/VisibilityPicker";
 import { currentTurn, isRotating, rotationMembers } from "@/lib/rotation";
 import { pickDefaultCompleter } from "@/lib/choreAssignees";
 import { IMPORTANCE_LABELS, resolveImportance } from "@/lib/choreImportance";
@@ -88,6 +89,9 @@ export function ZadanieCard({
           )}
         >
           {zadanie.name}
+          {zadanie.visibility === "private" && (
+            <PrivateBadge className="ml-2 align-middle" />
+          )}
         </div>
         {zadanie.description && (
           <p

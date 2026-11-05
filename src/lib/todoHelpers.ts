@@ -13,6 +13,8 @@ export type TodoAddInput = {
   /** Tylko personal — id domownika */
   assignedTo?: string | null;
   folderId?: string | null;
+  /** "private" = tylko autor (zapis w prywatnej ścieżce) */
+  visibility?: "public" | "private";
 };
 
 export function activeMembers(users: User[]): User[] {
@@ -92,6 +94,9 @@ export function buildTodoItem(input: TodoAddInput): TodoItem | null {
     folderId: input.folderId ?? null,
     assignedTo,
     ...(householdMode ? { householdMode } : {}),
+    ...(input.visibility === "private" && scope === "personal"
+      ? { visibility: "private" as const }
+      : {}),
     completedBy: [],
   };
 }

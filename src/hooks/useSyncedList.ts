@@ -19,6 +19,12 @@ type Options<T> = {
   uid: string | null;
   normalize?: (raw: unknown) => T | null;
   sort?: (a: T, b: T) => number;
+  /**
+   * Lista prywatna tej osoby (households/{id}/private/{owner}/{name}).
+   * `null` przy `privateList` = brak konta → lista wyłączona.
+   */
+  privateOwner?: string | null;
+  privateList?: boolean;
 };
 
 /** Kolejność wg createdAt (Firestore zwraca dokumenty po id) */
@@ -58,7 +64,11 @@ export function useSyncedList<T extends ItemMeta & { id: string }>({
   uid,
   normalize,
   sort,
+  privateOwner = null,
+  privateList = false,
 }: Options<T>): [T[], (update: ListUpdate<T>) => void, boolean] {
+  const owner = privateList ? privateOwner : null;
+  const disabled = privateList && !privateOwner;
   const [items, setItems] = useState<T[]>([]);
   const [ready, setReady] = useState(false);
   const itemsRef = useRef<T[]>([]);
@@ -77,7 +87,7 @@ export function useSyncedList<T extends ItemMeta & { id: string }>({
     readyRef.current = false;
     setItems([]);
     setReady(false);
-    if (!householdId || !uid) return;
+    if (!householdId || !uid || disabled) return;
 
     const unsubscribe = subscribeCollection<T>(
       householdId,
@@ -97,11 +107,15 @@ export function useSyncedList<T extends ItemMeta & { id: string }>({
         setReady(true);
       },
       (err) => console.error(`Firestore ${name} sync failed:`, err),
+      owner,
     );
     return () => unsubscribe?.();
     // uid tylko włącza subskrypcję — zmiana konta i tak zmienia mieszkanie
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [householdId, name, Boolean(uid)]);
+  }, [householdId, name, Boolean(uid), owner, disabled]);
+
+  const ownerRef = useRef(owner);
+  ownerRef.current = owner;
 
   const householdIdRef = useRef(householdId);
   householdIdRef.current = householdId;
@@ -132,11 +146,13 @@ export function useSyncedList<T extends ItemMeta & { id: string }>({
       if (diff.upserts.length === 0 && diff.deletes.length === 0) return;
 
       knownRef.current = indexById(stamped);
-      void writeCollectionDiff(targetId, name, diff).catch((err) => {
-        console.error(`Firestore ${name} save failed:`, err);
-        // Stałe id — przy serii odrzuconych zapisów jeden toast, nie dziesiątki
-        toast.error(writeErrorMessage(err), { id: "firestore-write-error" });
-      });
+      void writeCollectionDiff(targetId, name, diff, ownerRef.current).catch(
+        (err) => {
+          console.error(`Firestore ${name} save failed:`, err);
+          // Stałe id — przy serii odrzuconych zapisów jeden toast, nie dziesiątki
+          toast.error(writeErrorMessage(err), { id: "firestore-write-error" });
+        },
+      );
     },
     [name],
   );
