@@ -106,9 +106,30 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.householdId == hid)
         );
 
+        // Własny wpis: profil + dane konta, ale tylko zgodne z tokenem —
+        // nikt nie wpisze sobie cudzego e-maila (admin łączy konta po nim)
+        function memberChanged() {
+          return request.resource.data.diff(resource.data).affectedKeys();
+        }
+
+        function tokenProvider() {
+          return request.auth.token.firebase.sign_in_provider;
+        }
+
+        function selfUpdateOk() {
+          return memberChanged().hasOnly([
+              'profileId', 'displayName', 'email', 'anonymous', 'provider'
+            ])
+            && (!memberChanged().hasAny(['email'])
+              || request.resource.data.email == request.auth.token.get('email', null))
+            && (!memberChanged().hasAny(['anonymous'])
+              || request.resource.data.anonymous == (tokenProvider() == 'anonymous'))
+            && (!memberChanged().hasAny(['provider'])
+              || request.resource.data.provider == tokenProvider());
+        }
+
         allow update: if isAdmin(hid)
-          || (signedIn() && request.auth.uid == uid
-            && changedOnly(['profileId', 'displayName']));
+          || (signedIn() && request.auth.uid == uid && selfUpdateOk());
 
         // Admin usuwa, każdy może wyjść sam
         allow delete: if isAdmin(hid) || (signedIn() && request.auth.uid == uid);

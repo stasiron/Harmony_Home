@@ -284,6 +284,21 @@ describe("tworzenie i dołączanie", () => {
     );
   });
 
+  it("własny wpis: dane konta tylko zgodne z tokenem", async () => {
+    const db = dbAs("alice");
+    const ref = doc(db, "households", HID, "members", "alice");
+    await assertSucceeds(
+      updateDoc(ref, {
+        email: "alice@example.com",
+        anonymous: false,
+        provider: "google.com",
+      }),
+    );
+    await assertFails(updateDoc(ref, { email: "admin@example.com" }));
+    await assertFails(updateDoc(ref, { anonymous: true }));
+    await assertFails(updateDoc(ref, { provider: "password" }));
+  });
+
   it("zaproszenia tworzy tylko admin", async () => {
     await assertFails(
       setDoc(doc(dbAs("alice"), "invites", "NEW"), {

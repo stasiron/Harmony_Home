@@ -60,6 +60,22 @@ function requireDb() {
   return db;
 }
 
+/** Jak zalogowane jest to konto — tak samo jak sign_in_provider w tokenie */
+export function providerOf(user: FirebaseUser): string | null {
+  if (user.isAnonymous) return "anonymous";
+  return user.providerData[0]?.providerId ?? null;
+}
+
+/** Dane konta w dokumencie członkostwa — odświeżane, gdy się zmienią */
+export function memberAccountFields(user: FirebaseUser) {
+  return {
+    anonymous: user.isAnonymous,
+    displayName: user.displayName ?? null,
+    email: user.email ?? null,
+    provider: providerOf(user),
+  };
+}
+
 function memberFor(
   user: FirebaseUser,
   role: HouseholdRole,
@@ -71,9 +87,7 @@ function memberFor(
     uid: user.uid,
     role,
     profileId,
-    anonymous: user.isAnonymous,
-    displayName: user.displayName ?? null,
-    email: user.email ?? null,
+    ...memberAccountFields(user),
     joinedAt: now,
     ...(inviteCode ? { inviteCode } : {}),
   };
@@ -433,7 +447,12 @@ export async function updateHouseholdMeta(
 export async function updateMember(
   householdId: string,
   uid: string,
-  patch: Partial<Pick<HouseholdMember, "role" | "profileId" | "displayName">>,
+  patch: Partial<
+    Pick<
+      HouseholdMember,
+      "role" | "profileId" | "displayName" | "email" | "anonymous" | "provider"
+    >
+  >,
 ) {
   guardWriteBudget();
   await updateDoc(

@@ -12,6 +12,7 @@ import { subscribeFloorPlanImage, type FloorPlanImage } from "@/lib/floorPlan";
 import {
   createHousehold as createHouseholdDocs,
   isSuperAdmin as isSuperAdminUser,
+  memberAccountFields,
   subscribeAllHouseholds,
   joinHousehold as joinHouseholdDocs,
   migrateLegacyHousehold,
@@ -210,6 +211,20 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [members, uid],
   );
   const isAdmin = superAdmin || me?.role === "admin";
+
+  // Własny wpis członkostwa pokazuje aktualne konto (np. po zalogowaniu
+  // linkiem urządzenie przestaje być „bez konta”) — zapis tylko przy zmianie
+  useEffect(() => {
+    if (!me || !syncUser || !householdId) return;
+    const fields = memberAccountFields(syncUser);
+    const stale = (Object.keys(fields) as (keyof typeof fields)[]).some(
+      (key) => (me[key] ?? null) !== fields[key],
+    );
+    if (!stale) return;
+    void updateMember(householdId, syncUser.uid, fields).catch((err) =>
+      console.error("Member account sync failed:", err),
+    );
+  }, [me, syncUser, householdId]);
 
   const canMigrateLegacy =
     superAdmin &&

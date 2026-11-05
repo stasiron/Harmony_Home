@@ -284,6 +284,8 @@ export interface HouseholdMember {
   anonymous: boolean;
   displayName: string | null;
   email: string | null;
+  /** sign_in_provider z tokenu: google.com, password (link e-mail), anonymous */
+  provider?: string | null;
   joinedAt: string;
   inviteCode?: string;
 }

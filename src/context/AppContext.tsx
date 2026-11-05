@@ -117,6 +117,8 @@ interface AppState {
   removeLaundryProgram: (id: string) => void;
   triggerDevice: (id: string) => void;
   addUser: (name: string) => void;
+  renameUser: (id: string, name: string) => void;
+  removeUser: (id: string) => void;
   addTask: (input: ChoreItemAddInput & { linkedZadanieIds?: string[] }) => void;
   updateTask: (
     id: string,
@@ -749,6 +751,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [setUsers],
   );
 
+  const renameUser = useCallback(
+    (id: string, name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === id
+            ? { ...u, name: trimmed, avatar: trimmed.charAt(0).toUpperCase() }
+            : u,
+        ),
+      );
+    },
+    [setUsers],
+  );
+
+  const removeUser = useCallback(
+    (id: string) => setUsers((prev) => prev.filter((u) => u.id !== id)),
+    [setUsers],
+  );
+
   const addTask = useCallback(
     (input: ChoreItemAddInput & { linkedZadanieIds?: string[] }) => {
       const trimmed = input.name.trim();
@@ -852,6 +874,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     removeLaundryProgram,
     triggerDevice,
     addUser,
+    renameUser,
+    removeUser,
     addTask,
     updateTask,
     addZadanie,
