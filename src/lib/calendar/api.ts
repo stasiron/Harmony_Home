@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { PersonalIcal } from "@/lib/personalIcal";
+import type { SharedCalendarSettings } from "@/types";
 
 export type {
   CalendarFeedEvent,
@@ -15,6 +16,8 @@ export const fetchCalendarEvents = createServerFn({ method: "POST" })
       idToken?: string | null;
       /** Własne linki iCal z prywatnego zapisu (users/{uid}/private) */
       icals?: PersonalIcal[];
+      /** Wspólny kalendarz domu z ustawień mieszkania */
+      shared?: SharedCalendarSettings | null;
     }) => data,
   )
   .handler(async ({ data }) => {
@@ -23,13 +26,13 @@ export const fetchCalendarEvents = createServerFn({ method: "POST" })
     return fetchCalendarEventsImpl(data);
   });
 
-export const checkGuestCalendar = createServerFn({ method: "GET" }).handler(
-  async () => {
+export const checkGuestCalendar = createServerFn({ method: "POST" })
+  .validator((data: { shared?: SharedCalendarSettings | null }) => data)
+  .handler(async ({ data }) => {
     const { runCheckGuestCalendar } =
       await import("@/lib/check-guest-calendar.server");
-    return runCheckGuestCalendar();
-  },
-);
+    return runCheckGuestCalendar(data.shared);
+  });
 
 /** POST — ID token nie może trafić do adresu URL (logi) */
 export const getCalendarConnectionStatus = createServerFn({

@@ -2,10 +2,12 @@ import { GUEST_LEAD_HOURS, GUEST_TAIL_HOURS } from "@/config/guests";
 import { logServerWarn } from "@/lib/serverLog";
 import type { GuestCalendarStatus } from "@/lib/calendar-feed-types";
 import {
-  fetchGoogleCalendarIcal,
   isGuestCalendarEvent,
   parseGoogleCalendarEvents,
 } from "@/lib/googleCalendar";
+import { fetchIcalText } from "@/lib/memberCalendars.server";
+import { normalizeIcalUrl } from "@/lib/personalIcal";
+import type { SharedCalendarSettings } from "@/types";
 
 function isGuestWindowActive(
   start: Date,
@@ -19,32 +21,32 @@ function isGuestWindowActive(
   return now >= startMs - leadMs && now <= endMs + tailMs;
 }
 
-export async function runCheckGuestCalendar(): Promise<GuestCalendarStatus> {
-  let ical: string | null;
+const NOT_CONFIGURED: GuestCalendarStatus = {
+  active: false,
+  eventTitle: null,
+  eventStart: null,
+  configured: false,
+};
+
+/** Tryb gości z wspólnego kalendarza domu (ustawienie mieszkania) */
+export async function runCheckGuestCalendar(
+  shared: SharedCalendarSettings | null | undefined,
+): Promise<GuestCalendarStatus> {
+  const url = shared?.icalUrl ? normalizeIcalUrl(shared.icalUrl) : null;
+  if (!url) return NOT_CONFIGURED;
+
+  let ical: string;
   try {
-    ical = await fetchGoogleCalendarIcal();
+    ical = await fetchIcalText(url);
   } catch (error) {
     logServerWarn("guest-calendar", error);
-    return {
-      active: false,
-      eventTitle: null,
-      eventStart: null,
-      configured: true,
-    };
+    return { ...NOT_CONFIGURED, configured: true };
   }
 
-  if (!ical) {
-    return {
-      active: false,
-      eventTitle: null,
-      eventStart: null,
-      configured: false,
-    };
-  }
-
+  const keywords = shared?.guestLocationKeywords ?? [];
   const now = Date.now();
   const hits = parseGoogleCalendarEvents(ical)
-    .filter((e) => isGuestCalendarEvent(e.summary, e.location))
+    .filter((e) => isGuestCalendarEvent(e.summary, e.location, keywords))
     .filter((e) => isGuestWindowActive(e.start, e.end, now))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 

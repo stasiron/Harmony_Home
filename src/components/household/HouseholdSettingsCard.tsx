@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SharedCalendarField } from "@/components/household/SharedCalendarField";
 import { WeatherLocationPicker } from "@/components/weather/WeatherLocationPicker";
 import { householdWeatherLocation } from "@/lib/weather";
 import {
@@ -159,6 +160,8 @@ export function HouseholdSettingsCard() {
           </p>
         )}
       </div>
+
+      <SharedCalendarField />
 
       {isAdmin && (
         <div className="space-y-2">

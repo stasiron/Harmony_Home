@@ -1,18 +1,22 @@
 import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { checkGuestCalendar } from "@/lib/calendar/api";
+import type { SharedCalendarSettings } from "@/types";
 
 const GUEST_CALENDAR_REFRESH_MS = 15 * 60 * 1000;
 
 export function useGuestCalendarSync(
   setGuestsMode: (v: boolean) => void,
   setGuestCalendarHint: (v: string | null) => void,
-  enabled: boolean,
+  shared: SharedCalendarSettings | null | undefined,
 ) {
   const runCheck = useServerFn(checkGuestCalendar);
+  const sharedKey = shared
+    ? `${shared.icalUrl}|${(shared.guestLocationKeywords ?? []).join(",")}`
+    : "";
 
   useEffect(() => {
-    if (!enabled) {
+    if (!shared?.icalUrl) {
       setGuestsMode(false);
       setGuestCalendarHint(null);
       return;
@@ -21,7 +25,7 @@ export function useGuestCalendarSync(
 
     const sync = async () => {
       try {
-        const status = await runCheck();
+        const status = await runCheck({ data: { shared } });
         if (cancelled) return;
         setGuestsMode(status.active);
         setGuestCalendarHint(status.active ? status.eventTitle : null);
@@ -36,5 +40,7 @@ export function useGuestCalendarSync(
       cancelled = true;
       clearInterval(id);
     };
-  }, [enabled, runCheck, setGuestsMode, setGuestCalendarHint]);
+    // sharedKey zmienia się razem z ustawieniem
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedKey, runCheck, setGuestsMode, setGuestCalendarHint]);
 }

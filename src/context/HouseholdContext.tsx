@@ -34,6 +34,7 @@ import type {
   HouseholdRole,
   ItemMeta,
   Membership,
+  SharedCalendarSettings,
   WeatherLocation,
 } from "@/types";
 
@@ -86,6 +87,7 @@ type HouseholdContextValue = {
   migrateLegacy: () => Promise<void>;
   renameHousehold: (name: string) => Promise<void>;
   setWeatherLocation: (location: WeatherLocation) => Promise<void>;
+  setSharedCalendar: (settings: SharedCalendarSettings | null) => Promise<void>;
   setZones: (zones: HomeZone[]) => Promise<void>;
   regenerateInvite: () => Promise<string>;
   linkProfile: (profileId: string | null) => Promise<void>;
@@ -287,6 +289,15 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [requireHousehold],
   );
 
+  const setSharedCalendar = useCallback(
+    async (settings: SharedCalendarSettings | null) => {
+      await updateHouseholdMeta(requireHousehold(), {
+        sharedCalendar: settings,
+      });
+    },
+    [requireHousehold],
+  );
+
   const setZones = useCallback(
     async (zones: HomeZone[]) => {
       await updateHouseholdMeta(requireHousehold(), { zones });
@@ -370,6 +381,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     migrateLegacy,
     renameHousehold,
     setWeatherLocation,
+    setSharedCalendar,
     setZones,
     regenerateInvite,
     linkProfile,

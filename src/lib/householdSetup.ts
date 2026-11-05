@@ -35,6 +35,7 @@ import type {
   ItemMeta,
   Membership,
   PanicState,
+  SharedCalendarSettings,
   User,
   WeatherLocation,
 } from "@/types";
@@ -433,6 +434,12 @@ export function subscribeHouseholdMeta(
           data.panic && typeof data.panic === "object"
             ? (data.panic as PanicState)
             : null,
+        sharedCalendar:
+          data.sharedCalendar &&
+          typeof (data.sharedCalendar as SharedCalendarSettings).icalUrl ===
+            "string"
+            ? (data.sharedCalendar as SharedCalendarSettings)
+            : null,
         ...(typeof data.inviteCode === "string"
           ? { inviteCode: data.inviteCode }
           : {}),
@@ -462,7 +469,10 @@ export function subscribeMembers(
 export async function updateHouseholdMeta(
   householdId: string,
   patch: Partial<
-    Pick<HouseholdMeta, "name" | "zones" | "floorPlan" | "weatherLocation">
+    Pick<
+      HouseholdMeta,
+      "name" | "zones" | "floorPlan" | "weatherLocation" | "sharedCalendar"
+    >
   >,
 ) {
   guardWriteBudget();

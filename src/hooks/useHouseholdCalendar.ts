@@ -17,6 +17,7 @@ import {
 } from "@/lib/calendar/feedCache";
 import { useAuth } from "@/context/AuthContext";
 import { usePersonalIcals } from "@/lib/personalCalendars";
+import { useHousehold } from "@/context/HouseholdContext";
 import { effectiveAssignees } from "@/lib/rotation";
 import {
   choresDueOnDate,
@@ -54,6 +55,8 @@ export function useHouseholdCalendar(
   filters: CalendarFilters,
 ) {
   const { icals, ready: icalsReady } = usePersonalIcals();
+  const { household } = useHousehold();
+  const sharedKey = household?.sharedCalendar?.icalUrl ?? "";
   const loadEvents = useServerFn(fetchCalendarEvents);
   const { syncUser } = useAuth();
   const viewerUid = syncUser?.uid ?? null;
@@ -91,14 +94,14 @@ export function useHouseholdCalendar(
   const icalsKey = icals
     .map((i) => `${i.id}:${i.enabled !== false}:${i.display}`)
     .join(",");
-  const cacheKey = `${viewerUid ?? "none"}:${rangeKey}:${icalsKey}`;
+  const cacheKey = `${viewerUid ?? "none"}:${rangeKey}:${icalsKey}:${sharedKey}`;
   const cached = useMemo(
     () => (typeof window === "undefined" ? null : readCachedFeed(cacheKey)),
     [cacheKey],
   );
 
   const feedQuery = useQuery({
-    queryKey: ["calendar-feed", viewerUid, rangeKey, icalsKey],
+    queryKey: ["calendar-feed", viewerUid, rangeKey, icalsKey, sharedKey],
     queryFn: async () => {
       const idToken = (await syncUser?.getIdToken()) ?? null;
       const data = await loadEvents({
@@ -107,6 +110,7 @@ export function useHouseholdCalendar(
           to: range.to.toISOString(),
           idToken,
           icals,
+          shared: household?.sharedCalendar ?? null,
         },
       });
       writeCachedFeed(cacheKey, data);

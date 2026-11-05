@@ -1,5 +1,3 @@
-import { getIcalFallbackSources } from "@/config/calendars";
-import type { RegisteredCalendar } from "@/config/calendars";
 import type {
   CalendarFeedEvent,
   CalendarFeedResult,
@@ -26,6 +24,7 @@ import {
   type VerifiedViewer,
 } from "@/lib/firebaseToken.server";
 import { normalizeIcalUrl, type PersonalIcal } from "@/lib/personalIcal";
+import type { SharedCalendarSettings } from "@/types";
 
 /**
  * Kalendarz należy do konta (uid), nie do mieszkania ani wpisu w kodzie.
@@ -35,10 +34,6 @@ import { normalizeIcalUrl, type PersonalIcal } from "@/lib/personalIcal";
 
 /** Kalendarz wspólny domu (goście) — widzi każdy domownik */
 export const SHARED_MEMBER_ID = "household";
-
-export function resolveEnvCalendarUrl(envKey: string): string {
-  return process.env[envKey]?.trim() ?? "";
-}
 
 export async function fetchIcalText(url: string): Promise<string> {
   const res = await fetch(url, { headers: { Accept: "text/calendar" } });
@@ -73,6 +68,7 @@ type IcalSource = {
   ownerId: string;
   ownerName: string;
   url: string;
+  guestLocationKeywords?: string[];
 };
 
 function mapIcalEvents(
@@ -91,7 +87,11 @@ function mapIcalEvents(
       end: e.end?.toISOString() ?? null,
       isGuest:
         source.ownerId === SHARED_MEMBER_ID &&
-        isGuestCalendarEvent(e.summary, e.location),
+        isGuestCalendarEvent(
+          e.summary,
+          e.location,
+          source.guestLocationKeywords,
+        ),
       memberId: source.ownerId,
       memberName: source.ownerName,
       calendarId: source.id,
@@ -186,22 +186,24 @@ export function canHavePersonalCalendar(
   return Boolean(viewer && !viewer.anonymous);
 }
 
-function householdSources(): IcalSource[] {
-  return getIcalFallbackSources().flatMap((source: RegisteredCalendar) => {
-    const url = resolveEnvCalendarUrl(source.envKey);
-    if (!url) return [];
-    return [
-      {
-        id: source.id,
-        label: source.label,
-        display: source.display,
-        color: source.color,
-        ownerId: SHARED_MEMBER_ID,
-        ownerName: source.memberName,
-        url,
-      },
-    ];
-  });
+/** Wspólny kalendarz domu z ustawień mieszkania (HouseholdMeta.sharedCalendar) */
+function householdSources(
+  shared: SharedCalendarSettings | null | undefined,
+): IcalSource[] {
+  const url = shared?.icalUrl ? normalizeIcalUrl(shared.icalUrl) : null;
+  if (!url) return [];
+  return [
+    {
+      id: "household",
+      label: shared?.label?.trim() || "Kalendarz domu",
+      display: "full",
+      color: "primary",
+      ownerId: SHARED_MEMBER_ID,
+      ownerName: "Dom",
+      url,
+      guestLocationKeywords: shared?.guestLocationKeywords,
+    },
+  ];
 }
 
 export async function fetchCalendarEventsImpl(data: {
@@ -209,13 +211,14 @@ export async function fetchCalendarEventsImpl(data: {
   to: string;
   idToken?: string | null;
   icals?: PersonalIcal[];
+  shared?: SharedCalendarSettings | null;
 }): Promise<CalendarFeedResult> {
   const rangeStart = new Date(data.from);
   const rangeEnd = new Date(data.to);
   const viewer = await verifyFirebaseIdToken(data.idToken);
   const events: CalendarFeedEvent[] = [];
 
-  const shared = householdSources();
+  const shared = householdSources(data.shared);
   const personal: IcalSource[] = [];
   let connection: MemberConnection | undefined;
 

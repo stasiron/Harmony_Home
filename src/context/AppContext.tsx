@@ -456,11 +456,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const usersRef = useRef(users);
   usersRef.current = users;
 
-  // Kalendarze Google są skonfigurowane tylko dla pierwszego mieszkania
+  // Wspólny kalendarz domu z ustawień mieszkania włącza tryb gości
   useGuestCalendarSync(
     setGuestsMode,
     setGuestCalendarHint,
-    Boolean(household?.features?.legacyCalendar),
+    household?.sharedCalendar,
   );
 
   const daysSince = useCallback((iso: string) => {

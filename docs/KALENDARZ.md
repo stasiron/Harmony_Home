@@ -1,6 +1,6 @@
 # Kalendarz: własny, prywatny, per konto
 
-Kalendarz należy do **konta**, nie do mieszkania. Widzi go tylko właściciel, w każdym swoim mieszkaniu (zakładka Kalendarz). Wspólny kalendarz domu (`GOOGLE_CALENDAR_ICAL_URL`) widzą wszyscy.
+Kalendarz należy do **konta**, nie do mieszkania. Widzi go tylko właściciel, w każdym swoim mieszkaniu (zakładka Kalendarz). Wspólny kalendarz domu widzą wszyscy domownicy. Ustawia go administrator w Ustawieniach → Mieszkanie (link iCal i fragmenty adresu do wykrywania gości). Zmienna `GOOGLE_CALENDAR_ICAL_URL` nie jest już używana.
 
 Są dwa sposoby, oba w Ustawieniach → **Mój kalendarz**:
 

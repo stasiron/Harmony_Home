@@ -271,6 +271,18 @@ export type FloorPlanRef =
   /** households/{id}/assets/floorPlan */
   | { kind: "upload"; width: number; height: number; updatedAt: string };
 
+export interface SharedCalendarSettings {
+  /** Link iCal (Google / Outlook / iCloud) */
+  icalUrl: string;
+  label?: string;
+  /**
+   * Fragmenty adresu, np. ["andersa", "częstochowa"] — wydarzenie z takim
+   * miejscem (wszystkie fragmenty) włącza tryb gości. Pusta lista: tylko
+   * słowa w tytule (goście, wizyta…).
+   */
+  guestLocationKeywords?: string[];
+}
+
 export interface WeatherLocation {
   /** Do wyświetlania, np. „Kraków” */
   name: string;
@@ -294,6 +306,8 @@ export interface HouseholdMeta {
   weatherLocation?: WeatherLocation;
   /** Tryb PANIC (goście) — wspólny dla wszystkich urządzeń mieszkania */
   panic?: PanicState | null;
+  /** Wspólny kalendarz domu — widzą wszyscy; włącza tryb gości */
+  sharedCalendar?: SharedCalendarSettings | null;
   features?: {
     /** Kalendarze Google z src/config/calendars — tylko pierwsze mieszkanie */
     legacyCalendar?: boolean;
