@@ -70,6 +70,12 @@ service cloud.firestore {
       }
     }
 
+    // Ustawienia całej aplikacji (src/lib/globalConfig.ts)
+    match /config/{docId} {
+      allow read: if signedIn();
+      allow write: if isSuperAdmin();
+    }
+
     match /invites/{code} {
       // get po znanym kodzie tak, list nie — kodów nie da się wyliczyć
       allow get: if signedIn();

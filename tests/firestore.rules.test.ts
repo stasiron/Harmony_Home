@@ -198,6 +198,22 @@ describe("administrator ogólny", () => {
     await assertFails(getDocs(collection(dbAs("alice"), "households")));
   });
 
+  it("ustawienia całej aplikacji: czyta każdy, zapisuje tylko on", async () => {
+    await assertSucceeds(
+      setDoc(doc(superAdmin(), "config", "global"), {
+        googleLoginNotice: true,
+      }),
+    );
+    await assertSucceeds(
+      getDoc(doc(dbAs("tablet", anonymous), "config", "global")),
+    );
+    await assertFails(
+      setDoc(doc(dbAs("admin"), "config", "global"), {
+        googleLoginNotice: false,
+      }),
+    );
+  });
+
   it("tylko ten adres i tylko zweryfikowany", async () => {
     const other = dbAs("x", google("x", "someone@gmail.com"));
     await assertFails(getDoc(doc(other, "households", HID)));

@@ -10,8 +10,13 @@ import {
 } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
+  isSignInWithEmailLink,
+  linkWithCredential,
   onAuthStateChanged,
+  sendSignInLinkToEmail,
+  signInWithEmailLink,
   signInAnonymously,
   signInWithPopup,
   signInWithRedirect,
@@ -57,6 +62,11 @@ type AuthContextValue = {
   error: string | null;
   configured: boolean;
   signInWithGoogle: () => Promise<void>;
+  /** Logowanie linkiem na e-mail — bez ekranów Google, bez kalendarza */
+  sendEmailLink: (email: string) => Promise<void>;
+  /** Otwarto link z maila na innym urządzeniu — trzeba podać adres */
+  emailLinkPending: boolean;
+  completeEmailLink: (email: string) => Promise<void>;
   syncCalendar: () => Promise<void>;
   connectPersistentCalendar: () => void;
   signOut: () => Promise<void>;
@@ -106,6 +116,58 @@ function writeAutoConnectAttempt(value: string | null) {
   }
 }
 
+const EMAIL_FOR_LINK_KEY = "emailForSignIn";
+
+function readEmailForLink(): string | null {
+  try {
+    return localStorage.getItem(EMAIL_FOR_LINK_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeEmailForLink(email: string | null) {
+  try {
+    if (email) localStorage.setItem(EMAIL_FOR_LINK_KEY, email);
+    else localStorage.removeItem(EMAIL_FOR_LINK_KEY);
+  } catch {
+    // prywatne okno — przy otwarciu linku zapytamy o adres
+  }
+}
+
+/**
+ * Kończy logowanie linkiem. Urządzenie bez konta (anonimowe) dostaje konto
+ * pod tym samym uid — mieszkania, do których dołączyło, zostają.
+ */
+async function finishEmailLinkSignIn(auth: Auth, email: string, href: string) {
+  await auth.authStateReady();
+  const current = auth.currentUser;
+  if (current?.isAnonymous) {
+    try {
+      await linkWithCredential(
+        current,
+        EmailAuthProvider.credentialWithLink(email, href),
+      );
+      await current.getIdToken(true);
+    } catch (err) {
+      const code = authErrorCode(err);
+      if (
+        code !== "auth/credential-already-in-use" &&
+        code !== "auth/email-already-in-use" &&
+        code !== "auth/provider-already-linked"
+      ) {
+        throw err;
+      }
+      // Konto z tym adresem już istnieje — po prostu się na nie loguj
+      await signInWithEmailLink(auth, email, href);
+    }
+  } else {
+    await signInWithEmailLink(auth, email, href);
+  }
+  writeEmailForLink(null);
+  window.history.replaceState(null, "", window.location.pathname);
+}
+
 function authErrorCode(err: unknown): string {
   return err && typeof err === "object" && "code" in err
     ? String((err as { code: string }).code)
@@ -120,6 +182,11 @@ function authErrorMessage(err: unknown): string {
       return "Domena nieautoryzowana — dodaj ją w Firebase Console → Authentication → Authorized domains.";
     case "auth/operation-not-allowed":
       return "Logowanie Google wyłączone w Firebase Console → Authentication → Sign-in method.";
+    case "auth/invalid-action-code":
+    case "auth/expired-action-code":
+      return "Ten link logowania już wygasł albo był użyty — poproś o nowy.";
+    case "auth/invalid-email":
+      return "To nie wygląda na adres e-mail.";
     case "auth/network-request-failed":
       return "Brak połączenia z Firebase. Sprawdź internet i spróbuj ponownie.";
     default:
@@ -195,6 +262,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [syncingCalendar, setSyncingCalendar] = useState(false);
   const [calendarSyncTick, setCalendarSyncTick] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [emailLinkPending, setEmailLinkPending] = useState(false);
+  // linkWithCredential zmienia ten sam obiekt User — wymuś przerysowanie
+  const [, setUserTick] = useState(0);
 
   const connectCalendarIfPending = useCallback(
     async (linkedMemberId: string | null) => {
@@ -279,6 +349,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) {
           console.error("Firebase redirect sign-in failed:", err);
           setError(authErrorMessage(err));
+        }
+      }
+
+      if (cancelled) return;
+
+      const href = window.location.href;
+      if (isSignInWithEmailLink(auth, href)) {
+        const email = readEmailForLink();
+        if (email) {
+          try {
+            await finishEmailLinkSignIn(auth, email, href);
+            setUserTick((tick) => tick + 1);
+          } catch (err) {
+            console.error("Email link sign-in failed:", err);
+            if (!cancelled) setError(authErrorMessage(err));
+          }
+        } else if (!cancelled) {
+          setEmailLinkPending(true);
         }
       }
 
@@ -393,6 +481,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [startGoogleSignIn]);
 
+  const sendEmailLink = useCallback(async (email: string) => {
+    const auth = getFirebaseAuth();
+    if (!auth) throw new Error("Firebase nie skonfigurowany.");
+    const trimmed = email.trim();
+    try {
+      await sendSignInLinkToEmail(auth, trimmed, {
+        url: `${window.location.origin}/?emailLink=1`,
+        handleCodeInApp: true,
+      });
+      writeEmailForLink(trimmed);
+    } catch (err) {
+      if (authErrorCode(err) === "auth/operation-not-allowed") {
+        throw new Error(
+          "Logowanie linkiem jest jeszcze wyłączone — administrator włączy je w Firebase (Authentication → E-mail/hasło → link e-mail).",
+        );
+      }
+      throw new Error(authErrorMessage(err));
+    }
+  }, []);
+
+  const completeEmailLink = useCallback(async (email: string) => {
+    const auth = getFirebaseAuth();
+    if (!auth) return;
+    try {
+      await finishEmailLinkSignIn(auth, email.trim(), window.location.href);
+      setEmailLinkPending(false);
+      setUserTick((tick) => tick + 1);
+    } catch (err) {
+      throw new Error(authErrorMessage(err));
+    }
+  }, []);
+
   const connectPersistentCalendar = useCallback(() => {
     if (!memberId) {
       setError("Wybierz profil domownika przed synchronizacją kalendarza.");
@@ -484,6 +604,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       configured,
       signInWithGoogle,
+      sendEmailLink,
+      emailLinkPending,
+      completeEmailLink,
       syncCalendar,
       connectPersistentCalendar,
       signOut,
@@ -503,6 +626,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       configured,
       signInWithGoogle,
+      sendEmailLink,
+      emailLinkPending,
+      completeEmailLink,
       syncCalendar,
       connectPersistentCalendar,
       signOut,

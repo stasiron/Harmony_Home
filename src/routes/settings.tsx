@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Shell } from "@/components/Shell";
 import { HomeZoneEditor } from "@/components/chores/HomeZoneEditor";
 import { GoogleAccountCard } from "@/components/settings/GoogleAccountCard";
+import { SuperAdminCard } from "@/components/settings/SuperAdminCard";
 import { ChoreWeightSettingsCard } from "@/components/settings/ChoreWeightSettingsCard";
 import { FloorPlanCard } from "@/components/household/NoFloorPlan";
 import { HouseholdSettingsCard } from "@/components/household/HouseholdSettingsCard";
@@ -96,6 +97,7 @@ function SettingsPage() {
         </p>
       )}
 
+      <SuperAdminCard />
       <GoogleAccountCard />
 
       {household && (

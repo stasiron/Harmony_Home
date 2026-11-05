@@ -13,6 +13,7 @@ import {
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
+import { LoginDialog } from "@/components/auth/LoginDialog";
 import { getCalendarConnectionStatus } from "@/lib/calendar/api";
 import { firebaseProjectId } from "@/lib/firebase";
 import { guessMemberId } from "@/lib/memberLink";
@@ -32,7 +33,6 @@ export function GoogleAccountCard() {
     calendarSyncTick,
     error,
     configured,
-    signInWithGoogle,
     syncCalendar,
     connectPersistentCalendar,
     signOut,
@@ -158,13 +158,14 @@ export function GoogleAccountCard() {
         ) : (
           <>
             <p className="text-sm text-muted-foreground">Nie zalogowano</p>
-            <Button
-              onClick={() => void signInWithGoogle()}
-              disabled={!configured || loading}
-            >
-              <LogIn />
-              Zaloguj przez Google
-            </Button>
+            <LoginDialog
+              trigger={
+                <Button disabled={!configured || loading}>
+                  <LogIn />
+                  Zaloguj się
+                </Button>
+              }
+            />
           </>
         )}
       </div>

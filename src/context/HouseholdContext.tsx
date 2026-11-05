@@ -68,6 +68,8 @@ type HouseholdContextValue = {
   members: HouseholdMember[];
   me: HouseholdMember | null;
   isAdmin: boolean;
+  /** Administrator ogólny — admin każdego mieszkania */
+  isSuperAdmin: boolean;
   /** Konto Google — prywatne miejsca i blokowanie elementów (decyzja 1) */
   hasAccount: boolean;
   /** Domownik (User.id) połączony z tym kontem / urządzeniem */
@@ -330,6 +332,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     members,
     me,
     isAdmin,
+    isSuperAdmin: superAdmin,
     hasAccount,
     myProfileId: me?.profileId ?? null,
     zones: household?.zones ?? [],

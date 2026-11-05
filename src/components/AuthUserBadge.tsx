@@ -13,6 +13,7 @@ import {
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
+import { LoginDialog } from "@/components/auth/LoginDialog";
 
 export function AuthUserBadge() {
   const { user, seeAsMemberId, loading, setSeeAsMember, clearSeeAs } =
@@ -82,9 +83,13 @@ export function AuthUserBadge() {
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" size="sm" className="rounded-xl" asChild>
-          <Link to="/settings">Zaloguj</Link>
-        </Button>
+        <LoginDialog
+          trigger={
+            <Button variant="outline" size="sm" className="rounded-xl">
+              Zaloguj
+            </Button>
+          }
+        />
       </div>
     );
   }

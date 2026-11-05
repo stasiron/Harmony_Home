@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CopyFloorPlanPromptButton } from "@/components/household/NoFloorPlan";
+import { LoginDialog } from "@/components/auth/LoginDialog";
 import { HOUSEHOLD_PRESETS } from "@/config/presets";
 import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
@@ -127,7 +128,7 @@ export function JoinHouseholdCard() {
 }
 
 export function CreateHouseholdCard({ onCreated }: { onCreated?: () => void }) {
-  const { user, signInWithGoogle } = useAuth();
+  const { user } = useAuth();
   const { createHousehold } = useHousehold();
   const fileRef = useRef<HTMLInputElement>(null);
   const firstName = user?.displayName?.split(" ")[0] ?? "";
@@ -144,12 +145,16 @@ export function CreateHouseholdCard({ onCreated }: { onCreated?: () => void }) {
       <Card
         icon={<Home className="size-5" />}
         title="Nowe mieszkanie"
-        description="Do założenia mieszkania potrzebne jest konto Google — zostaniesz jego administratorem."
+        description="Do założenia mieszkania potrzebne jest konto (Google albo link na e-mail) — zostaniesz jego administratorem."
       >
-        <Button onClick={() => void signInWithGoogle()}>
-          <LogIn className="size-4" />
-          Zaloguj przez Google
-        </Button>
+        <LoginDialog
+          trigger={
+            <Button>
+              <LogIn className="size-4" />
+              Zaloguj się
+            </Button>
+          }
+        />
       </Card>
     );
   }

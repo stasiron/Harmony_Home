@@ -12,6 +12,8 @@ import { type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { GlobalConfigProvider } from "@/context/GlobalConfigContext";
+import { EmailLinkCompletion } from "@/components/auth/EmailLinkCompletion";
 import { HouseholdProvider } from "@/context/HouseholdContext";
 import { HouseholdGate } from "@/components/household/HouseholdGate";
 import { AppVersionFooter } from "@/components/AppVersionFooter";
@@ -154,16 +156,19 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <HouseholdProvider>
-          <AppProvider>
-            <HouseholdGate>
-              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-              <Outlet />
-            </HouseholdGate>
-            <AppVersionFooter />
-            <Toaster />
-          </AppProvider>
-        </HouseholdProvider>
+        <GlobalConfigProvider>
+          <HouseholdProvider>
+            <AppProvider>
+              <HouseholdGate>
+                {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+                <Outlet />
+              </HouseholdGate>
+              <AppVersionFooter />
+              <Toaster />
+              <EmailLinkCompletion />
+            </AppProvider>
+          </HouseholdProvider>
+        </GlobalConfigProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
