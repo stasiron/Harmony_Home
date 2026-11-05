@@ -254,6 +254,9 @@ export interface GuestPlan extends ItemMeta {
 
 export interface PanicState {
   active: boolean;
+  /** Wspólny dla mieszkania — kiedy i kto włączył */
+  startedAt?: string;
+  startedBy?: string;
 }
 
 export type HouseholdRole = "admin" | "member";
@@ -289,6 +292,8 @@ export interface HouseholdMeta {
   inviteCode?: string;
   /** Skąd pogoda na pulpicie (wybierane przy tworzeniu / w Ustawieniach) */
   weatherLocation?: WeatherLocation;
+  /** Tryb PANIC (goście) — wspólny dla wszystkich urządzeń mieszkania */
+  panic?: PanicState | null;
   features?: {
     /** Kalendarze Google z src/config/calendars — tylko pierwsze mieszkanie */
     legacyCalendar?: boolean;

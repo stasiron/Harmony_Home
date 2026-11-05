@@ -88,7 +88,10 @@ service cloud.firestore {
       allow read: if isMember(hid) || legacyTransition(hid);
       allow create: if hasAccount()
         && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAdmin(hid);
+      // PANIC (goście) włącza każdy domownik — tylko to jedno pole
+      allow update: if isAdmin(hid)
+        || (isMember(hid) && changedOnly(['panic']));
+      allow delete: if isAdmin(hid);
 
       match /members/{uid} {
         allow read: if isMember(hid);

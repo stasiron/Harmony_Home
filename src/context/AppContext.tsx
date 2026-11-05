@@ -9,6 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { setHouseholdPanic } from "@/lib/householdSetup";
+import { GUEST_LEAD_HOURS, GUEST_TAIL_HOURS } from "@/config/guests";
+import { toast } from "sonner";
 import { useHousehold } from "@/context/HouseholdContext";
 import { useGuestCalendarSync } from "@/hooks/useGuestCalendarSync";
 import { byCreatedAt, useSyncedList } from "@/hooks/useSyncedList";
@@ -350,6 +353,9 @@ function completeRecurringItem<
   );
 }
 
+/** PANIC wygasa sam po kilku godzinach */
+const PANIC_MAX_MS = 6 * 60 * 60 * 1000;
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const { syncUser } = useAuth();
   const { householdId, household } = useHousehold();
@@ -416,11 +422,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [recipes] = useState<Recipe[]>([]);
   const [devices, setDevices] = useState<SmartHomeDevice[]>([]);
-  const [guestsMode, setGuestsMode] = useState(false);
+  // Z kalendarza domu (serwer) — tak samo na każdym urządzeniu
+  const [calendarGuests, setGuestsMode] = useState(false);
   const [guestCalendarHint, setGuestCalendarHint] = useState<string | null>(
     null,
   );
-  const [panic, setPanic] = useState<PanicState | null>(null);
+  // PANIC w dokumencie mieszkania — włączony na tablecie widać też w telefonie.
+  // Po PANIC_MAX_MS wygasa sam, gdyby nikt go nie wyłączył.
+  const panic = useMemo<PanicState | null>(() => {
+    const shared = household?.panic;
+    if (!shared?.active) return null;
+    const started = shared.startedAt ? Date.parse(shared.startedAt) : NaN;
+    if (Number.isFinite(started) && Date.now() - started > PANIC_MAX_MS) {
+      return null;
+    }
+    return shared;
+  }, [household?.panic]);
+
+  // Plan gości (wspólna lista) też włącza tryb gości — w oknie wokół wizyty
+  const guestsMode = useMemo(() => {
+    if (calendarGuests) return true;
+    const now = Date.now();
+    return guestPlans.some((plan) => {
+      const when = Date.parse(plan.when);
+      return (
+        Number.isFinite(when) &&
+        when - now <= GUEST_LEAD_HOURS * 3600_000 &&
+        now - when <= GUEST_TAIL_HOURS * 3600_000
+      );
+    });
+  }, [calendarGuests, guestPlans]);
 
   const usersRef = useRef(users);
   usersRef.current = users;
@@ -553,15 +584,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addGuestPlan = useCallback(
     (plan: Omit<GuestPlan, "id">) => {
       setGuestPlans((prev) => [...prev, { ...plan, id: crypto.randomUUID() }]);
-      setGuestsMode(true);
     },
     [setGuestPlans],
   );
 
   const startPanic = useCallback(() => {
-    setPanic({ active: true });
-  }, []);
-  const endPanic = useCallback(() => setPanic(null), []);
+    if (!householdId) return;
+    void setHouseholdPanic(householdId, {
+      active: true,
+      startedAt: new Date().toISOString(),
+      ...(uid ? { startedBy: uid } : {}),
+    }).catch((err) => {
+      console.error("Panic start failed:", err);
+      toast.error("Nie udało się włączyć trybu PANIC.");
+    });
+  }, [householdId, uid]);
+  const endPanic = useCallback(() => {
+    if (!householdId) return;
+    void setHouseholdPanic(householdId, null).catch((err) => {
+      console.error("Panic end failed:", err);
+      toast.error("Nie udało się wyłączyć trybu PANIC.");
+    });
+  }, [householdId]);
 
   const toggleShopping = useCallback(
     (id: string) => {

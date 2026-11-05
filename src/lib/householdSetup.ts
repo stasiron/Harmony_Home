@@ -34,6 +34,7 @@ import type {
   HouseholdRole,
   ItemMeta,
   Membership,
+  PanicState,
   User,
   WeatherLocation,
 } from "@/types";
@@ -428,6 +429,10 @@ export function subscribeHouseholdMeta(
         ...(isWeatherLocation(data.weatherLocation)
           ? { weatherLocation: data.weatherLocation }
           : {}),
+        panic:
+          data.panic && typeof data.panic === "object"
+            ? (data.panic as PanicState)
+            : null,
         ...(typeof data.inviteCode === "string"
           ? { inviteCode: data.inviteCode }
           : {}),
@@ -462,6 +467,15 @@ export async function updateHouseholdMeta(
 ) {
   guardWriteBudget();
   await updateDoc(doc(requireDb(), "households", householdId), patch);
+}
+
+/** PANIC (goście) — każdy domownik, także tablet bez konta */
+export async function setHouseholdPanic(
+  householdId: string,
+  panic: PanicState | null,
+) {
+  guardWriteBudget();
+  await updateDoc(doc(requireDb(), "households", householdId), { panic });
 }
 
 export async function updateMember(

@@ -325,6 +325,24 @@ describe("sprawy całego mieszkania — tylko admin", () => {
     );
   });
 
+  it("PANIC włącza każdy domownik, ale nic poza tym", async () => {
+    const tablet = dbAs("tablet", anonymous);
+    await assertSucceeds(
+      updateDoc(doc(tablet, "households", HID), {
+        panic: { active: true, startedAt: "2026-11-05T10:00:00Z" },
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(tablet, "households", HID), { panic: null }),
+    );
+    await assertFails(
+      updateDoc(doc(tablet, "households", HID), { panic: null, name: "X" }),
+    );
+    await assertFails(
+      updateDoc(doc(dbAs("stranger"), "households", HID), { panic: null }),
+    );
+  });
+
   it("plan mieszkania", async () => {
     await assertFails(
       setDoc(doc(dbAs("alice"), "households", HID, "assets", "floorPlan"), {
