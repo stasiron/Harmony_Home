@@ -3,6 +3,8 @@ import type { Task } from "@/types";
 import { useApp } from "@/context/AppContext";
 import { EditChoreDialog } from "@/components/chores/EditChoreDialog";
 import { ZadanieCard } from "@/components/chores/ZadanieCard";
+import { useHousehold } from "@/context/HouseholdContext";
+import { resolveChoreWeights } from "@/config/choreWeight";
 import { TurnQueueLine } from "@/components/chores/TurnQueueLine";
 import { PrivateBadge } from "@/components/VisibilityPicker";
 import { formatScheduleLabel } from "@/lib/choreRecurrence";
@@ -41,16 +43,21 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
     .map((id) => users.find((u) => u.id === id))
     .filter((u): u is NonNullable<typeof u> => u !== undefined);
   const status = statusOf(task);
+  const { household } = useHousehold();
+  const choreWeights = resolveChoreWeights(household?.choreWeights);
   const d = daysSince(task.lastCompleted);
   const importance = resolveImportance(task);
   const showImportance = panic?.active || guestsMode;
   const linked = resolveLinkedZadania(task.linkedZadanieIds, zadania);
   const linkedSummary =
     linked.length > 0
-      ? summarizeLinkedZadania(linked, (z) => statusOf(z))
+      ? summarizeLinkedZadania(linked, (z) => statusOf(z), choreWeights)
       : null;
-  const completion = choreCompletionByAssignee(task, linked, (z) =>
-    statusOf(z),
+  const completion = choreCompletionByAssignee(
+    task,
+    linked,
+    (z) => statusOf(z),
+    choreWeights,
   );
 
   return (

@@ -1,5 +1,5 @@
-import type { Task, Zadanie } from "@/types";
-import { zadanieWeight } from "@/config/choreWeight";
+import type { ChoreWeightSettings, Task, Zadanie } from "@/types";
+import { CHORE_WEIGHT_DEFAULTS, zadanieWeight } from "@/config/choreWeight";
 
 export function normalizeAssignedTo(
   value: string | string[] | undefined,
@@ -19,11 +19,15 @@ export function choreCompletionByAssignee(
   task: Task,
   linked: Zadanie[],
   statusOfZadanie: (zadanie: Zadanie) => string,
+  weights: ChoreWeightSettings = CHORE_WEIGHT_DEFAULTS,
 ): AssigneeCompletion[] {
   const assignees = normalizeAssignedTo(task.assignedTo);
   if (assignees.length === 0 || linked.length === 0) return [];
 
-  const totalWeight = linked.reduce((sum, z) => sum + zadanieWeight(z), 0);
+  const totalWeight = linked.reduce(
+    (sum, z) => sum + zadanieWeight(z, weights),
+    0,
+  );
   if (totalWeight === 0) return [];
 
   const weightByUser = new Map(assignees.map((id) => [id, 0]));
@@ -32,7 +36,10 @@ export function choreCompletionByAssignee(
     if (statusOfZadanie(zadanie) !== "done") continue;
     const by = zadanie.lastCompletedBy;
     if (!by || !weightByUser.has(by)) continue;
-    weightByUser.set(by, (weightByUser.get(by) ?? 0) + zadanieWeight(zadanie));
+    weightByUser.set(
+      by,
+      (weightByUser.get(by) ?? 0) + zadanieWeight(zadanie, weights),
+    );
   }
 
   return assignees.map((userId) => {

@@ -271,6 +271,14 @@ export type FloorPlanRef =
   /** households/{id}/assets/floorPlan */
   | { kind: "upload"; width: number; height: number; updatedAt: string };
 
+/** Jak liczyć wagę zadań w obowiązku — ustawia admin mieszkania */
+export interface ChoreWeightSettings {
+  /** 0 = liczy się tylko czas, 1 = domyślnie, 2 = trudność waży podwójnie */
+  difficultyImpact: number;
+  /** % wagi zaległych zadań, od którego obowiązek jest „Warto zrobić” */
+  suggestThresholdPct: number;
+}
+
 export interface SharedCalendarSettings {
   /** Link iCal (Google / Outlook / iCloud) */
   icalUrl: string;
@@ -308,6 +316,8 @@ export interface HouseholdMeta {
   panic?: PanicState | null;
   /** Wspólny kalendarz domu — widzą wszyscy; włącza tryb gości */
   sharedCalendar?: SharedCalendarSettings | null;
+  /** Brak = domyślne (CHORE_WEIGHT_DEFAULTS) */
+  choreWeights?: ChoreWeightSettings;
   features?: {
     /** Kalendarze Google z src/config/calendars — tylko pierwsze mieszkanie */
     legacyCalendar?: boolean;

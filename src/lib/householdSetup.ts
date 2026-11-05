@@ -25,6 +25,7 @@ import {
   LEGACY_HOUSEHOLD_ID,
 } from "@/lib/legacyHousehold";
 import { guessMemberId } from "@/lib/memberLink";
+import { resolveChoreWeights } from "@/config/choreWeight";
 import type {
   FloorPlanRef,
   HomeZone,
@@ -34,6 +35,7 @@ import type {
   HouseholdRole,
   ItemMeta,
   Membership,
+  ChoreWeightSettings,
   PanicState,
   SharedCalendarSettings,
   User,
@@ -434,6 +436,13 @@ export function subscribeHouseholdMeta(
           data.panic && typeof data.panic === "object"
             ? (data.panic as PanicState)
             : null,
+        ...(data.choreWeights && typeof data.choreWeights === "object"
+          ? {
+              choreWeights: resolveChoreWeights(
+                data.choreWeights as Partial<ChoreWeightSettings>,
+              ),
+            }
+          : {}),
         sharedCalendar:
           data.sharedCalendar &&
           typeof (data.sharedCalendar as SharedCalendarSettings).icalUrl ===
@@ -471,7 +480,12 @@ export async function updateHouseholdMeta(
   patch: Partial<
     Pick<
       HouseholdMeta,
-      "name" | "zones" | "floorPlan" | "weatherLocation" | "sharedCalendar"
+      | "name"
+      | "zones"
+      | "floorPlan"
+      | "weatherLocation"
+      | "sharedCalendar"
+      | "choreWeights"
     >
   >,
 ) {

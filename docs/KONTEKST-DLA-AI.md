@@ -75,6 +75,8 @@ Wszystko należy do **mieszkania** (`useHousehold().householdId`). Model i decyz
 
 **Publiczne / prywatne** (obowiązki, zadania, todo): domyślnie publiczne (`households/{id}/{kolekcja}`, bez pola `visibility`). Prywatne to wyjątek: `visibility: "private"` w `households/{id}/private/{uid}/{kolekcja}` — reguły wpuszczają tylko autora z kontem, nawet admin ogólny nie widzi. `useVisibilityList` łączy obie listy i przy zapisie rozdziela je po `visibility` (zmiana widoczności = przeniesienie). TODO: „Dla domu” (domyślnie) / „Dla osoby” (publiczne, sprawy innych schowane pod „Podejrzyj”) / „Prywatne”.
 
+**Ustawienia mieszkania w dokumencie `households/{id}`:** `weatherLocation` (pogoda), `sharedCalendar` (wspólny kalendarz + adres do wykrywania gości), `choreWeights` (wpływ trudności, próg „Warto zrobić”; `resolveChoreWeights`), `panic` (PANIC wspólny dla urządzeń — jedyne pole, które zmienia każdy domownik). Nic z tego nie jest już na sztywno w kodzie ani w zmiennych serwera.
+
 **Sync — pułapki:**
 - `useSyncedList` = `setState` + zapis różnicy do Firestore od razu (bez debounce). Odrzucony zapis cofa snapshot z serwera + toast.
 - Stan startowy pusty (SSR = pierwszy render klienta). Cache offline daje Firestore (IndexedDB), nie localStorage.

@@ -1,5 +1,5 @@
-import type { Status, Task, Zadanie } from "@/types";
-import { zadanieWeight } from "@/config/choreWeight";
+import type { ChoreWeightSettings, Status, Task, Zadanie } from "@/types";
+import { CHORE_WEIGHT_DEFAULTS, zadanieWeight } from "@/config/choreWeight";
 
 export { zadanieWeight } from "@/config/choreWeight";
 
@@ -25,8 +25,10 @@ export type LinkedZadaniaSummary = {
 export function summarizeLinkedZadania(
   linked: Zadanie[],
   statusOfZadanie: (zadanie: Zadanie) => Status,
+  weights: ChoreWeightSettings = CHORE_WEIGHT_DEFAULTS,
 ): LinkedZadaniaSummary {
-  const totalWeight = linked.reduce((sum, z) => sum + zadanieWeight(z), 0);
+  const weightOf = (z: Zadanie) => zadanieWeight(z, weights);
+  const totalWeight = linked.reduce((sum, z) => sum + weightOf(z), 0);
   let pendingWeight = 0;
   let criticalCount = 0;
   let pendingCount = 0;
@@ -36,17 +38,20 @@ export function summarizeLinkedZadania(
     if (status === "must") {
       criticalCount += 1;
       pendingCount += 1;
-      pendingWeight += zadanieWeight(zadanie);
+      pendingWeight += weightOf(zadanie);
     } else if (status === "suggested") {
       pendingCount += 1;
-      pendingWeight += zadanieWeight(zadanie);
+      pendingWeight += weightOf(zadanie);
     }
   }
 
   let choreStatus: Status = "safe";
   if (criticalCount > 0) {
     choreStatus = "must";
-  } else if (totalWeight > 0 && pendingWeight >= totalWeight / 2) {
+  } else if (
+    totalWeight > 0 &&
+    pendingWeight >= (totalWeight * weights.suggestThresholdPct) / 100
+  ) {
     choreStatus = "suggested";
   } else if (
     linked.length > 0 &&
@@ -68,9 +73,10 @@ export function choreStatusFromLinkedZadania(
   task: Task,
   linked: Zadanie[],
   statusOfZadanie: (zadanie: Zadanie) => Status,
+  weights: ChoreWeightSettings = CHORE_WEIGHT_DEFAULTS,
 ): Status | null {
   if (!task.linkedZadanieIds?.length || linked.length === 0) return null;
-  return summarizeLinkedZadania(linked, statusOfZadanie).choreStatus;
+  return summarizeLinkedZadania(linked, statusOfZadanie, weights).choreStatus;
 }
 
 export function applyZadanieThresholds<

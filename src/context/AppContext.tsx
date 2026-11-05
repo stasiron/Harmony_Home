@@ -33,6 +33,7 @@ import {
 } from "@/lib/choreZadaniaStatus";
 import { normalizeAssignedTo } from "@/lib/choreAssignees";
 import { advanceRotation, effectiveAssignees } from "@/lib/rotation";
+import { resolveChoreWeights } from "@/config/choreWeight";
 import { resolveLinkedZadania } from "@/lib/zadania";
 import { applyScheduleToTask, DEFAULT_SCHEDULE } from "@/lib/choreRecurrence";
 import {
@@ -463,6 +464,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     household?.sharedCalendar,
   );
 
+  // Wagi zadań z ustawień mieszkania (Ustawienia → Waga zadań)
+  const choreWeights = useMemo(
+    () => resolveChoreWeights(household?.choreWeights),
+    [household?.choreWeights],
+  );
+
   const daysSince = useCallback((iso: string) => {
     const d = (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24);
     return Math.floor(d);
@@ -492,6 +499,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           item,
           linked,
           zadanieStatusOf,
+          choreWeights,
         );
         if (derived) return derived;
       }
@@ -502,7 +510,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         item.tMax,
       );
     },
-    [daysSince, guestsMode, panic, zadania, zadanieStatusOf],
+    [daysSince, guestsMode, panic, zadania, zadanieStatusOf, choreWeights],
   );
 
   const visibleZadania = useMemo(() => {
