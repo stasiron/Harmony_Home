@@ -1,6 +1,56 @@
-const CZESTOCHOWA = { latitude: 50.8118, longitude: 19.1203 };
+import type { HouseholdMeta, WeatherLocation } from "@/types";
 
-export const WEATHER_CITY = "Częstochowa";
+/**
+ * Pierwsze mieszkanie miało pogodę z Częstochowy na sztywno — zostaje jako
+ * domyślna tylko dla niego. Nowe mieszkania wybierają miejscowość.
+ */
+export const LEGACY_WEATHER_LOCATION: WeatherLocation = {
+  name: "Częstochowa",
+  region: "śląskie, Polska",
+  latitude: 50.8118,
+  longitude: 19.1203,
+};
+
+export function householdWeatherLocation(
+  household: HouseholdMeta | null,
+): WeatherLocation | null {
+  if (!household) return null;
+  if (household.weatherLocation) return household.weatherLocation;
+  return household.features?.legacyCalendar ? LEGACY_WEATHER_LOCATION : null;
+}
+
+/** Wyszukiwanie miejscowości — geokoder Open-Meteo (bez klucza API) */
+export async function searchWeatherLocations(
+  query: string,
+): Promise<WeatherLocation[]> {
+  const name = query.trim();
+  if (name.length < 2) return [];
+  const params = new URLSearchParams({
+    name,
+    count: "6",
+    language: "pl",
+    format: "json",
+  });
+  const res = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?${params}`,
+  );
+  if (!res.ok) throw new Error("geocoding failed");
+  const data = (await res.json()) as {
+    results?: {
+      name: string;
+      latitude: number;
+      longitude: number;
+      admin1?: string;
+      country?: string;
+    }[];
+  };
+  return (data.results ?? []).map((r) => ({
+    name: r.name,
+    region: [r.admin1, r.country].filter(Boolean).join(", ") || undefined,
+    latitude: Math.round(r.latitude * 10000) / 10000,
+    longitude: Math.round(r.longitude * 10000) / 10000,
+  }));
+}
 
 export type WeatherSnapshot = {
   temperature: number;
@@ -74,15 +124,19 @@ type OpenMeteoDailyResponse = {
   };
 };
 
-export async function fetchCzestochowaWeather(): Promise<WeatherSnapshot> {
-  const forecast = await fetchCzestochowaForecast();
+export async function fetchWeather(
+  location: WeatherLocation,
+): Promise<WeatherSnapshot> {
+  const forecast = await fetchForecast(location);
   return forecast.current;
 }
 
-export async function fetchCzestochowaForecast(): Promise<WeatherForecast> {
+export async function fetchForecast(
+  location: WeatherLocation,
+): Promise<WeatherForecast> {
   const params = new URLSearchParams({
-    latitude: String(CZESTOCHOWA.latitude),
-    longitude: String(CZESTOCHOWA.longitude),
+    latitude: String(location.latitude),
+    longitude: String(location.longitude),
     current:
       "temperature_2m,weather_code,wind_speed_10m,precipitation_probability",
     hourly:

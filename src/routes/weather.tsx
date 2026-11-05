@@ -5,21 +5,22 @@ import { Shell } from "@/components/Shell";
 import { WeatherForecastCharts } from "@/components/weather/WeatherForecastCharts";
 import { WeatherIcon } from "@/components/weather/WeatherIcon";
 import {
-  fetchCzestochowaForecast,
+  fetchForecast,
   formatForecastDay,
+  householdWeatherLocation,
   weatherLabel,
-  WEATHER_CITY,
   WEATHER_REFRESH_MS,
   type WeatherForecast,
 } from "@/lib/weather";
+import { useHousehold } from "@/context/HouseholdContext";
 
 export const Route = createFileRoute("/weather")({
   head: () => ({
     meta: [
-      { title: `Pogoda · ${WEATHER_CITY}` },
+      { title: "Pogoda · Homebase" },
       {
         name: "description",
-        content: "Prognoza pogody na 3 dni — Częstochowa.",
+        content: "Prognoza pogody na 3 dni dla miejscowości mieszkania.",
       },
     ],
   }),
@@ -33,13 +34,21 @@ export const Route = createFileRoute("/weather")({
 function WeatherPage() {
   const [forecast, setForecast] = useState<WeatherForecast | null>(null);
   const [error, setError] = useState(false);
+  const { household } = useHousehold();
+  const location = householdWeatherLocation(household);
+  const locationKey = location
+    ? `${location.latitude},${location.longitude}`
+    : null;
 
   useEffect(() => {
+    setForecast(null);
+    setError(false);
+    if (!location) return;
     let cancelled = false;
 
     const load = async () => {
       try {
-        const data = await fetchCzestochowaForecast();
+        const data = await fetchForecast(location);
         if (!cancelled) {
           setForecast(data);
           setError(false);
@@ -55,7 +64,20 @@ function WeatherPage() {
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+    // locationKey zmienia się razem z lokalizacją
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationKey]);
+
+  if (!location) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center">
+        <h1 className="text-lg font-semibold">Gdzie jest mieszkanie?</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Administrator ustawi miejscowość w Ustawieniach → Mieszkanie.
+        </p>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -85,7 +107,7 @@ function WeatherPage() {
           Pogoda
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {WEATHER_CITY} · prognoza 3-dniowa
+          {location.name} · prognoza 3-dniowa
         </p>
       </header>
 

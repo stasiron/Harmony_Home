@@ -268,6 +268,15 @@ export type FloorPlanRef =
   /** households/{id}/assets/floorPlan */
   | { kind: "upload"; width: number; height: number; updatedAt: string };
 
+export interface WeatherLocation {
+  /** Do wyświetlania, np. „Kraków” */
+  name: string;
+  /** Np. „małopolskie, Polska” */
+  region?: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface HouseholdMeta {
   id: string;
   name: string;
@@ -278,6 +287,8 @@ export interface HouseholdMeta {
   floorPlan: FloorPlanRef;
   /** Aktualny kod zaproszenia (invites/{code}) */
   inviteCode?: string;
+  /** Skąd pogoda na pulpicie (wybierane przy tworzeniu / w Ustawieniach) */
+  weatherLocation?: WeatherLocation;
   features?: {
     /** Kalendarze Google z src/config/calendars — tylko pierwsze mieszkanie */
     legacyCalendar?: boolean;

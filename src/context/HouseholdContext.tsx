@@ -34,6 +34,7 @@ import type {
   HouseholdRole,
   ItemMeta,
   Membership,
+  WeatherLocation,
 } from "@/types";
 
 const ACTIVE_HOUSEHOLD_KEY = "homeharmony-active-household";
@@ -84,6 +85,7 @@ type HouseholdContextValue = {
   joinHousehold: (code: string) => Promise<void>;
   migrateLegacy: () => Promise<void>;
   renameHousehold: (name: string) => Promise<void>;
+  setWeatherLocation: (location: WeatherLocation) => Promise<void>;
   setZones: (zones: HomeZone[]) => Promise<void>;
   regenerateInvite: () => Promise<string>;
   linkProfile: (profileId: string | null) => Promise<void>;
@@ -276,6 +278,15 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [requireHousehold],
   );
 
+  const setWeatherLocation = useCallback(
+    async (location: WeatherLocation) => {
+      await updateHouseholdMeta(requireHousehold(), {
+        weatherLocation: location,
+      });
+    },
+    [requireHousehold],
+  );
+
   const setZones = useCallback(
     async (zones: HomeZone[]) => {
       await updateHouseholdMeta(requireHousehold(), { zones });
@@ -358,6 +369,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     joinHousehold,
     migrateLegacy,
     renameHousehold,
+    setWeatherLocation,
     setZones,
     regenerateInvite,
     linkProfile,

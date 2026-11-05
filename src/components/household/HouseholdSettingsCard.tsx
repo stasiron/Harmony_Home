@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { WeatherLocationPicker } from "@/components/weather/WeatherLocationPicker";
+import { householdWeatherLocation } from "@/lib/weather";
 import {
   Check,
   Copy,
@@ -42,6 +44,7 @@ export function HouseholdSettingsCard() {
     me,
     isAdmin,
     renameHousehold,
+    setWeatherLocation,
     regenerateInvite,
     linkProfile,
     setMemberRole,
@@ -137,6 +140,25 @@ export function HouseholdSettingsCard() {
           </div>
         ) : (
           <p className="font-medium">{household.name}</p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="household-weather">Miejscowość — dla pogody</Label>
+        {isAdmin ? (
+          <WeatherLocationPicker
+            value={householdWeatherLocation(household)}
+            onChange={(location) =>
+              void setWeatherLocation(location).catch(
+                fail("Nie udało się zapisać miejscowości."),
+              )
+            }
+            inputId="household-weather"
+          />
+        ) : (
+          <p className="font-medium">
+            {householdWeatherLocation(household)?.name ?? "Nie ustawiono"}
+          </p>
         )}
       </div>
 

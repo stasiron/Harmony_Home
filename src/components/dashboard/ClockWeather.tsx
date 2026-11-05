@@ -3,18 +3,24 @@ import { useEffect, useState } from "react";
 import { CloudRain, Wind } from "lucide-react";
 import { WeatherIcon } from "@/components/weather/WeatherIcon";
 import {
-  fetchCzestochowaWeather,
+  fetchWeather,
+  householdWeatherLocation,
   weatherLabel,
-  WEATHER_CITY,
   WEATHER_REFRESH_MS,
   type WeatherSnapshot,
 } from "@/lib/weather";
+import { useHousehold } from "@/context/HouseholdContext";
 import { cn } from "@/lib/utils";
 
 export function ClockWeather() {
   const [now, setNow] = useState(() => new Date());
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [weatherError, setWeatherError] = useState(false);
+  const { household } = useHousehold();
+  const location = householdWeatherLocation(household);
+  const locationKey = location
+    ? `${location.latitude},${location.longitude}`
+    : null;
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -22,11 +28,14 @@ export function ClockWeather() {
   }, []);
 
   useEffect(() => {
+    setWeather(null);
+    setWeatherError(false);
+    if (!location) return;
     let cancelled = false;
 
     const load = async () => {
       try {
-        const snapshot = await fetchCzestochowaWeather();
+        const snapshot = await fetchWeather(location);
         if (!cancelled) {
           setWeather(snapshot);
           setWeatherError(false);
@@ -42,7 +51,9 @@ export function ClockWeather() {
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+    // locationKey zmienia się razem z lokalizacją
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationKey]);
 
   const time = now.toLocaleTimeString([], {
     hour: "2-digit",
@@ -67,7 +78,7 @@ export function ClockWeather() {
       </div>
 
       <Link
-        to="/weather"
+        to={location ? "/weather" : "/settings"}
         className={cn(
           "flex items-center gap-5 self-end rounded-3xl bg-surface px-6 py-4 transition-colors lg:justify-self-end",
           weather &&
@@ -82,7 +93,7 @@ export function ClockWeather() {
                 {weather.temperature}°
               </div>
               <div className="text-xs text-muted-foreground">
-                {weatherLabel(weather.weatherCode)} · {WEATHER_CITY}
+                {weatherLabel(weather.weatherCode)} · {location?.name}
               </div>
               <div className="mt-1 flex gap-3 text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1">
@@ -97,7 +108,11 @@ export function ClockWeather() {
           </>
         ) : (
           <div className="min-w-[10rem] text-sm text-muted-foreground">
-            {weatherError ? "Pogoda niedostępna" : "Ładowanie pogody…"}
+            {!location
+              ? "Ustaw miejscowość pogody w Ustawieniach"
+              : weatherError
+                ? "Pogoda niedostępna"
+                : "Ładowanie pogody…"}
           </div>
         )}
       </Link>

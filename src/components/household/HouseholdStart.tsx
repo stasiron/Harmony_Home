@@ -20,7 +20,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
 import { compressFloorPlan } from "@/lib/floorPlan";
 import type { FloorPlanUpload } from "@/lib/householdSetup";
-import type { HouseholdPresetId } from "@/types";
+import type { HouseholdPresetId, WeatherLocation } from "@/types";
+import { WeatherLocationPicker } from "@/components/weather/WeatherLocationPicker";
 import { cn } from "@/lib/utils";
 
 function errorText(err: unknown, fallback: string) {
@@ -138,6 +139,8 @@ export function CreateHouseholdCard({ onCreated }: { onCreated?: () => void }) {
   const [profiles, setProfiles] = useState<string[]>(() => [firstName, ""]);
   const [myIndex, setMyIndex] = useState<number | null>(firstName ? 0 : null);
   const [floorPlan, setFloorPlan] = useState<FloorPlanUpload | null>(null);
+  const [weatherLocation, setWeatherLocation] =
+    useState<WeatherLocation | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (!user) {
@@ -200,12 +203,14 @@ export function CreateHouseholdCard({ onCreated }: { onCreated?: () => void }) {
         myProfileIndex:
           myProfileIndex === null || myProfileIndex < 0 ? null : myProfileIndex,
         floorPlan,
+        weatherLocation,
       });
       toast.success("Mieszkanie gotowe.");
       setName("");
       setProfiles([firstName, ""]);
       setMyIndex(firstName ? 0 : null);
       setFloorPlan(null);
+      setWeatherLocation(null);
       onCreated?.();
     } catch (err) {
       console.error("Create household failed:", err);
@@ -303,6 +308,17 @@ export function CreateHouseholdCard({ onCreated }: { onCreated?: () => void }) {
           <Plus className="size-4" />
           Dodaj osobę
         </Button>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="create-weather-location">
+          Miejscowość — dla pogody
+        </Label>
+        <WeatherLocationPicker
+          value={weatherLocation}
+          onChange={setWeatherLocation}
+          inputId="create-weather-location"
+        />
       </div>
 
       <div className="space-y-2">

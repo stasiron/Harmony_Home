@@ -35,6 +35,7 @@ import type {
   ItemMeta,
   Membership,
   User,
+  WeatherLocation,
 } from "@/types";
 
 const USER_COLORS = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
@@ -136,6 +137,7 @@ export type CreateHouseholdInput = {
   /** Który z nich to twórca — null: nikt */
   myProfileIndex: number | null;
   floorPlan: FloorPlanUpload | null;
+  weatherLocation?: WeatherLocation | null;
 };
 
 function upserts<T extends ItemMeta & { id: string }>(
@@ -175,6 +177,9 @@ export async function createHousehold(
     createdAt: nowIso,
     zones: preset.zones,
     floorPlan,
+    ...(input.weatherLocation
+      ? { weatherLocation: input.weatherLocation }
+      : {}),
   };
 
   // Mieszkanie + admin w jednym batchu — reguły sprawdzają ownerId (getAfter)
@@ -386,6 +391,16 @@ export async function removeMembership(uid: string, householdId: string) {
   await deleteDoc(doc(requireDb(), "users", uid, "memberships", householdId));
 }
 
+function isWeatherLocation(value: unknown): value is WeatherLocation {
+  const v = value as WeatherLocation | null;
+  return Boolean(
+    v &&
+    typeof v.name === "string" &&
+    typeof v.latitude === "number" &&
+    typeof v.longitude === "number",
+  );
+}
+
 export function subscribeHouseholdMeta(
   householdId: string,
   onData: (meta: HouseholdMeta | null) => void,
@@ -410,6 +425,9 @@ export function subscribeHouseholdMeta(
         zones: Array.isArray(data.zones) ? (data.zones as HomeZone[]) : [],
         floorPlan: (data.floorPlan as FloorPlanRef) ?? { kind: "none" },
         features: data.features as HouseholdMeta["features"],
+        ...(isWeatherLocation(data.weatherLocation)
+          ? { weatherLocation: data.weatherLocation }
+          : {}),
         ...(typeof data.inviteCode === "string"
           ? { inviteCode: data.inviteCode }
           : {}),
@@ -438,7 +456,9 @@ export function subscribeMembers(
 
 export async function updateHouseholdMeta(
   householdId: string,
-  patch: Partial<Pick<HouseholdMeta, "name" | "zones" | "floorPlan">>,
+  patch: Partial<
+    Pick<HouseholdMeta, "name" | "zones" | "floorPlan" | "weatherLocation">
+  >,
 ) {
   guardWriteBudget();
   await updateDoc(doc(requireDb(), "households", householdId), patch);
