@@ -53,6 +53,15 @@ async function writeToFile(store: CalendarConnectionsStore) {
   }
 }
 
+/**
+ * Czy połączenia kalendarzy przetrwają restart serwera — na Vercel tylko z
+ * Redis/KV (KV_REST_API_URL + KV_REST_API_TOKEN); lokalnie plik w .data/.
+ */
+export function hasPersistentCalendarStore(): boolean {
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) return true;
+  return !process.env.VERCEL;
+}
+
 async function readFromKv(): Promise<CalendarConnectionsStore | null> {
   if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN)
     return null;

@@ -47,20 +47,23 @@ export function getGoogleOAuthConfig() {
   return { clientId, clientSecret, authSecret };
 }
 
+function withProtocol(host: string): string {
+  return host.startsWith("http")
+    ? host.replace(/\/$/, "")
+    : `https://${host.replace(/\/$/, "")}`;
+}
+
+/**
+ * Adres aplikacji dla redirect_uri Google. Kolejność: APP_URL, adres z
+ * żądania, domena produkcyjna Vercel. VERCEL_URL to adres konkretnego
+ * deploymentu (inny co build) — Google odrzuciłby redirect_uri.
+ */
 export function getAppOrigin(requestUrl?: string): string {
-  const fromEnv =
-    process.env.APP_URL?.trim() ||
-    process.env.VERCEL_URL?.trim() ||
-    process.env.NITRO_APP_BASE_URL?.trim();
-  if (fromEnv) {
-    return fromEnv.startsWith("http")
-      ? fromEnv.replace(/\/$/, "")
-      : `https://${fromEnv}`;
-  }
-  if (requestUrl) {
-    const url = new URL(requestUrl);
-    return url.origin;
-  }
+  const fromEnv = process.env.APP_URL?.trim();
+  if (fromEnv) return withProtocol(fromEnv);
+  if (requestUrl) return new URL(requestUrl).origin;
+  const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (production) return withProtocol(production);
   return "http://localhost:3000";
 }
 

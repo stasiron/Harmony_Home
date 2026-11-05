@@ -82,6 +82,8 @@ export function GoogleAccountCard() {
     if (legacyCalendar) void linkMember(profileId);
   };
   const persistentMode = status?.oauthServerConfigured ?? false;
+  // Na Vercel bez Redis połączenie znika po chwili — przycisk tylko udaje
+  const canPersist = status?.persistentStore ?? false;
 
   return (
     <section className="rounded-3xl border border-border bg-gradient-to-br from-surface-elevated via-surface to-card p-5 shadow-elevated">
@@ -239,14 +241,27 @@ export function GoogleAccountCard() {
                 Połącz ponownie
               </Button>
             </div>
+          ) : status && !canPersist ? (
+            <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-4 py-3 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">
+                Kalendarz Google nie jest jeszcze skonfigurowany na serwerze
+              </p>
+              <p className="mt-1">
+                {persistentMode
+                  ? "Klucze Google są ustawione, ale brakuje bazy Redis na Vercel — bez niej połączenie znika po chwili."
+                  : "Brakuje kluczy Google OAuth i bazy Redis na Vercel."}{" "}
+                Instrukcja: <code>docs/KALENDARZ.md</code>. Po konfiguracji
+                zgodę Google dajesz raz — potem kalendarz działa bez pytania.
+              </p>
+            </div>
           ) : (
             <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium">Synchronizacja kalendarza</p>
                 <p className="text-sm text-muted-foreground">
                   {persistentMode
-                    ? "Połączenie zapisze refresh token na serwerze — kalendarz działa 24/7 bez telefonu."
-                    : "Ustaw GOOGLE_CLIENT_ID/SECRET w .env albo STAS_GOOGLE_CALENDAR_ICAL_URL dla stałego iCal."}
+                    ? "Zgodę Google dajesz raz — serwer zapamięta dostęp i kalendarz działa 24/7, także na tablecie."
+                    : "Tryb lokalny: dostęp na godzinę z logowania Google. Stałe połączenie — docs/KALENDARZ.md."}
                 </p>
               </div>
               <Button
@@ -254,7 +269,7 @@ export function GoogleAccountCard() {
                 disabled={syncingCalendar}
               >
                 <CalendarSync />
-                {syncingCalendar ? "Łączenie…" : "Synchronizuj kalendarz"}
+                {syncingCalendar ? "Łączenie…" : "Połącz kalendarz"}
               </Button>
             </div>
           )}

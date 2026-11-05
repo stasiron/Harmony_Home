@@ -246,12 +246,15 @@ export async function regenerateInvite(
   return code;
 }
 
-export function isLegacyOwner(user: FirebaseUser | null): boolean {
+/** Administrator ogólny — admin każdego mieszkania (też w firestore.rules) */
+export const SUPER_ADMIN_EMAIL = "stasiron9102@gmail.com";
+
+export function isSuperAdmin(user: FirebaseUser | null): boolean {
   return Boolean(
     user &&
     !user.isAnonymous &&
     user.emailVerified &&
-    user.email?.toLowerCase() === "stasiron9102@gmail.com",
+    user.email?.toLowerCase() === SUPER_ADMIN_EMAIL,
   );
 }
 
@@ -326,6 +329,39 @@ export function subscribeMemberships(
         snap.docs
           .map((d) => ({ ...(d.data() as Membership), householdId: d.id }))
           .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt)),
+      ),
+    (err) => onError?.(err),
+  );
+}
+
+/**
+ * Wszystkie mieszkania — tylko dla administratora ogólnego (reguły wpuszczają
+ * listę tylko jemu). Mieszkania bez członkostwa mają `superAdmin: true`.
+ */
+export function subscribeAllHouseholds(
+  onData: (households: Membership[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe | null {
+  const db = getFirestoreDb();
+  if (!db) return null;
+  return onSnapshot(
+    collection(db, "households"),
+    (snap) =>
+      onData(
+        snap.docs
+          // Stary dokument sprzed migracji nie ma ownerId — to nie mieszkanie
+          .filter((d) => typeof d.data().ownerId === "string")
+          .map((d) => {
+            const data = d.data();
+            return {
+              householdId: d.id,
+              name: typeof data.name === "string" ? data.name : d.id,
+              role: "admin" as const,
+              joinedAt:
+                typeof data.createdAt === "string" ? data.createdAt : "",
+              superAdmin: true,
+            };
+          }),
       ),
     (err) => onError?.(err),
   );

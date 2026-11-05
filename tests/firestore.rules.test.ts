@@ -6,9 +6,11 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
+  collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   writeBatch,
@@ -165,6 +167,45 @@ describe("okres przejściowy — stary dokument homeharmony", () => {
         { merge: true },
       ),
     );
+  });
+});
+
+describe("administrator ogólny", () => {
+  const superAdmin = () =>
+    dbAs("boss", google("boss", "stasiron9102@gmail.com"));
+
+  it("czyta i edytuje każde mieszkanie bez członkostwa", async () => {
+    const db = superAdmin();
+    await assertSucceeds(getDoc(doc(db, "households", HID)));
+    await assertSucceeds(getDoc(doc(db, "households", HID, "chores", "open")));
+    await assertSucceeds(
+      updateDoc(doc(db, "households", HID), { zones: [], name: "Renamed" }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, "households", HID, "chores", "locked"), {
+        name: "By boss",
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, "households", HID, "members", "alice"), {
+        role: "admin",
+      }),
+    );
+  });
+
+  it("widzi listę wszystkich mieszkań — inni nie", async () => {
+    await assertSucceeds(getDocs(collection(superAdmin(), "households")));
+    await assertFails(getDocs(collection(dbAs("alice"), "households")));
+  });
+
+  it("tylko ten adres i tylko zweryfikowany", async () => {
+    const other = dbAs("x", google("x", "someone@gmail.com"));
+    await assertFails(getDoc(doc(other, "households", HID)));
+    const unverified = dbAs("y", {
+      ...google("y", "stasiron9102@gmail.com"),
+      email_verified: false,
+    });
+    await assertFails(getDoc(doc(unverified, "households", HID)));
   });
 });
 

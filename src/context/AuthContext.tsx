@@ -68,11 +68,42 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Zwykłe logowanie — tylko e-mail i profil. Bez zakresu kalendarza Google nie
+ * pokazuje ekranu zgody ani ostrzeżenia „aplikacja niezweryfikowana”, a sesja
+ * Firebase zostaje w przeglądarce (IndexedDB) — kolejne wejście bez logowania.
+ */
 function googleProvider() {
   const provider = new GoogleAuthProvider();
-  provider.addScope(GOOGLE_CALENDAR_SCOPE);
   provider.setCustomParameters({ prompt: "select_account" });
   return provider;
+}
+
+/** Tylko przycisk „Synchronizuj kalendarz” bez OAuth na serwerze (token 1 h) */
+function calendarProvider() {
+  const provider = new GoogleAuthProvider();
+  provider.addScope(GOOGLE_CALENDAR_SCOPE);
+  return provider;
+}
+
+/** Automatyczne łączenie kalendarza raz na urządzenie, nie przy każdym wejściu */
+const CALENDAR_AUTO_CONNECT_KEY = "calendarOAuthAttempted";
+
+function readAutoConnectAttempt(): string | null {
+  try {
+    return localStorage.getItem(CALENDAR_AUTO_CONNECT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeAutoConnectAttempt(value: string | null) {
+  try {
+    if (value) localStorage.setItem(CALENDAR_AUTO_CONNECT_KEY, value);
+    else localStorage.removeItem(CALENDAR_AUTO_CONNECT_KEY);
+  } catch {
+    // prywatne okno — najwyżej jedna próba na sesję
+  }
 }
 
 function authErrorCode(err: unknown): string {
@@ -211,15 +242,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const mine = status.members.find(
         (member) => member.memberId === linkedMemberId,
       );
-      if (mine?.connected) {
-        sessionStorage.removeItem("calendarOAuthAttempted");
-        return;
-      }
+      if (mine?.connected) return;
 
-      if (status.oauthServerConfigured) {
-        const attempted = sessionStorage.getItem("calendarOAuthAttempted");
-        if (attempted === linkedMemberId) return;
-        sessionStorage.setItem("calendarOAuthAttempted", linkedMemberId);
+      // Bez trwałego zapisu na serwerze łączenie nic nie da — nie wysyłaj
+      // nikogo do ekranu zgody Google przy każdym logowaniu
+      if (status.oauthServerConfigured && status.persistentStore) {
+        if (readAutoConnectAttempt() === linkedMemberId) return;
+        writeAutoConnectAttempt(linkedMemberId);
         sessionStorage.setItem("authReturnTo", window.location.pathname);
         window.location.assign(
           `/api/auth/google?memberId=${encodeURIComponent(linkedMemberId)}`,
@@ -242,7 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         const result = await waitForRedirectResult(auth);
-        if (result) {
+        if (result && sessionStorage.getItem("pendingCalendarSyncMemberId")) {
           const credential = GoogleAuthProvider.credentialFromResult(result);
           pendingAccessTokenRef.current = credential?.accessToken ?? null;
         }
@@ -314,20 +343,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * null i po powrocie z Google nikt nie jest zalogowany.
    */
   const startGoogleSignIn = useCallback(
-    async (auth: Auth) => {
+    async (auth: Auth, provider: GoogleAuthProvider = googleProvider()) => {
       try {
-        const result = await signInWithPopup(auth, googleProvider());
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        pendingAccessTokenRef.current = credential?.accessToken ?? null;
+        const result = await signInWithPopup(auth, provider);
         const linkedMemberId = await loadAndSyncUserProfile(result.user);
-        await connectCalendarIfPending(linkedMemberId);
+        // Token z dostępem do kalendarza tylko z „Synchronizuj kalendarz”
+        if (sessionStorage.getItem("pendingCalendarSyncMemberId")) {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          pendingAccessTokenRef.current = credential?.accessToken ?? null;
+          await connectCalendarIfPending(linkedMemberId);
+        }
       } catch (err) {
         const code = authErrorCode(err);
         if (
           code === "auth/popup-blocked" ||
           code === "auth/operation-not-supported-in-environment"
         ) {
-          await signInWithRedirect(auth, googleProvider());
+          await signInWithRedirect(auth, provider);
           return;
         }
         if (
@@ -366,7 +398,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError("Wybierz profil domownika przed synchronizacją kalendarza.");
       return;
     }
-    sessionStorage.removeItem("calendarOAuthAttempted");
+    writeAutoConnectAttempt(null);
     sessionStorage.setItem("authReturnTo", window.location.pathname);
     window.location.assign(
       `/api/auth/google?memberId=${encodeURIComponent(memberId)}`,
@@ -394,7 +426,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       sessionStorage.setItem("pendingCalendarSyncMemberId", memberId);
       sessionStorage.setItem("authReturnTo", window.location.pathname);
-      await startGoogleSignIn(auth);
+      await startGoogleSignIn(auth, calendarProvider());
     } catch (err) {
       setError(authErrorMessage(err));
     }
@@ -404,7 +436,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     if (!auth) return;
     setError(null);
-    sessionStorage.removeItem("calendarOAuthAttempted");
     await firebaseSignOut(auth);
   }, []);
 

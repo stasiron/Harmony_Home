@@ -52,7 +52,11 @@ function HouseholdsPage() {
                     {active && household ? household.name : membership.name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {membership.role === "admin" ? "Administrator" : "Domownik"}
+                    {membership.superAdmin
+                      ? "Administrator ogólny (nie jesteś domownikiem)"
+                      : membership.role === "admin"
+                        ? "Administrator"
+                        : "Domownik"}
                   </p>
                 </div>
                 {active ? (

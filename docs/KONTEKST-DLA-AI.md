@@ -67,6 +67,10 @@ Wszystko należy do **mieszkania** (`useHousehold().householdId`). Model i decyz
 
 **Na zmianę** (`src/lib/rotation.ts`): obowiązek / zadanie z `rotation` (≥ 2 osoby, kolejność tur) i `rotationTurn` (czyja tura). Odhaczenie przesuwa turę o jedną osobę (`advanceRotation` w `completeTask` / `completeZadanie`). Widoki biorą osoby przez `effectiveAssignees(task)` — przy rotacji tylko osoba z turą. `rotationTurn` jest polem postępu w regułach (może je zmienić każdy, także przy blokadzie).
 
+**Administrator ogólny:** konto `stasiron9102@gmail.com` (zweryfikowany e-mail Google) jest adminem każdego mieszkania — `isSuperAdmin()` w `firestore.rules` i `SUPER_ADMIN_EMAIL` w `src/lib/householdSetup.ts` (zmieniać razem). Widzi też mieszkania, do których nie dołączył (`subscribeAllHouseholds`, `Membership.superAdmin`).
+
+**Logowanie i kalendarz:** logowanie Google prosi tylko o e-mail i profil, bez zakresu kalendarza, więc bez ekranu zgody. Kalendarz łączy się osobno przez OAuth na serwerze z refresh tokenem w Redis — konfiguracja w `docs/KALENDARZ.md`.
+
 **Sync — pułapki:**
 - `useSyncedList` = `setState` + zapis różnicy do Firestore od razu (bez debounce). Odrzucony zapis cofa snapshot z serwera + toast.
 - Stan startowy pusty (SSR = pierwszy render klienta). Cache offline daje Firestore (IndexedDB), nie localStorage.

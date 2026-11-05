@@ -1,6 +1,7 @@
 import { DEFAULT_MEMBERS } from "@/config/household";
 import {
   publicMemberConnection,
+  hasPersistentCalendarStore,
   readCalendarConnectionsStore,
   updateMemberConnection,
   upsertMemberConnection,
@@ -20,6 +21,7 @@ export async function getCalendarConnectionStatusImpl() {
   return {
     oauthReady: true,
     oauthServerConfigured,
+    persistentStore: hasPersistentCalendarStore(),
     members: DEFAULT_MEMBERS.map((member) => {
       const connection = store.members[member.id];
       return {

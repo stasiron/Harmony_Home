@@ -11,7 +11,8 @@ import { useAuth } from "@/context/AuthContext";
 import { subscribeFloorPlanImage, type FloorPlanImage } from "@/lib/floorPlan";
 import {
   createHousehold as createHouseholdDocs,
-  isLegacyOwner,
+  isSuperAdmin as isSuperAdminUser,
+  subscribeAllHouseholds,
   joinHousehold as joinHouseholdDocs,
   migrateLegacyHousehold,
   regenerateInvite as regenerateInviteDoc,
@@ -98,7 +99,9 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const uid = syncUser?.uid ?? null;
   const hasAccount = Boolean(syncUser && !syncUser.isAnonymous);
 
-  const [memberships, setMemberships] = useState<Membership[] | null>(null);
+  const superAdmin = isSuperAdminUser(syncUser);
+  const [ownMemberships, setMemberships] = useState<Membership[] | null>(null);
+  const [allHouseholds, setAllHouseholds] = useState<Membership[]>([]);
   const [preferredId, setPreferredId] = useState<string | null>(null);
   const [household, setHousehold] = useState<HouseholdMeta | null>(null);
   const [householdLoaded, setHouseholdLoaded] = useState(false);
@@ -118,6 +121,25 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     });
     return () => unsubscribe?.();
   }, [uid]);
+
+  // Administrator ogólny widzi też mieszkania, do których nie dołączył
+  useEffect(() => {
+    setAllHouseholds([]);
+    if (!uid || !superAdmin) return;
+    const unsubscribe = subscribeAllHouseholds(setAllHouseholds, (err) =>
+      console.error("All households load failed:", err),
+    );
+    return () => unsubscribe?.();
+  }, [uid, superAdmin]);
+
+  const memberships = useMemo(() => {
+    if (!ownMemberships) return null;
+    const joined = new Set(ownMemberships.map((m) => m.householdId));
+    return [
+      ...ownMemberships,
+      ...allHouseholds.filter((h) => !joined.has(h.householdId)),
+    ];
+  }, [ownMemberships, allHouseholds]);
 
   const householdId = useMemo(() => {
     if (!memberships || memberships.length === 0) return null;
@@ -185,10 +207,10 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     () => members.find((m) => m.uid === uid) ?? null,
     [members, uid],
   );
-  const isAdmin = me?.role === "admin";
+  const isAdmin = superAdmin || me?.role === "admin";
 
   const canMigrateLegacy =
-    isLegacyOwner(syncUser) &&
+    superAdmin &&
     memberships !== null &&
     !memberships.some((m) => m.householdId === LEGACY_HOUSEHOLD_ID);
 

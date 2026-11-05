@@ -22,23 +22,24 @@ service cloud.firestore {
       return /databases/$(database)/documents/households/$(hid)/members/$(request.auth.uid);
     }
 
-    // Pierwsze mieszkanie sprzed multi-mieszkań — właściciel musi móc je
-    // zmigrować, zanim powstanie jego dokument członkostwa.
-    function isLegacyOwner(hid) {
-      return hid == 'homeharmony'
-        && hasAccount()
+    // Administrator ogólny — jedno konto, admin każdego mieszkania (także
+    // przed dołączeniem, np. migracja pierwszego mieszkania). Zmiana adresu
+    // także w src/lib/householdSetup.ts (SUPER_ADMIN_EMAIL).
+    function isSuperAdmin() {
+      return hasAccount()
         && request.auth.token.email == 'stasiron9102@gmail.com'
         && request.auth.token.email_verified == true;
     }
 
+    // isSuperAdmin() najpierw — lista mieszkań (query) przechodzi bez exists()
     function isMember(hid) {
-      return signedIn() && (exists(memberPath(hid)) || isLegacyOwner(hid));
+      return signedIn() && (isSuperAdmin() || exists(memberPath(hid)));
     }
 
     function isAdmin(hid) {
       return signedIn()
-        && ((exists(memberPath(hid)) && get(memberPath(hid)).data.role == 'admin')
-          || isLegacyOwner(hid));
+        && (isSuperAdmin()
+          || (exists(memberPath(hid)) && get(memberPath(hid)).data.role == 'admin'));
     }
 
     function changedOnly(keys) {
@@ -90,8 +91,8 @@ service cloud.firestore {
           // Twórca mieszkania — w tym samym batchu co dokument mieszkania
           (request.resource.data.role == 'admin'
             && getAfter(householdPath(hid)).data.ownerId == request.auth.uid)
-          // Zmigrowane pierwsze mieszkanie
-          || (request.resource.data.role == 'admin' && isLegacyOwner(hid))
+          // Administrator ogólny dopisuje się do dowolnego mieszkania
+          || (request.resource.data.role == 'admin' && isSuperAdmin())
           // Dołączenie kodem zaproszenia
           || (request.resource.data.role == 'member'
             && request.resource.data.inviteCode is string

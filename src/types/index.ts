@@ -294,4 +294,6 @@ export interface Membership {
   name: string;
   role: HouseholdRole;
   joinedAt: string;
+  /** Widoczne tylko jako administrator ogólny — bez członkostwa */
+  superAdmin?: boolean;
 }
