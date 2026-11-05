@@ -16,11 +16,11 @@ export function StatusBanner() {
       tone: "alert",
     });
   if (guestsMode)
-    items.push({ key: "guests", text: "Guests Mode Active", tone: "accent" });
+    items.push({ key: "guests", text: "Tryb gości", tone: "accent" });
   if (alertCount > 0)
     items.push({
       key: "alert",
-      text: `${alertCount} Red Alert${alertCount > 1 ? "s" : ""}`,
+      text: `Pilne: ${alertCount}`,
       tone: "alert",
     });
 

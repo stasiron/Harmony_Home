@@ -105,16 +105,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       meta: [
         { charSet: "utf-8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
-        { title: "Homebase · Smart Home & Chores" },
+        { title: "Homebase · dom i obowiązki" },
         {
           name: "description",
           content:
-            "A warm, minimalist kitchen-kiosk dashboard for chores, guests and smart-home automations.",
+            "Domowy pulpit: obowiązki, zakupy, pranie, kalendarz i goście.",
         },
-        { property: "og:title", content: "Homebase · Smart Home & Chores" },
+        { property: "og:title", content: "Homebase · dom i obowiązki" },
         {
           property: "og:description",
-          content: "Kiosk-ready chores & smart-home dashboard.",
+          content: "Domowy pulpit na tablet i telefon.",
         },
         { property: "og:type", content: "website" },
         { name: "twitter:card", content: "summary" },
@@ -135,7 +135,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pl">
       <head>
         <HeadContent />
         <script

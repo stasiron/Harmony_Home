@@ -21,10 +21,10 @@ const statusStyles: Record<string, string> = {
 };
 
 const statusLabel: Record<string, string> = {
-  safe: "On track",
-  suggested: "Suggested",
-  must: "Must do",
-  done: "Done",
+  safe: "W normie",
+  suggested: "Warto zrobić",
+  must: "Pilne",
+  done: "Zrobione",
 };
 
 export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
@@ -81,7 +81,7 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
                 ? ` · ${linkedSummary.criticalCount} kryt.`
                 : null}
             </span>
-            <span>Last: {d}d ago</span>
+            <span>Ostatnio: {d} dni temu</span>
             {task.recurrence === "recurring" && task.schedule && (
               <span className="flex items-center gap-1">
                 <Repeat className="size-3" />
@@ -197,7 +197,7 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
           <button
             onClick={() => completeTask(task.id)}
             className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
-            aria-label="Mark done"
+            aria-label="Oznacz jako zrobione"
           >
             <Check className="size-4" />
           </button>

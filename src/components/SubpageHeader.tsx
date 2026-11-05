@@ -39,7 +39,7 @@ export function SubpageHeader() {
       >
         <Link to="/">
           <Home />
-          Home
+          Start
         </Link>
       </Button>
     </header>

@@ -3,7 +3,6 @@ import {
   BarChart3,
   Calendar,
   CalendarCheck,
-  Cpu,
   Home,
   ListTodo,
   Settings,
@@ -22,16 +21,15 @@ type NavItem = {
 };
 
 export const navItems: NavItem[] = [
-  { to: "/", label: "Home", icon: Home },
+  { to: "/", label: "Start", icon: Home },
   { to: "/calendar", label: "Kalendarz", icon: Calendar },
-  { to: "/chores", label: "Chores", icon: CalendarCheck },
+  { to: "/chores", label: "Obowiązki", icon: CalendarCheck },
   { to: "/todo", label: "TODO", icon: ListTodo },
   { to: "/laundry", label: "Prania", icon: Shirt },
-  { to: "/kitchen", label: "Kitchen", icon: ShoppingBasket },
-  { to: "/smart", label: "Smart", icon: Cpu },
-  { to: "/stats", label: "Stats", icon: BarChart3 },
+  { to: "/kitchen", label: "Kuchnia", icon: ShoppingBasket },
+  { to: "/stats", label: "Statystyki", icon: BarChart3 },
   { to: "/settings", label: "Ustawienia", icon: Settings },
-  { to: "/members", label: "Members", icon: Users, wide: true },
+  { to: "/members", label: "Domownicy", icon: Users, wide: true },
 ];
 
 const navGridClass = "grid-cols-2 sm:grid-cols-2 md:grid-cols-4";

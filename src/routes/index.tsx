@@ -10,16 +10,16 @@ import { useAuth } from "@/context/AuthContext";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Homebase · Smart Home & Chores" },
+      { title: "Homebase · dom i obowiązki" },
       {
         name: "description",
         content:
-          "A warm, minimalist kitchen-kiosk dashboard for chores, guests and smart-home automations.",
+          "Domowy pulpit: obowiązki, zakupy, pranie, kalendarz i goście.",
       },
-      { property: "og:title", content: "Homebase · Smart Home & Chores" },
+      { property: "og:title", content: "Homebase · dom i obowiązki" },
       {
         property: "og:description",
-        content: "Kiosk-ready chores & smart-home dashboard.",
+        content: "Domowy pulpit na tablet i telefon.",
       },
     ],
   }),
@@ -52,7 +52,7 @@ function Dashboard() {
 
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Quick Actions
+          Szybkie akcje
         </h2>
         <QuickActions />
       </section>

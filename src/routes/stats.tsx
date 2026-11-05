@@ -15,8 +15,8 @@ import { Shell } from "@/components/Shell";
 export const Route = createFileRoute("/stats")({
   head: () => ({
     meta: [
-      { title: "Stats · Homebase" },
-      { name: "description", content: "Household chores analytics." },
+      { title: "Statystyki · Homebase" },
+      { name: "description", content: "Kto ile zrobił w tym tygodniu." },
     ],
   }),
   component: () => (
@@ -58,18 +58,18 @@ function StatsPage() {
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Household stats
+          Statystyki
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          A weekly look at who's pulling weight.
+          Kto ile zrobił w tym tygodniu.
         </p>
       </header>
 
       {!hasData ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center">
-          <h2 className="text-lg font-semibold">No stats yet</h2>
+          <h2 className="text-lg font-semibold">Jeszcze nic do pokazania</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Analytics appear once household members and chores are set up.
+            Statystyki pojawią się, gdy będą domownicy i odhaczone obowiązki.
           </p>
         </div>
       ) : (
@@ -84,7 +84,7 @@ function StatsPage() {
                   {d.name}
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-3">
-                  <Stat label="Done" value={d.Completed} />
+                  <Stat label="Zrobione" value={d.Completed} />
                   <Stat label="Min" value={d.Minutes} />
                   <Stat label="%" value={d.Completion} />
                 </div>

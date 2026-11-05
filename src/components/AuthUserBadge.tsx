@@ -44,7 +44,7 @@ export function AuthUserBadge() {
               {seeAsLabel ? (
                 <span className="max-w-[7rem] truncate">{seeAsLabel}</span>
               ) : (
-                "See as"
+                "Podgląd"
               )}
             </Button>
           </DropdownMenuTrigger>

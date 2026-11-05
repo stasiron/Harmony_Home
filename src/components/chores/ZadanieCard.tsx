@@ -20,10 +20,10 @@ const statusStyles: Record<string, string> = {
 };
 
 const statusLabel: Record<string, string> = {
-  safe: "On track",
-  suggested: "Suggested",
-  must: "Must do",
-  done: "Done",
+  safe: "W normie",
+  suggested: "Warto zrobić",
+  must: "Pilne",
+  done: "Zrobione",
 };
 
 export function ZadanieCard({
@@ -108,7 +108,7 @@ export function ZadanieCard({
             <span className="flex items-center gap-1">
               <Clock className="size-3" /> {zadanie.estimatedMinutes} min
             </span>
-            <span>Last: {d}d ago</span>
+            <span>Ostatnio: {d} dni temu</span>
             <span>{zadanieLocationLabel(zadanie, zones)}</span>
             <span>
               próg {zadanie.tMin}d · krytyczne {zadanie.tMax}d

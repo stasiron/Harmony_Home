@@ -7,10 +7,11 @@ import { Switch } from "@/components/ui/switch";
 export const Route = createFileRoute("/smart")({
   head: () => ({
     meta: [
-      { title: "Smart Home · Homebase" },
+      { title: "Inteligentny dom · Homebase" },
       {
         name: "description",
-        content: "Home Assistant devices linked to household chores.",
+        content:
+          "Urządzenia Home Assistant powiązane z obowiązkami — w przygotowaniu.",
       },
     ],
   }),
@@ -28,7 +29,7 @@ function SmartPage() {
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Smart Home
+          Inteligentny dom · wkrótce
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Devices from Home Assistant appear here and can update or create
@@ -42,10 +43,12 @@ function SmartPage() {
             className="mx-auto size-10 text-muted-foreground"
             strokeWidth={1.4}
           />
-          <h2 className="mt-4 text-lg font-semibold">No devices connected</h2>
+          <h2 className="mt-4 text-lg font-semibold">
+            Integracja w przygotowaniu
+          </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Connect Home Assistant to sync vacuum, washer, sensors and other
-            entities.
+            Połączenie z Home Assistant (odkurzacz, pralka, czujniki) dopiero
+            powstaje — dlatego tej zakładki nie ma w menu.
           </p>
         </div>
       ) : (
@@ -94,7 +97,9 @@ function SmartPage() {
                       </span>
                     </div>
                   )}
-                  {!linked && !d.generatesTask && <div>Sensor input only.</div>}
+                  {!linked && !d.generatesTask && (
+                    <div>Tylko odczyt czujnika.</div>
+                  )}
                 </div>
               </div>
             );

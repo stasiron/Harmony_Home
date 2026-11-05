@@ -27,7 +27,9 @@ export function QuickActions() {
             <Siren className="size-5" />
           </div>
           <div>
-            <div className="font-semibold text-alert">Guests Panic Button</div>
+            <div className="font-semibold text-alert">
+              PANIC — goście za chwilę
+            </div>
             <div className="text-xs text-muted-foreground">
               {panic?.active
                 ? `PANIC aktywny · ${visibleTasks.length} priorytetowych obowiązków`

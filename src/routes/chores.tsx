@@ -23,10 +23,11 @@ import { resolveImportance } from "@/lib/choreImportance";
 export const Route = createFileRoute("/chores")({
   head: () => ({
     meta: [
-      { title: "Chores · Homebase" },
+      { title: "Obowiązki · Homebase" },
       {
         name: "description",
-        content: "Flexible chore intervals — safe, suggested, must-do.",
+        content:
+          "Obowiązki domowe z elastycznymi odstępami — w normie, warto zrobić, pilne.",
       },
     ],
   }),
@@ -60,22 +61,22 @@ function ChoresPage() {
   const groups = [
     {
       key: "must",
-      label: "Must do today",
+      label: "Pilne dziś",
       tasks: visibleTasks.filter((t) => statusOf(t) === "must"),
     },
     {
       key: "suggested",
-      label: "Suggested",
+      label: "Warto zrobić",
       tasks: visibleTasks.filter((t) => statusOf(t) === "suggested"),
     },
     {
       key: "safe",
-      label: "On track",
+      label: "W normie",
       tasks: visibleTasks.filter((t) => statusOf(t) === "safe"),
     },
     {
       key: "done",
-      label: "Recently done",
+      label: "Niedawno zrobione",
       tasks: visibleTasks.filter((t) => statusOf(t) === "done"),
     },
   ];
@@ -83,22 +84,22 @@ function ChoresPage() {
   const zadaniaGroups = [
     {
       key: "must",
-      label: "Must do today",
+      label: "Pilne dziś",
       items: visibleZadania.filter((z) => statusOf(z) === "must"),
     },
     {
       key: "suggested",
-      label: "Suggested",
+      label: "Warto zrobić",
       items: visibleZadania.filter((z) => statusOf(z) === "suggested"),
     },
     {
       key: "safe",
-      label: "On track",
+      label: "W normie",
       items: visibleZadania.filter((z) => statusOf(z) === "safe"),
     },
     {
       key: "done",
-      label: "Recently done",
+      label: "Niedawno zrobione",
       items: visibleZadania.filter((z) => statusOf(z) === "done"),
     },
   ];
@@ -126,10 +127,10 @@ function ChoresPage() {
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
         <div className="min-w-0">
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-            Chores
+            Obowiązki
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Dynamic intervals based on last completed.
+            Termin liczy się od ostatniego wykonania.
             {heavyDayNames.length > 0 &&
               ` · Heavy Day: ${heavyDayNames.join(", ")}`}
             {panic?.active && " · PANIC_GOSCIE"}

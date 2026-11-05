@@ -11,8 +11,8 @@ import type { ShoppingCategory } from "@/types";
 export const Route = createFileRoute("/kitchen")({
   head: () => ({
     meta: [
-      { title: "Kitchen · Homebase" },
-      { name: "description", content: "Shopping list and household recipes." },
+      { title: "Kuchnia · Homebase" },
+      { name: "description", content: "Lista zakupów mieszkania." },
     ],
   }),
   component: () => (
@@ -38,24 +38,24 @@ function KitchenPage() {
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Kitchen
+          Kuchnia
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Shopping list and favorite recipes.
+          Wspólna lista zakupów.
         </p>
       </header>
 
       <Tabs defaultValue="shopping">
         <TabsList>
-          <TabsTrigger value="shopping">Shopping List</TabsTrigger>
-          <TabsTrigger value="recipes">Recipes</TabsTrigger>
+          <TabsTrigger value="shopping">Zakupy</TabsTrigger>
+          <TabsTrigger value="recipes">Przepisy · wkrótce</TabsTrigger>
         </TabsList>
 
         <TabsContent value="shopping" className="mt-6 space-y-6">
           {shopping.length === 0 ? (
             <EmptyPanel
-              title="Shopping list is empty"
-              description="Add items manually or from a recipe when you save one."
+              title="Lista zakupów jest pusta"
+              description="Dopisz, czego brakuje — zobaczy to cały dom."
             />
           ) : (
             CATEGORY_ORDER.map((cat) => {
@@ -102,8 +102,8 @@ function KitchenPage() {
         <TabsContent value="recipes" className="mt-6">
           {recipes.length === 0 ? (
             <EmptyPanel
-              title="No recipes yet"
-              description="Save your favorite meals here to quickly add ingredients to the shopping list."
+              title="Przepisy — wkrótce"
+              description="Ta część jest w przygotowaniu: zapisane przepisy dodadzą składniki do listy zakupów jednym kliknięciem."
             />
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
