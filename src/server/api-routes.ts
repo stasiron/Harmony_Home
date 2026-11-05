@@ -2,7 +2,6 @@ import { peekLastCapturedError } from "@/lib/error-capture";
 import { runDiagnostics, verifyDebugToken } from "@/lib/diagnostics";
 import { saveOAuthMemberConnection } from "@/lib/calendar-settings.server";
 import {
-  buildGoogleAuthUrl,
   exchangeGoogleCode,
   getAppOrigin,
   verifyOAuthState,
@@ -54,25 +53,6 @@ export async function handleApiRequest(
     return Response.json(report, { status: report.ok ? 200 : 503 });
   }
 
-  if (pathname === "/api/auth/google") {
-    const url = new URL(request.url);
-    const memberId = url.searchParams.get("memberId")?.trim();
-    if (!memberId) {
-      return new Response("memberId required", { status: 400 });
-    }
-
-    const origin = getAppOrigin(request.url);
-    const authUrl = buildGoogleAuthUrl(origin, memberId);
-    if (!authUrl) {
-      return Response.redirect(
-        `${origin}/settings?error=oauth_not_configured`,
-        302,
-      );
-    }
-
-    return Response.redirect(authUrl, 302);
-  }
-
   if (pathname === "/api/auth/google/callback") {
     const origin = getAppOrigin(request.url);
     const url = new URL(request.url);
@@ -111,10 +91,7 @@ export async function handleApiRequest(
         expiresIn: tokens.expires_in,
       });
 
-      return Response.redirect(
-        `${origin}/settings?connected=${parsed.memberId}`,
-        302,
-      );
+      return Response.redirect(`${origin}/settings?connected=1`, 302);
     } catch {
       return Response.redirect(`${origin}/settings?error=connect_failed`, 302);
     }

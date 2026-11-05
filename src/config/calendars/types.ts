@@ -9,18 +9,3 @@ export type MemberCalendarSource = {
   color: string;
   envKey: string;
 };
-
-export type CalendarMatchRule = {
-  matchPattern: string;
-  label: string;
-  display: CalendarDisplayMode;
-  color: string;
-};
-
-export type MemberCalendarsConfig = {
-  memberId: string;
-  /** Reguły po OAuth — dopasowanie nazwy kalendarza Google. */
-  matchRules: CalendarMatchRule[];
-  /** Opcjonalny fallback iCal (bez OAuth). */
-  calendars?: MemberCalendarSource[];
-};

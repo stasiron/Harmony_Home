@@ -1,8 +1,17 @@
-# Kalendarz Google: stałe połączenie
+# Kalendarz: własny, prywatny, per konto
+
+Kalendarz należy do **konta**, nie do mieszkania. Widzi go tylko właściciel, w każdym swoim mieszkaniu (zakładka Kalendarz). Wspólny kalendarz domu (`GOOGLE_CALENDAR_ICAL_URL`) widzą wszyscy.
+
+Są dwa sposoby, oba w Ustawieniach → **Mój kalendarz**:
+
+1. **Link iCal** (najprościej). W Google Calendar: ⚙ Ustawienia → kalendarz → „Tajny adres w formacie iCal”. Działa też link z Outlooka i iCloud. Nie wymaga OAuth, kluczy ani Redis, więc nie ma żadnego ekranu zgody. Link zapisuje się w `users/{uid}/private/calendar`, do którego dostęp ma tylko właściciel. Serwer dostaje go z każdym zapytaniem i nigdzie go nie przechowuje. Przyjmowane są tylko adresy https znanych dostawców.
+2. **Połączenie Google (OAuth)** — konfiguracja poniżej.
+
+## Połączenie Google (OAuth): stałe połączenie
 
 Zgodę Google daje się **raz**. Serwer zapamiętuje dostęp (refresh token) w bazie Redis na Vercel, a potem kalendarz działa bez pytania, także na tablecie bez konta.
 
-Bez tej konfiguracji Ustawienia → Konto Google pokazują komunikat „Kalendarz Google nie jest jeszcze skonfigurowany na serwerze”. Zwykłe logowanie działa i nie pyta o kalendarz.
+Bez tej konfiguracji karta „Mój kalendarz” pokazuje, że na serwerze brakuje kluczy Google i Redis — link iCal działa mimo to.
 
 ## 1. Google Cloud: klucze OAuth
 
@@ -15,7 +24,7 @@ Konsola: https://console.cloud.google.com/apis/credentials?project=harmony-home-
    - Aplikacja bez weryfikacji pokaże ostrzeżenie „Google nie zweryfikował aplikacji” tylko przy tej jednej zgodzie. Przejdź przez „Zaawansowane → Przejdź do…”.
 3. **Credentials → Create credentials → OAuth client ID:**
    - typ **Web application**;
-   - Authorized redirect URIs:
+   - Authorized redirect URIs (logowanie startuje z Ustawień → „Połącz Google”, adres `/api/auth/google` już nie istnieje):
      - `https://harmony-home-three.vercel.app/api/auth/google/callback`
      - `http://localhost:3000/api/auth/google/callback` (dla pracy lokalnej);
    - skopiuj **Client ID** i **Client secret**.

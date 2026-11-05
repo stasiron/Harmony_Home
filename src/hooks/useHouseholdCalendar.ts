@@ -16,6 +16,7 @@ import {
   writeCachedFeed,
 } from "@/lib/calendar/feedCache";
 import { useAuth } from "@/context/AuthContext";
+import { usePersonalIcals } from "@/lib/personalCalendars";
 import { effectiveAssignees } from "@/lib/rotation";
 import {
   choresDueOnDate,
@@ -50,10 +51,9 @@ export function useHouseholdCalendar(
   allTasks: Task[],
   guestPlans: GuestPlan[],
   guestsMode: boolean,
-  /** Google Calendar tylko w pierwszym mieszkaniu (src/config/calendars) */
-  googleEnabled: boolean,
   filters: CalendarFilters,
 ) {
+  const { icals, ready: icalsReady } = usePersonalIcals();
   const loadEvents = useServerFn(fetchCalendarEvents);
   const { syncUser } = useAuth();
   const viewerUid = syncUser?.uid ?? null;
@@ -88,14 +88,17 @@ export function useHouseholdCalendar(
 
   // Prywatne: serwer oddaje tylko wydarzenia tej osoby (+ wspólne domu),
   // więc pamięć podręczna też jest per konto
-  const cacheKey = `${viewerUid ?? "none"}:${rangeKey}`;
+  const icalsKey = icals
+    .map((i) => `${i.id}:${i.enabled !== false}:${i.display}`)
+    .join(",");
+  const cacheKey = `${viewerUid ?? "none"}:${rangeKey}:${icalsKey}`;
   const cached = useMemo(
     () => (typeof window === "undefined" ? null : readCachedFeed(cacheKey)),
     [cacheKey],
   );
 
   const feedQuery = useQuery({
-    queryKey: ["calendar-feed", viewerUid, rangeKey],
+    queryKey: ["calendar-feed", viewerUid, rangeKey, icalsKey],
     queryFn: async () => {
       const idToken = (await syncUser?.getIdToken()) ?? null;
       const data = await loadEvents({
@@ -103,6 +106,7 @@ export function useHouseholdCalendar(
           from: range.from.toISOString(),
           to: range.to.toISOString(),
           idToken,
+          icals,
         },
       });
       writeCachedFeed(cacheKey, data);
@@ -114,7 +118,7 @@ export function useHouseholdCalendar(
     staleTime: (query) => msUntilStale(query.state.dataUpdatedAt, Date.now()),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    enabled: googleEnabled && Boolean(viewerUid),
+    enabled: Boolean(viewerUid) && icalsReady,
   });
 
   const feedEvents = feedQuery.data?.events;

@@ -25,7 +25,8 @@ export type CalendarConnectionsStore = {
   members: Record<string, MemberConnection>;
 };
 
-const STORE_KEY = "homeharmony:calendar-connections";
+// Klucz = uid konta (dawniej id domownika z pliku — stary klucz porzucony)
+const STORE_KEY = "homeharmony:calendar-accounts";
 const DATA_DIR = process.env.CALENDAR_DATA_DIR ?? join(process.cwd(), ".data");
 const DATA_FILE = join(DATA_DIR, "calendar-connections.json");
 

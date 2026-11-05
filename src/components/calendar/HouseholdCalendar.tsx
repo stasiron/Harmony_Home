@@ -55,19 +55,17 @@ function useStoredFilter<T>(key: string, initial: T) {
 
 export function HouseholdCalendar() {
   const { tasks, guestPlans, guestsMode, users } = useApp();
-  const { household, myProfileId } = useHousehold();
+  const { myProfileId } = useHousehold();
   const [onlyMine, setOnlyMine] = useStoredFilter("calendar-only-mine", false);
   const [hiddenCalendarIds, setHiddenCalendarIds] = useStoredFilter<string[]>(
     "calendar-hidden",
     [],
   );
-  const cal = useHouseholdCalendar(
-    tasks,
-    guestPlans,
-    guestsMode,
-    Boolean(household?.features?.legacyCalendar),
-    { onlyMine, hiddenCalendarIds, myProfileId },
-  );
+  const cal = useHouseholdCalendar(tasks, guestPlans, guestsMode, {
+    onlyMine,
+    hiddenCalendarIds,
+    myProfileId,
+  });
 
   const toggleCalendar = (calendarId: string) =>
     setHiddenCalendarIds(

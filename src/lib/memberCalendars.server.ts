@@ -1,13 +1,15 @@
 import { getIcalFallbackSources } from "@/config/calendars";
-import type { CalendarFeedResult } from "@/lib/calendar-feed-types";
+import type { RegisteredCalendar } from "@/config/calendars";
+import type {
+  CalendarFeedEvent,
+  CalendarFeedResult,
+} from "@/lib/calendar-feed-types";
 import { logServerWarn } from "@/lib/serverLog";
 import {
   readCalendarConnectionsStore,
   type MemberConnection,
   type StoredCalendar,
 } from "@/lib/calendarConnectionsStore.server";
-import { memberName } from "@/lib/calendarRules";
-import type { CalendarFeedEvent } from "@/lib/calendar-feed-types";
 import {
   calendarEventId,
   eventOverlapsRange,
@@ -19,34 +21,20 @@ import {
   getMemberAccessToken,
   googleEventToIsoRange,
 } from "@/lib/googleOAuth.server";
-import type { RegisteredCalendar } from "@/config/calendars";
-import type { VerifiedViewer } from "@/lib/firebaseToken.server";
-import { memberIdFromEmail } from "@/lib/memberLink";
-
-/** Kalendarz wspólny domu (goście) — widzi każdy domownik */
-const SHARED_MEMBER_ID = "household";
+import {
+  verifyFirebaseIdToken,
+  type VerifiedViewer,
+} from "@/lib/firebaseToken.server";
+import { normalizeIcalUrl, type PersonalIcal } from "@/lib/personalIcal";
 
 /**
- * Prywatność: osobiste kalendarze widzi tylko ich właściciel (konto z
- * tym samym e-mailem), wspólny kalendarz domu — każdy.
+ * Kalendarz należy do konta (uid), nie do mieszkania ani wpisu w kodzie.
+ * Każdy widzi: swoje połączenie Google (OAuth, serwer + Redis), swoje linki
+ * iCal (przysłane przez klienta z prywatnego zapisu) i wspólny kalendarz domu.
  */
-export function viewerMemberIds(
-  viewer: VerifiedViewer | null,
-  connections: MemberConnection[],
-): Set<string> {
-  const ids = new Set<string>([SHARED_MEMBER_ID]);
-  if (!viewer || viewer.anonymous || !viewer.emailVerified || !viewer.email) {
-    return ids;
-  }
-  const fromConfig = memberIdFromEmail(viewer.email);
-  if (fromConfig) ids.add(fromConfig);
-  for (const connection of connections) {
-    if (connection.googleEmail?.toLowerCase() === viewer.email) {
-      ids.add(connection.memberId);
-    }
-  }
-  return ids;
-}
+
+/** Kalendarz wspólny domu (goście) — widzi każdy domownik */
+export const SHARED_MEMBER_ID = "household";
 
 export function resolveEnvCalendarUrl(envKey: string): string {
   return process.env[envKey]?.trim() ?? "";
@@ -69,16 +57,26 @@ export function displaySummary(
 }
 
 function feedEventId(
-  memberId: string,
+  ownerId: string,
   calendarKey: string,
   summary: string,
   start: Date,
 ): string {
-  return `${memberId}:${calendarKey}:${calendarEventId(summary, start)}`;
+  return `${ownerId}:${calendarKey}:${calendarEventId(summary, start)}`;
 }
 
-function mapIcalSourceEvents(
-  source: RegisteredCalendar,
+type IcalSource = {
+  id: string;
+  label: string;
+  display: "full" | "busy";
+  color: string;
+  ownerId: string;
+  ownerName: string;
+  url: string;
+};
+
+function mapIcalEvents(
+  source: IcalSource,
   ical: string,
   rangeStart: Date,
   rangeEnd: Date,
@@ -86,16 +84,16 @@ function mapIcalSourceEvents(
   return parseGoogleCalendarEvents(ical)
     .filter((e) => eventOverlapsRange(e.start, e.end, rangeStart, rangeEnd))
     .map((e) => ({
-      id: feedEventId(source.memberId, source.id, e.summary, e.start),
+      id: feedEventId(source.ownerId, source.id, e.summary, e.start),
       summary: displaySummary(e.summary, source.display),
       location: source.display === "busy" ? "" : e.location,
       start: e.start.toISOString(),
       end: e.end?.toISOString() ?? null,
       isGuest:
-        source.memberId === "household" &&
+        source.ownerId === SHARED_MEMBER_ID &&
         isGuestCalendarEvent(e.summary, e.location),
-      memberId: source.memberId,
-      memberName: source.memberName,
+      memberId: source.ownerId,
+      memberName: source.ownerName,
       calendarId: source.id,
       calendarLabel: source.label,
       display: source.display,
@@ -106,30 +104,20 @@ function mapIcalSourceEvents(
 async function fetchIcalSources(
   rangeStart: Date,
   rangeEnd: Date,
-  sources: RegisteredCalendar[],
+  sources: IcalSource[],
 ): Promise<CalendarFeedEvent[]> {
   const events: CalendarFeedEvent[] = [];
-  let anyUrl = false;
-
   await Promise.all(
     sources.map(async (source) => {
-      const url = resolveEnvCalendarUrl(source.envKey);
-      if (!url) return;
-      anyUrl = true;
       try {
-        const ical = await fetchIcalText(url);
-        events.push(...mapIcalSourceEvents(source, ical, rangeStart, rangeEnd));
+        const ical = await fetchIcalText(source.url);
+        events.push(...mapIcalEvents(source, ical, rangeStart, rangeEnd));
       } catch (error) {
-        logServerWarn("calendar:ical", {
-          source: source.id,
-          envKey: source.envKey,
-          error,
-        });
+        logServerWarn("calendar:ical", { source: source.id, error });
       }
     }),
   );
-
-  return anyUrl ? events : [];
+  return events;
 }
 
 function mapGoogleApiEvent(
@@ -153,7 +141,7 @@ function mapGoogleApiEvent(
     end,
     isGuest: false,
     memberId: connection.memberId,
-    memberName: memberName(connection.memberId),
+    memberName: "Ty",
     calendarId: calendar.googleCalendarId,
     calendarLabel: calendar.label,
     display: calendar.display,
@@ -161,7 +149,7 @@ function mapGoogleApiEvent(
   };
 }
 
-async function fetchOAuthMemberEvents(
+async function fetchOAuthEvents(
   connection: MemberConnection,
   rangeStart: Date,
   rangeEnd: Date,
@@ -191,59 +179,82 @@ async function fetchOAuthMemberEvents(
   return events;
 }
 
-export async function fetchAllMemberCalendarEvents(
-  rangeStart: Date,
-  rangeEnd: Date,
+/** Konto (nie tablet bez konta) — może mieć prywatny kalendarz */
+export function canHavePersonalCalendar(
   viewer: VerifiedViewer | null,
-): Promise<{ configured: boolean; events: CalendarFeedEvent[] }> {
-  const store = await readCalendarConnectionsStore();
-  const allConnections = Object.values(store.members);
-  const visible = viewerMemberIds(viewer, allConnections);
-  // Cudzych kalendarzy nawet nie pobieramy z Google
-  const oauthMembers = allConnections.filter((c) => visible.has(c.memberId));
-  const events: CalendarFeedEvent[] = [];
+): viewer is VerifiedViewer {
+  return Boolean(viewer && !viewer.anonymous);
+}
 
-  for (const connection of oauthMembers) {
-    try {
-      const memberEvents = await fetchOAuthMemberEvents(
-        connection,
-        rangeStart,
-        rangeEnd,
-      );
-      events.push(...memberEvents);
-    } catch (error) {
-      logServerWarn("calendar:oauth", { memberId: connection.memberId, error });
-    }
-  }
-
-  const icalEvents = await fetchIcalSources(
-    rangeStart,
-    rangeEnd,
-    getIcalFallbackSources().filter((s) => visible.has(s.memberId)),
-  );
-  events.push(...icalEvents);
-
-  const hasIcalEnv = getIcalFallbackSources().some((s) =>
-    resolveEnvCalendarUrl(s.envKey),
-  );
-  const configured = allConnections.length > 0 || hasIcalEnv;
-
-  events.sort(
-    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
-  );
-  return { configured, events };
+function householdSources(): IcalSource[] {
+  return getIcalFallbackSources().flatMap((source: RegisteredCalendar) => {
+    const url = resolveEnvCalendarUrl(source.envKey);
+    if (!url) return [];
+    return [
+      {
+        id: source.id,
+        label: source.label,
+        display: source.display,
+        color: source.color,
+        ownerId: SHARED_MEMBER_ID,
+        ownerName: source.memberName,
+        url,
+      },
+    ];
+  });
 }
 
 export async function fetchCalendarEventsImpl(data: {
   from: string;
   to: string;
   idToken?: string | null;
+  icals?: PersonalIcal[];
 }): Promise<CalendarFeedResult> {
-  const { verifyFirebaseIdToken } = await import("@/lib/firebaseToken.server");
+  const rangeStart = new Date(data.from);
+  const rangeEnd = new Date(data.to);
   const viewer = await verifyFirebaseIdToken(data.idToken);
-  return fetchAllMemberCalendarEvents(
-    new Date(data.from),
-    new Date(data.to),
-    viewer,
+  const events: CalendarFeedEvent[] = [];
+
+  const shared = householdSources();
+  const personal: IcalSource[] = [];
+  let connection: MemberConnection | undefined;
+
+  if (canHavePersonalCalendar(viewer)) {
+    const store = await readCalendarConnectionsStore();
+    connection = store.members[viewer.uid];
+    for (const ical of (data.icals ?? []).slice(0, 10)) {
+      const url = ical.enabled === false ? null : normalizeIcalUrl(ical.url);
+      if (!url) continue;
+      personal.push({
+        id: `ical-${ical.id}`,
+        label: ical.label || "Mój kalendarz",
+        display: ical.display === "busy" ? "busy" : "full",
+        color: ical.color || "chart-1",
+        ownerId: viewer.uid,
+        ownerName: "Ty",
+        url,
+      });
+    }
+  }
+
+  if (connection) {
+    try {
+      events.push(
+        ...(await fetchOAuthEvents(connection, rangeStart, rangeEnd)),
+      );
+    } catch (error) {
+      logServerWarn("calendar:oauth", { uid: connection.memberId, error });
+    }
+  }
+  events.push(
+    ...(await fetchIcalSources(rangeStart, rangeEnd, [...shared, ...personal])),
   );
+
+  events.sort(
+    (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+  );
+  return {
+    configured: shared.length > 0 || personal.length > 0 || Boolean(connection),
+    events,
+  };
 }

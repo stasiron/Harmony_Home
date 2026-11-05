@@ -1,153 +1,115 @@
-import { DEFAULT_MEMBERS, MEMBER_EMAIL_LINKS } from "@/config/household";
 import {
-  verifyFirebaseIdToken,
-  type VerifiedViewer,
-} from "@/lib/firebaseToken.server";
-import { viewerMemberIds } from "@/lib/memberCalendars.server";
-import { memberIdFromEmail } from "@/lib/memberLink";
-import type { CalendarConnectionsStore } from "@/lib/calendarConnectionsStore.server";
-import {
-  publicMemberConnection,
   hasPersistentCalendarStore,
+  publicMemberConnection,
   readCalendarConnectionsStore,
   updateMemberConnection,
   upsertMemberConnection,
   type StoredCalendar,
 } from "@/lib/calendarConnectionsStore.server";
 import { classifyGoogleCalendar } from "@/lib/calendarRules";
+import { verifyFirebaseIdToken } from "@/lib/firebaseToken.server";
 import {
+  buildGoogleAuthUrl,
   fetchGoogleCalendarList,
   fetchGoogleUserEmail,
+  getAppOrigin,
   getGoogleOAuthConfig,
 } from "@/lib/googleOAuth.server";
+import { canHavePersonalCalendar } from "@/lib/memberCalendars.server";
 
 /**
- * Czy ten adres Google może być właścicielem kalendarza domownika `memberId`:
- * zgodny z przypisaniem e-maili (src/config/household.ts) i nie zajęty przez
- * inne konto.
+ * Połączenie Google Calendar (OAuth) należy do konta — klucz w Redis to uid
+ * z zweryfikowanego tokenu. `MemberConnection.memberId` = uid konta.
  */
-export function canClaimMember(
-  email: string | null,
-  memberId: string,
-  store: CalendarConnectionsStore,
-): boolean {
-  const normalized = email?.trim().toLowerCase();
-  if (!normalized) return false;
-  const mapped = memberIdFromEmail(normalized);
-  if (mapped) return mapped === memberId;
-  const claimedByOther = Object.entries(MEMBER_EMAIL_LINKS).some(
-    ([linkEmail, id]) => id === memberId && linkEmail !== normalized,
-  );
-  if (claimedByOther) return false;
-  const existing = store.members[memberId];
-  return !existing || existing.googleEmail?.toLowerCase() === normalized;
-}
 
-function isTrustedViewer(
-  viewer: VerifiedViewer | null,
-): viewer is VerifiedViewer {
-  return Boolean(
-    viewer && !viewer.anonymous && viewer.emailVerified && viewer.email,
-  );
-}
-
-/** Domownicy, których kalendarzem zarządza ten viewer */
-async function ownedMemberIds(idToken: string | null | undefined) {
+async function requireAccountUid(idToken: string | null | undefined) {
   const viewer = await verifyFirebaseIdToken(idToken);
-  const store = await readCalendarConnectionsStore();
-  const owned = isTrustedViewer(viewer)
-    ? viewerMemberIds(viewer, Object.values(store.members))
-    : new Set<string>();
-  owned.delete("household");
-  return { viewer, store, owned };
-}
-
-async function requireOwner(
-  idToken: string | null | undefined,
-  memberId: string,
-) {
-  const { owned } = await ownedMemberIds(idToken);
-  if (!owned.has(memberId)) throw new Error("calendar_forbidden");
+  if (!canHavePersonalCalendar(viewer)) throw new Error("calendar_forbidden");
+  return viewer.uid;
 }
 
 export async function getCalendarConnectionStatusImpl(
   data: { idToken?: string | null } = {},
 ) {
-  const { store, owned } = await ownedMemberIds(data.idToken);
+  const viewer = await verifyFirebaseIdToken(data.idToken);
   const oauthServerConfigured = Boolean(getGoogleOAuthConfig());
-
+  const persistentStore = hasPersistentCalendarStore();
+  let connection = null;
+  if (canHavePersonalCalendar(viewer)) {
+    const store = await readCalendarConnectionsStore();
+    const own = store.members[viewer.uid];
+    connection = own ? publicMemberConnection(own) : null;
+  }
   return {
     oauthReady: true,
     oauthServerConfigured,
-    persistentStore: hasPersistentCalendarStore(),
-    members: DEFAULT_MEMBERS.map((member) => {
-      const connection = store.members[member.id];
-      return {
-        memberId: member.id,
-        memberName: member.name,
-        connected: Boolean(connection),
-        /** Szczegóły (e-mail, lista kalendarzy) tylko dla właściciela */
-        mine: owned.has(member.id),
-        connection:
-          connection && owned.has(member.id)
-            ? publicMemberConnection(connection)
-            : null,
-      };
-    }),
+    persistentStore,
+    /** Tylko połączenie pytającego — cudzych nikt nie widzi */
+    connection,
   };
 }
 
-export async function setMemberCalendarEnabledImpl(data: {
-  memberId: string;
-  googleCalendarId: string;
-  enabled: boolean;
+/** Adres zgody Google — state podpisany AUTH_SECRET niesie uid konta */
+export async function createGoogleCalendarAuthUrlImpl(data: {
   idToken?: string | null;
+  origin?: string;
 }) {
-  await requireOwner(data.idToken, data.memberId);
-  await updateMemberConnection(data.memberId, (current) => {
+  const uid = await requireAccountUid(data.idToken);
+  const origin = getAppOrigin(data.origin);
+  const url = buildGoogleAuthUrl(origin, uid);
+  if (!url) throw new Error("oauth_not_configured");
+  return { url };
+}
+
+function patchOwnCalendar(
+  uid: string,
+  googleCalendarId: string,
+  patch: Partial<StoredCalendar>,
+) {
+  return updateMemberConnection(uid, (current) => {
     if (!current) return current;
     return {
       ...current,
       calendars: current.calendars.map((c) =>
-        c.googleCalendarId === data.googleCalendarId
-          ? { ...c, enabled: data.enabled }
-          : c,
+        c.googleCalendarId === googleCalendarId ? { ...c, ...patch } : c,
       ),
     };
+  });
+}
+
+export async function setMemberCalendarEnabledImpl(data: {
+  googleCalendarId: string;
+  enabled: boolean;
+  idToken?: string | null;
+}) {
+  const uid = await requireAccountUid(data.idToken);
+  await patchOwnCalendar(uid, data.googleCalendarId, {
+    enabled: data.enabled,
   });
   return { ok: true as const };
 }
 
 export async function setMemberCalendarDisplayImpl(data: {
-  memberId: string;
   googleCalendarId: string;
   display: "full" | "busy";
   idToken?: string | null;
 }) {
-  await requireOwner(data.idToken, data.memberId);
-  await updateMemberConnection(data.memberId, (current) => {
-    if (!current) return current;
-    return {
-      ...current,
-      calendars: current.calendars.map((c) =>
-        c.googleCalendarId === data.googleCalendarId
-          ? { ...c, display: data.display }
-          : c,
-      ),
-    };
+  const uid = await requireAccountUid(data.idToken);
+  await patchOwnCalendar(uid, data.googleCalendarId, {
+    display: data.display,
   });
   return { ok: true as const };
 }
 
 export async function disconnectMemberGoogleImpl(data: {
-  memberId: string;
   idToken?: string | null;
 }) {
-  await requireOwner(data.idToken, data.memberId);
-  await updateMemberConnection(data.memberId, () => undefined);
+  const uid = await requireAccountUid(data.idToken);
+  await updateMemberConnection(uid, () => undefined);
   return { ok: true as const };
 }
 
+/** Po powrocie z Google (api-routes callback) — uid z podpisanego state */
 export async function saveOAuthMemberConnection(input: {
   memberId: string;
   refreshToken: string;
@@ -158,20 +120,10 @@ export async function saveOAuthMemberConnection(input: {
     Date.now() + input.expiresIn * 1000,
   ).toISOString();
   const googleEmail = await fetchGoogleUserEmail(input.accessToken);
-  // Konto Google samo potwierdza tożsamość — nie podłączy się pod cudzy profil
-  if (
-    !canClaimMember(
-      googleEmail,
-      input.memberId,
-      await readCalendarConnectionsStore(),
-    )
-  ) {
-    throw new Error("calendar_forbidden");
-  }
   const list = await fetchGoogleCalendarList(input.accessToken);
 
-  const calendars: StoredCalendar[] = list.map((item) => {
-    const classified = classifyGoogleCalendar(input.memberId, item.summary);
+  const calendars: StoredCalendar[] = list.map((item, index) => {
+    const classified = classifyGoogleCalendar(item.summary, index);
     return {
       googleCalendarId: item.id,
       summary: item.summary,
@@ -186,54 +138,6 @@ export async function saveOAuthMemberConnection(input: {
     memberId: input.memberId,
     googleEmail,
     refreshToken: input.refreshToken,
-    accessToken: input.accessToken,
-    accessTokenExpiresAt,
-    connectedAt: new Date().toISOString(),
-    calendars,
-  });
-}
-
-export async function saveFirebaseCalendarConnection(input: {
-  memberId: string;
-  accessToken: string;
-  expiresIn?: number;
-  idToken?: string | null;
-}) {
-  const expiresIn = input.expiresIn ?? 3600;
-  const accessTokenExpiresAt = new Date(
-    Date.now() + expiresIn * 1000,
-  ).toISOString();
-  const viewer = await verifyFirebaseIdToken(input.idToken);
-  const googleEmail = await fetchGoogleUserEmail(input.accessToken);
-  if (
-    !isTrustedViewer(viewer) ||
-    viewer.email !== googleEmail.toLowerCase() ||
-    !canClaimMember(
-      googleEmail,
-      input.memberId,
-      await readCalendarConnectionsStore(),
-    )
-  ) {
-    throw new Error("calendar_forbidden");
-  }
-  const list = await fetchGoogleCalendarList(input.accessToken);
-
-  const calendars: StoredCalendar[] = list.map((item) => {
-    const classified = classifyGoogleCalendar(input.memberId, item.summary);
-    return {
-      googleCalendarId: item.id,
-      summary: item.summary,
-      enabled: true,
-      display: classified.display,
-      color: classified.color,
-      label: classified.label,
-    };
-  });
-
-  await upsertMemberConnection({
-    memberId: input.memberId,
-    googleEmail,
-    refreshToken: "",
     accessToken: input.accessToken,
     accessTokenExpiresAt,
     connectedAt: new Date().toISOString(),

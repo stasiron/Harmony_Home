@@ -37,7 +37,6 @@ function fail(message: string) {
 /** Ustawienia → Mieszkanie: nazwa, zaproszenia, konta i role */
 export function HouseholdSettingsCard() {
   const { users } = useApp();
-  const { linkMember } = useAuth();
   const {
     household,
     members,
@@ -95,7 +94,6 @@ export function HouseholdSettingsCard() {
       : setMemberProfile(member.uid, profileId);
     void save.catch(fail("Nie udało się przypisać domownika."));
     // Kalendarze pierwszego mieszkania są przypięte do id domownika
-    if (own && legacyCalendar && profileId) void linkMember(profileId);
   };
 
   const profileName = (profileId: string | null) =>

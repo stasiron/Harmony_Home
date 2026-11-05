@@ -1,6 +1,4 @@
-import { useServerFn } from "@tanstack/react-start";
-import { CalendarSync, LogIn, LogOut, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { LogIn, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,88 +12,23 @@ import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
 import { LoginDialog } from "@/components/auth/LoginDialog";
-import { getCalendarConnectionStatus } from "@/lib/calendar/api";
 import { firebaseProjectId } from "@/lib/firebase";
-import { guessMemberId } from "@/lib/memberLink";
-import { currentIdToken } from "@/lib/idToken";
 
-type Status = Awaited<ReturnType<typeof getCalendarConnectionStatus>>;
-
+/** Konto i „kim jestem w tym mieszkaniu” — kalendarz w MyCalendarCard */
 export function GoogleAccountCard() {
   const { users } = useApp();
   const { household, myProfileId, linkProfile } = useHousehold();
-  // Kalendarze Google są skonfigurowane tylko dla pierwszego mieszkania
-  const legacyCalendar = Boolean(household?.features?.legacyCalendar);
-  const {
-    user,
-    memberId,
-    loading,
-    syncingCalendar,
-    calendarSyncTick,
-    error,
-    configured,
-    syncCalendar,
-    connectPersistentCalendar,
-    signOut,
-    linkMember,
-    clearError,
-  } = useAuth();
+  const { user, loading, error, configured, signOut, clearError } = useAuth();
 
-  const loadStatus = useServerFn(getCalendarConnectionStatus);
-  const [status, setStatus] = useState<Status | null>(null);
-  const [statusLoading, setStatusLoading] = useState(false);
-
-  const refreshStatus = useCallback(async () => {
-    setStatusLoading(true);
-    try {
-      setStatus(
-        await loadStatus({ data: { idToken: await currentIdToken() } }),
-      );
-    } finally {
-      setStatusLoading(false);
-    }
-  }, [loadStatus]);
-
-  useEffect(() => {
-    if (!legacyCalendar) return;
-    void refreshStatus();
-  }, [legacyCalendar, calendarSyncTick, refreshStatus]);
-
-  useEffect(() => {
-    if (!legacyCalendar || !user || memberId || !status) return;
-
-    const byEmail = status.members.find(
-      (member) =>
-        member.connection?.googleEmail?.toLowerCase() ===
-        user.email?.toLowerCase(),
-    );
-    const suggested = byEmail?.memberId ?? guessMemberId(user);
-    if (suggested) {
-      void linkMember(suggested);
-    }
-  }, [legacyCalendar, user, memberId, status, linkMember]);
-
-  const myMember = status?.members.find(
-    (member) => member.memberId === memberId,
-  );
   const memberLabel = users.find((u) => u.id === myProfileId)?.name ?? null;
-
-  const chooseProfile = (profileId: string) => {
-    void linkProfile(profileId);
-    if (legacyCalendar) void linkMember(profileId);
-  };
-  const persistentMode = status?.oauthServerConfigured ?? false;
-  // Na Vercel bez Redis połączenie znika po chwili — przycisk tylko udaje
-  const canPersist = status?.persistentStore ?? false;
 
   return (
     <section className="rounded-3xl border border-border bg-gradient-to-br from-surface-elevated via-surface to-card p-5 shadow-elevated">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Konto Google</h2>
+          <h2 className="text-xl font-semibold">Konto</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Zaloguj się raz — aplikacja zapamięta konto i kalendarz na serwerze
-            (działa też gdy nie masz telefonu przy sobie).
+            Zaloguj się raz — przeglądarka zapamięta sesję.
           </p>
         </div>
 
@@ -137,7 +70,7 @@ export function GoogleAccountCard() {
               </Avatar>
               <div className="min-w-0">
                 <p className="truncate font-medium">
-                  {user.displayName ?? "Użytkownik Google"}
+                  {user.displayName ?? "Konto"}
                 </p>
                 <p className="truncate text-sm text-muted-foreground">
                   {user.email}
@@ -173,110 +106,24 @@ export function GoogleAccountCard() {
         )}
       </div>
 
-      {user && household && (
-        <div className="mt-5 space-y-4 border-t border-border pt-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Twój profil domownika</p>
-              <Select
-                value={myProfileId ?? undefined}
-                onValueChange={chooseProfile}
-              >
-                <SelectTrigger className="w-full sm:w-[220px]">
-                  <SelectValue placeholder="Wybierz domownika" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {legacyCalendar && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="self-start sm:self-auto"
-                onClick={() => void refreshStatus()}
-                disabled={statusLoading}
-              >
-                <RefreshCw
-                  className={statusLoading ? "animate-spin" : undefined}
-                />
-                Odśwież status
-              </Button>
-            )}
-          </div>
-
-          {!legacyCalendar ? null : !memberId ? (
-            <p className="text-sm text-muted-foreground">
-              Wybierz domownika, żeby połączyć kalendarz.
-            </p>
-          ) : myMember?.connected && myMember.connection ? (
-            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium">
-                  Kalendarz zapamiętany na serwerze
-                  {memberLabel ? ` · ${memberLabel}` : ""}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {myMember.connection.googleEmail} ·{" "}
-                  {
-                    myMember.connection.calendars.filter(
-                      (calendar) => calendar.enabled,
-                    ).length
-                  }{" "}
-                  aktywnych kalendarzy · widoczny w całej aplikacji
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  persistentMode
-                    ? connectPersistentCalendar()
-                    : void syncCalendar()
-                }
-                disabled={syncingCalendar}
-              >
-                <CalendarSync />
-                Połącz ponownie
-              </Button>
-            </div>
-          ) : status && !canPersist ? (
-            <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-4 py-3 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">
-                Kalendarz Google nie jest jeszcze skonfigurowany na serwerze
-              </p>
-              <p className="mt-1">
-                {persistentMode
-                  ? "Klucze Google są ustawione, ale brakuje bazy Redis na Vercel — bez niej połączenie znika po chwili."
-                  : "Brakuje kluczy Google OAuth i bazy Redis na Vercel."}{" "}
-                Instrukcja: <code>docs/KALENDARZ.md</code>. Po konfiguracji
-                zgodę Google dajesz raz — potem kalendarz działa bez pytania.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium">Synchronizacja kalendarza</p>
-                <p className="text-sm text-muted-foreground">
-                  {persistentMode
-                    ? "Zgodę Google dajesz raz — serwer zapamięta dostęp i kalendarz działa 24/7, także na tablecie."
-                    : "Tryb lokalny: dostęp na godzinę z logowania Google. Stałe połączenie — docs/KALENDARZ.md."}
-                </p>
-              </div>
-              <Button
-                onClick={() => void syncCalendar()}
-                disabled={syncingCalendar}
-              >
-                <CalendarSync />
-                {syncingCalendar ? "Łączenie…" : "Połącz kalendarz"}
-              </Button>
-            </div>
-          )}
+      {household && users.length > 0 && (
+        <div className="mt-5 space-y-2 border-t border-border pt-4">
+          <p className="text-sm font-medium">Kim jesteś w tym mieszkaniu</p>
+          <Select
+            value={myProfileId ?? undefined}
+            onValueChange={(profileId) => void linkProfile(profileId)}
+          >
+            <SelectTrigger className="w-full sm:w-[220px]">
+              <SelectValue placeholder="Wybierz domownika" />
+            </SelectTrigger>
+            <SelectContent>
+              {users.map((member) => (
+                <SelectItem key={member.id} value={member.id}>
+                  {member.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
     </section>
