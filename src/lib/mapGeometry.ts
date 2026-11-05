@@ -2,11 +2,11 @@ import type { MouseEvent } from "react";
 import type { HomeZone, MapPoint, Status, Task } from "@/types";
 import type { MapDisplayMode, MapVisualStatus } from "@/lib/mapPinStyles";
 import { importanceToMapStatus } from "@/lib/mapPinStyles";
-import { normalizeAssignedTo } from "@/lib/choreAssignees";
 import { resolveImportance } from "@/lib/choreImportance";
 import { resolveMapLineWidth } from "@/config/mapLine";
 import { normalizeTaskMap } from "@/lib/taskMap";
 import { polygonsForZone, tasksInZoneTree, zoneById } from "@/lib/zoneTree";
+import { effectiveAssignees } from "@/lib/rotation";
 
 export type MapGeometryLayer = "pins" | "lines" | "areas" | "zones";
 
@@ -183,7 +183,7 @@ export function resolveMapRenderables(
 
   const result: MapRenderable[] = [];
   const assigneeInitial = (task: Task) => {
-    const firstId = normalizeAssignedTo(task.assignedTo)[0];
+    const firstId = effectiveAssignees(task)[0];
     const user = firstId ? users.find((u) => u.id === firstId) : undefined;
     if (user?.avatar?.trim()) return user.avatar.trim().charAt(0).toUpperCase();
     if (user?.name?.trim()) return user.name.trim().charAt(0).toUpperCase();

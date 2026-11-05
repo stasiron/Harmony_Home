@@ -2,12 +2,14 @@ import { ChoreLocationPicker } from "@/components/chores/ChoreLocationPicker";
 import { MapGeometryPicker } from "@/components/chores/MapGeometryPicker";
 import { RecurrencePicker } from "@/components/chores/RecurrencePicker";
 import { AssigneeMultiPicker } from "@/components/chores/AssigneeMultiPicker";
+import { TurnRotationFields } from "@/components/chores/TurnRotationFields";
 import { IMPORTANCE_LABELS } from "@/lib/choreImportance";
 import { CHORE_WEIGHT_SETTINGS } from "@/config/choreWeight";
 import { MAP_LINE_SETTINGS } from "@/config/mapLine";
 import {
   type ChoreFormStepId,
   type ChoreItemFormState,
+  withAssignees,
 } from "@/lib/choreItemForm";
 import { TASK_MAP_SHAPE_LABELS } from "@/lib/taskMap";
 import { Input } from "@/components/ui/input";
@@ -326,13 +328,38 @@ export function ChoreItemFormFields({
             <AssigneeMultiPicker
               users={users}
               selectedIds={form.assignedToIds}
-              onChange={(assignedToIds) => setForm({ assignedToIds })}
+              onChange={(ids) => setForm(withAssignees(form, ids))}
+              numbered={form.rotationOn}
+            />
+            <TurnRotationFields
+              users={users}
+              memberIds={form.assignedToIds}
+              turn={form.rotationTurn}
+              onTurnChange={(rotationTurn) => setForm({ rotationTurn })}
+              toggle={{
+                on: form.rotationOn,
+                onChange: (rotationOn) => setForm({ rotationOn }),
+              }}
             />
           </>
         ) : (
           <>
             {locationFields}
             {importanceField}
+            <AssigneeMultiPicker
+              users={users}
+              selectedIds={form.assignedToIds}
+              onChange={(ids) => setForm(withAssignees(form, ids))}
+              label="Na zmianę (opcjonalnie)"
+              description="Zaznacz co najmniej 2 osoby — zadanie będzie przechodzić po kolei na następną po każdym odhaczeniu."
+              numbered
+            />
+            <TurnRotationFields
+              users={users}
+              memberIds={form.assignedToIds}
+              turn={form.rotationTurn}
+              onTurnChange={(rotationTurn) => setForm({ rotationTurn })}
+            />
           </>
         ))}
 

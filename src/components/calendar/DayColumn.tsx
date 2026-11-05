@@ -17,6 +17,7 @@ import {
 } from "@/lib/daySchedule";
 import type { GuestPlan, Task } from "@/types";
 import { cn } from "@/lib/utils";
+import { effectiveAssignees } from "@/lib/rotation";
 
 type DayColumnProps = {
   day: Date;
@@ -113,7 +114,10 @@ export function DayColumn({
                 key={task.id}
                 label={task.name}
                 urgent={statusOfTaskOnDate(task, day, guestsMode) === "must"}
-                sub={assigneeNamesForTask(users, task.assignedTo) || undefined}
+                sub={
+                  assigneeNamesForTask(users, effectiveAssignees(task)) ||
+                  undefined
+                }
               />
             ))}
             {allDayPlans.map((plan) => (

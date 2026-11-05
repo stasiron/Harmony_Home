@@ -147,8 +147,10 @@ service cloud.firestore {
 
         // Odhaczanie zablokowanego elementu — każdy domownik
         function progressOnly() {
+          // rotationTurn — „na zmianę”: odhaczenie przesuwa turę
           return changedOnly([
-            'lastCompleted', 'lastCompletedBy', 'done', 'completedBy', 'checked'
+            'lastCompleted', 'lastCompletedBy', 'done', 'completedBy', 'checked',
+            'rotationTurn'
           ]);
         }
 

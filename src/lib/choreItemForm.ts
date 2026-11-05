@@ -17,6 +17,7 @@ import {
   type RecurrenceForm,
 } from "@/components/chores/RecurrencePicker";
 import { normalizeAssignedTo } from "@/lib/choreAssignees";
+import { isRotating, keepTurnForList, rotationMembers } from "@/lib/rotation";
 
 export type ChoreItemFormState = {
   name: string;
@@ -25,7 +26,12 @@ export type ChoreItemFormState = {
   /** Multi-lokalizacja */
   rooms: ChoreRoom[];
   estimatedMinutes: string;
+  /** Obowiązek: przypisani; zadanie: kolejka „na zmianę”. Kolejność = kolejność tur */
   assignedToIds: string[];
+  /** Obowiązek „na zmianę” między assignedToIds (zadanie: od 2 osób zawsze) */
+  rotationOn: boolean;
+  /** Indeks w assignedToIds — czyja tura teraz */
+  rotationTurn: number;
   mapPins: MapPin[];
   mapLine: MapPoint[];
   mapLineWidth: string;
@@ -51,6 +57,8 @@ export function emptyChoreItemForm(): ChoreItemFormState {
     rooms: ["kitchen"],
     estimatedMinutes: "15",
     assignedToIds: [],
+    rotationOn: false,
+    rotationTurn: 0,
     mapPins: [],
     mapLine: [],
     mapLineWidth: String(MAP_LINE_SETTINGS.defaultWidth),
@@ -74,6 +82,9 @@ export type ChoreItemAddInput = {
   rooms?: ChoreRoom[];
   estimatedMinutes: number;
   assignedTo?: string[];
+  /** Kolejka „na zmianę” (≥ 2 osoby) albo undefined */
+  rotation?: string[];
+  rotationTurn?: number;
   mapShape?: TaskMapShape;
   zoneId?: string;
   zoneIds?: string[];
@@ -90,6 +101,37 @@ export type ZadanieAddInput = ChoreItemAddInput & {
   tMin: number;
   tMax: number;
 };
+
+/** Kolejka z formularza — undefined, gdy rotacja wyłączona albo < 2 osób */
+export function rotationFromForm(
+  form: ChoreItemFormState,
+  mode: "chore" | "zadanie",
+): { rotation?: string[]; rotationTurn?: number } {
+  const on = mode === "zadanie" || form.rotationOn;
+  if (!on || form.assignedToIds.length < 2) {
+    return { rotation: undefined, rotationTurn: undefined };
+  }
+  const turn = Math.min(
+    Math.max(0, form.rotationTurn),
+    form.assignedToIds.length - 1,
+  );
+  return { rotation: [...form.assignedToIds], rotationTurn: turn };
+}
+
+/** Nowa lista osób — tura zostaje przy tej samej osobie, jeśli nadal jest */
+export function withAssignees(
+  form: ChoreItemFormState,
+  assignedToIds: string[],
+): Pick<ChoreItemFormState, "assignedToIds" | "rotationTurn"> {
+  return {
+    assignedToIds,
+    rotationTurn: keepTurnForList(
+      form.assignedToIds,
+      form.rotationTurn,
+      assignedToIds,
+    ),
+  };
+}
 
 function resolveLocationFromForm(form: ChoreItemFormState) {
   const zoneIds = form.zoneIds.length > 0 ? form.zoneIds : undefined;
@@ -125,6 +167,7 @@ export function formToChoreItemInput(
     rooms: ["whole"],
     estimatedMinutes: 1,
     assignedTo: form.assignedToIds,
+    ...rotationFromForm(form, "chore"),
     mapShape: undefined,
     zoneId: undefined,
     zoneIds: undefined,
@@ -164,6 +207,7 @@ export function formToZadanieInput(
     description: form.description.trim() || undefined,
     ...location,
     estimatedMinutes: minutes,
+    ...rotationFromForm(form, "zadanie"),
     mapPins:
       location.mapShape === "pin" && form.mapPins.length > 0
         ? form.mapPins
@@ -204,7 +248,7 @@ export function taskToChoreItemForm(task: Task): ChoreItemFormState {
     room: task.room,
     rooms,
     estimatedMinutes: String(task.estimatedMinutes),
-    assignedToIds: normalizeAssignedTo(task.assignedTo),
+    ...rotationToForm(task, normalizeAssignedTo(task.assignedTo)),
     mapPins: task.mapPins ?? [],
     mapLine: task.mapLine ?? [],
     mapLineWidth: String(task.mapLineWidth ?? MAP_LINE_SETTINGS.defaultWidth),
@@ -243,7 +287,7 @@ export function zadanieToChoreItemForm(zadanie: Zadanie): ChoreItemFormState {
     room: zadanie.room,
     rooms: rooms.length > 0 ? rooms : ["kitchen"],
     estimatedMinutes: String(zadanie.estimatedMinutes || 15),
-    assignedToIds: [],
+    ...rotationToForm(zadanie, []),
     mapPins: zadanie.mapPins ?? [],
     mapLine: zadanie.mapLine ?? [],
     mapLineWidth: String(
@@ -261,6 +305,22 @@ export function zadanieToChoreItemForm(zadanie: Zadanie): ChoreItemFormState {
     linkedZadanieIds: [],
     tMinDays: String(zadanie.tMin),
     tMaxDays: String(zadanie.tMax),
+  };
+}
+
+function rotationToForm(
+  item: Task | Zadanie,
+  fallbackIds: string[],
+): Pick<ChoreItemFormState, "assignedToIds" | "rotationOn" | "rotationTurn"> {
+  if (!isRotating(item)) {
+    return { assignedToIds: fallbackIds, rotationOn: false, rotationTurn: 0 };
+  }
+  const members = rotationMembers(item);
+  const turn = Math.trunc(item.rotationTurn ?? 0);
+  return {
+    assignedToIds: members,
+    rotationOn: true,
+    rotationTurn: ((turn % members.length) + members.length) % members.length,
   };
 }
 

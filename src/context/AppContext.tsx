@@ -28,6 +28,7 @@ import {
   thresholdStatus,
 } from "@/lib/choreZadaniaStatus";
 import { normalizeAssignedTo } from "@/lib/choreAssignees";
+import { advanceRotation, effectiveAssignees } from "@/lib/rotation";
 import { resolveLinkedZadania } from "@/lib/zadania";
 import { applyScheduleToTask, DEFAULT_SCHEDULE } from "@/lib/choreRecurrence";
 import {
@@ -64,6 +65,7 @@ import type {
   TaskImportance,
   TaskMapShape,
   TaskRecurrence,
+  TurnRotation,
   TodoFolder,
   TodoItem,
   User,
@@ -178,6 +180,8 @@ function buildUserItem(input: ChoreItemAddInput) {
     category: roomToCategory(input.room),
     estimatedMinutes: input.estimatedMinutes,
     assignedTo: normalizeAssignedTo(input.assignedTo),
+    rotation: input.rotation,
+    rotationTurn: input.rotationTurn,
     mapShape: input.mapShape,
     zoneId: input.zoneId,
     zoneIds: input.zoneIds,
@@ -235,6 +239,8 @@ function patchZadanieFromInput(
       rooms: input.rooms,
       category: roomToCategory(input.room),
       estimatedMinutes: input.estimatedMinutes,
+      rotation: input.rotation,
+      rotationTurn: input.rotationTurn,
       mapShape: input.mapShape,
       zoneId: input.zoneId,
       zoneIds: input.zoneIds,
@@ -271,6 +277,8 @@ function patchTaskFromInput(
     category: roomToCategory(input.room),
     estimatedMinutes: input.estimatedMinutes,
     assignedTo: normalizeAssignedTo(input.assignedTo ?? task.assignedTo),
+    rotation: input.rotation,
+    rotationTurn: input.rotationTurn,
     mapShape: input.mapShape,
     zoneId: input.zoneId,
     zoneIds: input.zoneIds,
@@ -308,7 +316,11 @@ function patchTaskFromInput(
 }
 
 function completeRecurringItem<
-  T extends { id: string; recurrence: TaskRecurrence; source: Task["source"] },
+  T extends {
+    id: string;
+    recurrence: TaskRecurrence;
+    source: Task["source"];
+  } & TurnRotation,
 >(items: T[], id: string): T[] {
   const item = items.find((entry) => entry.id === id);
   if (!item) return items;
@@ -317,7 +329,7 @@ function completeRecurringItem<
   }
   return items.map((entry) =>
     entry.id === id
-      ? { ...entry, lastCompleted: new Date().toISOString() }
+      ? advanceRotation({ ...entry, lastCompleted: new Date().toISOString() })
       : entry,
   );
 }
@@ -460,7 +472,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       users.filter((u) => u.heavyDay).map((u) => u.id),
     );
     return tasks.filter((t) => {
-      const assignees = normalizeAssignedTo(t.assignedTo);
+      const assignees = effectiveAssignees(t);
       if (
         assignees.length === 0 ||
         !assignees.some((id) => heavyDayUserIds.has(id))
@@ -493,11 +505,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         return prev.map((z) =>
           z.id === id
-            ? {
+            ? // Na zmianę: tura przechodzi na następną osobę
+              advanceRotation({
                 ...z,
                 lastCompleted: new Date().toISOString(),
                 lastCompletedBy: completedBy,
-              }
+              })
             : z,
         );
       });

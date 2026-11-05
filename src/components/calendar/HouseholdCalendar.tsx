@@ -22,6 +22,7 @@ import type { CalendarFeedEvent } from "@/lib/calendar-feed-types";
 import { useHouseholdCalendar } from "@/hooks/useHouseholdCalendar";
 import { useHousehold } from "@/context/HouseholdContext";
 import { cn } from "@/lib/utils";
+import { effectiveAssignees } from "@/lib/rotation";
 
 function formatEventTime(iso: string) {
   return format(new Date(iso), "HH:mm", { locale: pl });
@@ -320,7 +321,10 @@ function DayDetailPanel({
       >
         {chores.map((task) => {
           const status = statusOfTaskOnDate(task, day, guestsMode);
-          const assigneeLabel = assigneeNamesForTask(users, task.assignedTo);
+          const assigneeLabel = assigneeNamesForTask(
+            users,
+            effectiveAssignees(task),
+          );
           return (
             <article
               key={task.id}

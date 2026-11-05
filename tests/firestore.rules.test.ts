@@ -315,6 +315,30 @@ describe("blokada edycji", () => {
     );
   });
 
+  it("zablokowany na zmianę: odhaczenie przesuwa turę, kolejki nie zmieni", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "households", HID, "chores", "turns"), {
+        name: "Turns",
+        createdBy: "alice",
+        locked: true,
+        rotation: ["p1", "p2"],
+        rotationTurn: 0,
+      });
+    });
+    const db = dbAs("tablet", anonymous);
+    await assertSucceeds(
+      updateDoc(doc(db, "households", HID, "chores", "turns"), {
+        lastCompleted: "2026-11-05",
+        rotationTurn: 1,
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(db, "households", HID, "chores", "turns"), {
+        rotation: ["p2"],
+      }),
+    );
+  });
+
   it("zablokowany: twórca i admin edytują", async () => {
     await assertSucceeds(
       updateDoc(doc(dbAs("alice"), "households", HID, "chores", "locked"), {

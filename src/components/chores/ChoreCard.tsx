@@ -3,15 +3,14 @@ import type { Task } from "@/types";
 import { useApp } from "@/context/AppContext";
 import { EditChoreDialog } from "@/components/chores/EditChoreDialog";
 import { ZadanieCard } from "@/components/chores/ZadanieCard";
+import { TurnQueueLine } from "@/components/chores/TurnQueueLine";
 import { formatScheduleLabel } from "@/lib/choreRecurrence";
 import { IMPORTANCE_LABELS, resolveImportance } from "@/lib/choreImportance";
-import {
-  choreCompletionByAssignee,
-  normalizeAssignedTo,
-} from "@/lib/choreAssignees";
+import { choreCompletionByAssignee } from "@/lib/choreAssignees";
 import { resolveLinkedZadania } from "@/lib/zadania";
 import { summarizeLinkedZadania } from "@/lib/choreZadaniaStatus";
 import { cn } from "@/lib/utils";
+import { effectiveAssignees } from "@/lib/rotation";
 
 const statusStyles: Record<string, string> = {
   safe: "border-safe/30 bg-safe/5",
@@ -37,7 +36,7 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
     panic,
     guestsMode,
   } = useApp();
-  const assignees = normalizeAssignedTo(task.assignedTo)
+  const assignees = effectiveAssignees(task)
     .map((id) => users.find((u) => u.id === id))
     .filter((u): u is NonNullable<typeof u> => u !== undefined);
   const status = statusOf(task);
@@ -88,6 +87,7 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
                 {formatScheduleLabel(task.schedule)}
               </span>
             )}
+            <TurnQueueLine item={task} users={users} />
           </div>
         </div>
         {assignees.length > 0 && (

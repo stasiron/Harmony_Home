@@ -4,6 +4,8 @@ import type { User, Zadanie } from "@/types";
 import { useHousehold } from "@/context/HouseholdContext";
 import { useApp } from "@/context/AppContext";
 import { EditZadanieDialog } from "@/components/chores/EditZadanieDialog";
+import { TurnQueueLine } from "@/components/chores/TurnQueueLine";
+import { currentTurn, isRotating, rotationMembers } from "@/lib/rotation";
 import { pickDefaultCompleter } from "@/lib/choreAssignees";
 import { IMPORTANCE_LABELS, resolveImportance } from "@/lib/choreImportance";
 import { zadanieLocationLabel } from "@/lib/zadanieLocation";
@@ -36,7 +38,8 @@ export function ZadanieCard({
   assigneeOptions?: User[];
 }) {
   const { zones, myProfileId: memberId } = useHousehold();
-  const { statusOf, daysSince, completeZadanie, panic, guestsMode } = useApp();
+  const { users, statusOf, daysSince, completeZadanie, panic, guestsMode } =
+    useApp();
   const [pickCompleter, setPickCompleter] = useState(false);
   const status = statusOf(zadanie);
   const d = daysSince(zadanie.lastCompleted);
@@ -50,6 +53,14 @@ export function ZadanieCard({
   };
 
   const handleComplete = () => {
+    // Na zmianę: wykonał domownik z tego urządzenia (jeśli w kolejce),
+    // inaczej osoba z turą — tura i tak przechodzi dalej
+    const turn = currentTurn(zadanie);
+    if (turn) {
+      const mine = memberId && rotationMembers(zadanie).includes(memberId);
+      finish(mine ? memberId : turn);
+      return;
+    }
     const defaultId = pickDefaultCompleter(
       assignees.map((u) => u.id),
       memberId,
@@ -98,6 +109,12 @@ export function ZadanieCard({
             <span>
               próg {zadanie.tMin}d · krytyczne {zadanie.tMax}d
             </span>
+            <TurnQueueLine item={zadanie} users={users} />
+          </div>
+        )}
+        {compact && isRotating(zadanie) && (
+          <div className="mt-1 text-xs text-muted-foreground">
+            <TurnQueueLine item={zadanie} users={users} />
           </div>
         )}
       </div>

@@ -62,7 +62,15 @@ export type RecurrenceSchedule =
   | { type: "interval"; unit: "days" | "weeks" | "months"; every: number }
   | { type: "weekly"; weekdays: Weekday[]; everyWeeks: number };
 
-export interface Zadanie extends ItemMeta {
+/** „Na zmianę”: domownicy po kolei, każdy ma swoją turę (src/lib/rotation.ts) */
+export interface TurnRotation {
+  /** User.id w kolejności tur; rotacja działa od 2 osób */
+  rotation?: string[];
+  /** Indeks w `rotation` — czyja tura teraz */
+  rotationTurn?: number;
+}
+
+export interface Zadanie extends ItemMeta, TurnRotation {
   id: string;
   name: string;
   description?: string;
@@ -107,7 +115,7 @@ export interface User extends ItemMeta {
   heavyDay: boolean;
 }
 
-export interface Task extends ItemMeta {
+export interface Task extends ItemMeta, TurnRotation {
   id: string;
   name: string;
   description?: string;

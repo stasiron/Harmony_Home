@@ -65,6 +65,8 @@ Wszystko należy do **mieszkania** (`useHousehold().householdId`). Model i decyz
 - zablokować może tylko twórca z kontem Google lub admin; `createdBy` nie da się podrobić,
 - **okres przejściowy** (`legacyTransition`): dokument `households/homeharmony` czyta każdy zalogowany (stara wersja aplikacji), zapisuje tylko admin — do czasu przesiadki rodziny. Do usunięcia, patrz ROADMAP → „Wdrożenie”.
 
+**Na zmianę** (`src/lib/rotation.ts`): obowiązek / zadanie z `rotation` (≥ 2 osoby, kolejność tur) i `rotationTurn` (czyja tura). Odhaczenie przesuwa turę o jedną osobę (`advanceRotation` w `completeTask` / `completeZadanie`). Widoki biorą osoby przez `effectiveAssignees(task)` — przy rotacji tylko osoba z turą. `rotationTurn` jest polem postępu w regułach (może je zmienić każdy, także przy blokadzie).
+
 **Sync — pułapki:**
 - `useSyncedList` = `setState` + zapis różnicy do Firestore od razu (bez debounce). Odrzucony zapis cofa snapshot z serwera + toast.
 - Stan startowy pusty (SSR = pierwszy render klienta). Cache offline daje Firestore (IndexedDB), nie localStorage.

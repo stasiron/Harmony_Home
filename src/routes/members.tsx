@@ -3,7 +3,6 @@ import { Flame, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useHousehold } from "@/context/HouseholdContext";
-import { normalizeAssignedTo } from "@/lib/choreAssignees";
 import { Shell } from "@/components/Shell";
 import { ChoreCard } from "@/components/chores/ChoreCard";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { User } from "@/types";
+import { effectiveAssignees } from "@/lib/rotation";
 
 export const Route = createFileRoute("/members")({
   head: () => ({
@@ -47,8 +47,7 @@ function MembersPage() {
   const selected = users.find((u) => u.id === selectedId);
   const memberTasks = selected
     ? tasks.filter((t) => {
-        if (!normalizeAssignedTo(t.assignedTo).includes(selected.id))
-          return false;
+        if (!effectiveAssignees(t).includes(selected.id)) return false;
         if (selected.heavyDay) return statusOf(t) === "must";
         return true;
       })
@@ -123,9 +122,8 @@ function MembersPage() {
                 key={user.id}
                 user={user}
                 taskCount={
-                  tasks.filter((t) =>
-                    normalizeAssignedTo(t.assignedTo).includes(user.id),
-                  ).length
+                  tasks.filter((t) => effectiveAssignees(t).includes(user.id))
+                    .length
                 }
                 selected={selectedId === user.id}
                 onSelect={() =>
