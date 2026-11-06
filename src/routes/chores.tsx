@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Users } from "lucide-react";
-import type { ReactNode } from "react";
+import { ChevronDown, Map as MapIcon, Users } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useApp } from "@/context/AppContext";
 import { useHousehold } from "@/context/HouseholdContext";
 import {
@@ -19,6 +19,7 @@ import {
   sortTasksForPanicGuests,
 } from "@/lib/choreSort";
 import { resolveImportance } from "@/lib/choreImportance";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/chores")({
   head: () => ({
@@ -38,6 +39,16 @@ export const Route = createFileRoute("/chores")({
   ),
 });
 
+const STATUS_KEYS = ["must", "suggested", "safe", "done"] as const;
+type StatusKey = (typeof STATUS_KEYS)[number];
+
+const STATUS_LABELS: Record<StatusKey, string> = {
+  must: "Pilne dziś",
+  suggested: "Warto zrobić",
+  safe: "W normie",
+  done: "Niedawno zrobione",
+};
+
 function ChoresPage() {
   const {
     visibleTasks,
@@ -51,6 +62,8 @@ function ChoresPage() {
   const { household, floorPlan, isAdmin } = useHousehold();
 
   const heavyDayNames = users.filter((u) => u.heavyDay).map((u) => u.name);
+  const ranked = Boolean(panic?.active || guestsMode);
+  const hasMap = Boolean(floorPlan);
 
   const sortedGuestTasks = sortTasksByImportance(visibleTasks, statusOf, true);
   const sortedPanicTasks = sortTasksForPanicGuests(visibleTasks, statusOf);
@@ -58,73 +71,90 @@ function ChoresPage() {
     (a, b) => resolveImportance(b) - resolveImportance(a),
   );
 
-  const groups = [
-    {
-      key: "must",
-      label: "Pilne dziś",
-      tasks: visibleTasks.filter((t) => statusOf(t) === "must"),
-    },
-    {
-      key: "suggested",
-      label: "Warto zrobić",
-      tasks: visibleTasks.filter((t) => statusOf(t) === "suggested"),
-    },
-    {
-      key: "safe",
-      label: "W normie",
-      tasks: visibleTasks.filter((t) => statusOf(t) === "safe"),
-    },
-    {
-      key: "done",
-      label: "Niedawno zrobione",
-      tasks: visibleTasks.filter((t) => statusOf(t) === "done"),
-    },
-  ];
+  const groups = STATUS_KEYS.map((key) => ({
+    key,
+    label: STATUS_LABELS[key],
+    tasks: visibleTasks.filter((t) => statusOf(t) === key),
+    zadania: visibleZadania.filter((z) => statusOf(z) === key),
+  }));
 
-  const zadaniaGroups = [
-    {
-      key: "must",
-      label: "Pilne dziś",
-      items: visibleZadania.filter((z) => statusOf(z) === "must"),
-    },
-    {
-      key: "suggested",
-      label: "Warto zrobić",
-      items: visibleZadania.filter((z) => statusOf(z) === "suggested"),
-    },
-    {
-      key: "safe",
-      label: "W normie",
-      items: visibleZadania.filter((z) => statusOf(z) === "safe"),
-    },
-    {
-      key: "done",
-      label: "Niedawno zrobione",
-      items: visibleZadania.filter((z) => statusOf(z) === "done"),
-    },
-  ];
+  // Obok mapy kolumna jest węższa — mniej kart w rzędzie
+  const gridClass = hasMap
+    ? "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"
+    : "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3";
 
-  return (
-    <div className="space-y-8">
-      {floorPlan ? (
-        <ApartmentMap tasks={visibleTasks} statusOf={statusOf} users={users} />
-      ) : (
-        household && (
-          <section className="space-y-3 rounded-3xl border border-dashed border-border bg-surface/50 p-5">
-            <p className="text-sm text-muted-foreground">
-              To mieszkanie nie ma planu, więc mapa jest ukryta. Skopiuj prompt
-              i wygeneruj plan w stylu mieszkania testowego
-              {isAdmin ? ", potem go wgraj." : " — wgra go administrator."}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <CopyFloorPlanPromptButton householdName={household.name} />
-              {isAdmin && <FloorPlanUploadButton />}
+  const empty = visibleTasks.length === 0 && visibleZadania.length === 0;
+
+  const lists = empty ? (
+    <EmptyPanel
+      title="Brak obowiązków i zadań"
+      description="Dodaj obowiązek lub zadanie przyciskiem powyżej."
+    />
+  ) : (
+    <div className="space-y-10">
+      {visibleTasks.length > 0 && (
+        <section className="space-y-6">
+          <SectionTitle>Obowiązki</SectionTitle>
+          {ranked ? (
+            <div className={gridClass}>
+              {(panic?.active ? sortedPanicTasks : sortedGuestTasks).map(
+                (task, i) => (
+                  <ChoreCard key={task.id} task={task} rank={i + 1} />
+                ),
+              )}
             </div>
-          </section>
-        )
+          ) : (
+            groups.map((g) =>
+              g.tasks.length === 0 ? null : (
+                <div key={g.key} id={`chores-${g.key}`} className="scroll-mt-6">
+                  <GroupTitle label={g.label} count={g.tasks.length} />
+                  <div className={gridClass}>
+                    {g.tasks.map((task) => (
+                      <ChoreCard key={task.id} task={task} />
+                    ))}
+                  </div>
+                </div>
+              ),
+            )
+          )}
+        </section>
       )}
 
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
+      {visibleZadania.length > 0 && (
+        <section className="space-y-6">
+          <SectionTitle>Zadania</SectionTitle>
+          {ranked ? (
+            <div className={gridClass}>
+              {sortedZadania.map((zadanie, i) => (
+                <ZadanieCard key={zadanie.id} zadanie={zadanie} rank={i + 1} />
+              ))}
+            </div>
+          ) : (
+            groups.map((g) =>
+              g.zadania.length === 0 ? null : (
+                <div
+                  key={g.key}
+                  id={g.tasks.length === 0 ? `chores-${g.key}` : undefined}
+                  className="scroll-mt-6"
+                >
+                  <GroupTitle label={g.label} count={g.zadania.length} />
+                  <div className={gridClass}>
+                    {g.zadania.map((zadanie) => (
+                      <ZadanieCard key={zadanie.id} zadanie={zadanie} />
+                    ))}
+                  </div>
+                </div>
+              ),
+            )
+          )}
+        </section>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-6 md:space-y-8">
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
             Obowiązki
@@ -143,92 +173,50 @@ function ChoresPage() {
             </p>
           )}
         </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap gap-2 md:shrink-0 md:justify-end">
           <ExportChoresButton />
           <AddZadanieDialog />
           <AddChoreDialog />
         </div>
       </header>
 
-      {visibleTasks.length === 0 && visibleZadania.length === 0 ? (
-        <EmptyPanel
-          title="Brak obowiązków i zadań"
-          description="Dodaj obowiązek lub zadanie przyciskiem powyżej."
+      {!empty && !ranked && (
+        <StatusSummary
+          counts={groups.map((g) => ({
+            key: g.key,
+            count: g.tasks.length + g.zadania.length,
+          }))}
         />
+      )}
+
+      {hasMap ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,42%)] lg:items-start">
+          <aside className="lg:sticky lg:top-6 lg:order-2">
+            <MapPanel>
+              <ApartmentMap
+                tasks={visibleTasks}
+                statusOf={statusOf}
+                users={users}
+                fitViewport
+              />
+            </MapPanel>
+          </aside>
+          <div className="min-w-0 lg:order-1">{lists}</div>
+        </div>
       ) : (
         <>
-          {visibleTasks.length > 0 && (
-            <section className="space-y-6">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Obowiązki
-              </h2>
-              {panic?.active ? (
-                <TaskGrid
-                  tasks={sortedPanicTasks}
-                  showRank
-                  render={(task, rank) => (
-                    <ChoreCard key={task.id} task={task} rank={rank} />
-                  )}
-                />
-              ) : guestsMode ? (
-                <TaskGrid
-                  tasks={sortedGuestTasks}
-                  showRank
-                  render={(task, rank) => (
-                    <ChoreCard key={task.id} task={task} rank={rank} />
-                  )}
-                />
-              ) : (
-                groups.map((g) =>
-                  g.tasks.length === 0 ? null : (
-                    <div key={g.key}>
-                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                        {g.label} · {g.tasks.length}
-                      </h3>
-                      <TaskGrid
-                        tasks={g.tasks}
-                        render={(task) => (
-                          <ChoreCard key={task.id} task={task} />
-                        )}
-                      />
-                    </div>
-                  ),
-                )
-              )}
-            </section>
-          )}
-
-          {visibleZadania.length > 0 && (
-            <section className="space-y-6">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Zadania
-              </h2>
-              {panic?.active || guestsMode ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {sortedZadania.map((zadanie, i) => (
-                    <ZadanieCard
-                      key={zadanie.id}
-                      zadanie={zadanie}
-                      rank={panic?.active || guestsMode ? i + 1 : undefined}
-                    />
-                  ))}
-                </div>
-              ) : (
-                zadaniaGroups.map((g) =>
-                  g.items.length === 0 ? null : (
-                    <div key={g.key}>
-                      <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                        {g.label} · {g.items.length}
-                      </h3>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {g.items.map((zadanie) => (
-                          <ZadanieCard key={zadanie.id} zadanie={zadanie} />
-                        ))}
-                      </div>
-                    </div>
-                  ),
-                )
-              )}
+          {lists}
+          {household && (
+            <section className="space-y-3 rounded-3xl border border-dashed border-border bg-surface/50 p-5">
+              <p className="text-sm text-muted-foreground">
+                To mieszkanie nie ma planu, więc mapa jest ukryta. Skopiuj
+                prompt i wygeneruj plan w stylu mieszkania testowego
+                {isAdmin ? ", potem go wgraj." : " — wgra go administrator."}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <CopyFloorPlanPromptButton householdName={household.name} />
+                {isAdmin && <FloorPlanUploadButton />}
+              </div>
             </section>
           )}
         </>
@@ -237,19 +225,136 @@ function ChoresPage() {
   );
 }
 
-function TaskGrid<T extends { id: string }>({
-  tasks,
-  render,
-  showRank,
+const SUMMARY_STYLES: Record<
+  StatusKey,
+  { label: string; dot: string; hover: string }
+> = {
+  must: { label: "Pilne", dot: "bg-alert", hover: "hover:border-alert/50" },
+  suggested: {
+    label: "Warto zrobić",
+    dot: "bg-warn",
+    hover: "hover:border-warn/50",
+  },
+  safe: { label: "W normie", dot: "bg-safe", hover: "hover:border-safe/50" },
+  done: {
+    label: "Zrobione",
+    dot: "bg-muted-foreground/50",
+    hover: "hover:border-muted-foreground/40",
+  },
+};
+
+/** Liczniki statusów — od razu widać, ile jest do zrobienia; klik przewija */
+function StatusSummary({
+  counts,
 }: {
-  tasks: T[];
-  render: (task: T, rank?: number) => ReactNode;
-  showRank?: boolean;
+  counts: { key: StatusKey; count: number }[];
 }) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {tasks.map((task, i) => render(task, showRank ? i + 1 : undefined))}
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+      {counts.map(({ key, count }) => {
+        const style = SUMMARY_STYLES[key];
+        return (
+          <button
+            key={key}
+            type="button"
+            disabled={count === 0}
+            onClick={() =>
+              document
+                .getElementById(`chores-${key}`)
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            className={cn(
+              "flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-left transition-colors disabled:cursor-default disabled:opacity-45",
+              count > 0 && style.hover,
+            )}
+          >
+            <span className={cn("size-2.5 shrink-0 rounded-full", style.dot)} />
+            <span className="min-w-0">
+              <span className="block text-2xl font-light leading-none tabular-nums">
+                {count}
+              </span>
+              <span className="mt-1 block truncate text-xs text-muted-foreground">
+                {style.label}
+              </span>
+            </span>
+          </button>
+        );
+      })}
     </div>
+  );
+}
+
+const MAP_OPEN_KEY = "homeharmony-chores-map-open";
+
+/**
+ * Od laptopa wzwyż plan stoi obok listy (przyklejony przy przewijaniu).
+ * Na tablecie i telefonie jest zwijany — domyślnie zwinięty, żeby lista
+ * była od razu na ekranie; wybór pamiętamy w przeglądarce.
+ */
+function MapPanel({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      setOpen(localStorage.getItem(MAP_OPEN_KEY) === "1");
+    } catch {
+      // brak localStorage — zostaje zwinięty
+    }
+  }, []);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    try {
+      localStorage.setItem(MAP_OPEN_KEY, next ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-elevated lg:hidden",
+          open && "mb-3",
+        )}
+      >
+        <MapIcon className="size-4 text-primary" />
+        <span className="flex-1 text-sm font-medium">Plan mieszkania</span>
+        <span className="text-xs text-muted-foreground">
+          {open ? "Zwiń" : "Pokaż"}
+        </span>
+        <ChevronDown
+          className={cn(
+            "size-4 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      <div className={cn(open ? "block" : "hidden", "lg:block")}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      {children}
+    </h2>
+  );
+}
+
+function GroupTitle({ label, count }: { label: string; count: number }) {
+  return (
+    <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      {label} · {count}
+    </h3>
   );
 }
 

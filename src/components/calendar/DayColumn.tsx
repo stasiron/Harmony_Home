@@ -82,7 +82,8 @@ export function DayColumn({
   return (
     <article
       className={cn(
-        "flex flex-col overflow-hidden rounded-3xl border bg-gradient-to-br from-surface-elevated via-surface to-card shadow-elevated",
+        // Na telefonie doba przewija się w karcie, a nie całą stronę
+        "flex flex-col overflow-hidden rounded-3xl border bg-gradient-to-br from-surface-elevated via-surface to-card shadow-elevated max-md:h-[68vh]",
         today ? "border-primary/40 ring-2 ring-primary/15" : "border-border",
       )}
     >

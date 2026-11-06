@@ -32,7 +32,8 @@ export const navItems: NavItem[] = [
   { to: "/members", label: "Domownicy", icon: Users, wide: true },
 ];
 
-const navGridClass = "grid-cols-2 sm:grid-cols-2 md:grid-cols-4";
+// Telefon: 3 × 3 mniejsze kafelki — całe menu mieści się na ekranie
+const navGridClass = "grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4";
 
 function isActive(pathname: string, to: string) {
   return to === "/" ? pathname === "/" : pathname.startsWith(to);
@@ -42,7 +43,7 @@ export function MainNav({ compact = false }: { compact?: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
-    <nav className={cn("grid gap-3", navGridClass)}>
+    <nav className={cn("grid", navGridClass)}>
       {navItems.map(({ to, label, icon: Icon, wide }) => (
         <NavButton
           key={to}
@@ -77,9 +78,11 @@ function NavButton({
     <Link
       to={to}
       className={cn(
-        "group flex flex-col items-center justify-center gap-3 rounded-3xl border bg-gradient-to-br from-surface-elevated via-surface to-card shadow-elevated transition-transform hover:-translate-y-0.5",
-        compact ? "min-h-[88px] p-4" : "min-h-[140px] p-6 sm:min-h-[160px]",
-        wide && "col-span-2",
+        "group flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border bg-gradient-to-br from-surface-elevated via-surface to-card shadow-elevated transition-transform hover:-translate-y-0.5 sm:gap-3 sm:rounded-3xl",
+        compact
+          ? "min-h-[88px] p-4"
+          : "min-h-[104px] p-3 sm:min-h-[140px] sm:p-6 md:min-h-[160px]",
+        wide && "md:col-span-2",
         active
           ? "border-primary/40 text-primary ring-2 ring-primary/20"
           : "border-border text-foreground hover:border-primary/20",
@@ -88,15 +91,18 @@ function NavButton({
       <div
         className={cn(
           "grid place-items-center rounded-2xl bg-background/40",
-          compact ? "size-10" : "size-14",
+          compact ? "size-10" : "size-11 sm:size-14",
         )}
       >
-        <Icon className={cn(compact ? "size-5" : "size-7")} strokeWidth={1.6} />
+        <Icon
+          className={cn(compact ? "size-5" : "size-6 sm:size-7")}
+          strokeWidth={1.6}
+        />
       </div>
       <span
         className={cn(
-          "font-semibold tracking-tight",
-          compact ? "text-sm" : "text-lg md:text-xl",
+          "max-w-full truncate font-semibold tracking-tight",
+          compact ? "text-sm" : "text-sm sm:text-lg md:text-xl",
         )}
       >
         {label}

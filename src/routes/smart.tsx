@@ -32,8 +32,8 @@ function SmartPage() {
           Inteligentny dom · wkrótce
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Devices from Home Assistant appear here and can update or create
-          chores.
+          Urządzenia z Home Assistant pojawią się tutaj i będą mogły
+          aktualizować albo tworzyć obowiązki.
         </p>
       </header>
 

@@ -2,8 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { Home } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function SubpageHeader() {
+/** Zegar podstron — na tablecie i komputerze; na telefonie zajmowałby ekran */
+export function SubpageClock({ className }: { className?: string }) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -23,25 +25,41 @@ export function SubpageHeader() {
   });
 
   return (
-    <header className="flex items-end justify-between gap-4">
-      <div>
-        <div className="tabular-clock text-5xl font-extralight leading-none md:text-6xl">
-          {time}
-        </div>
-        <div className="mt-1 text-sm text-muted-foreground md:text-base">
-          {date}
-        </div>
+    <div className={cn("min-w-0", className)}>
+      <div className="tabular-clock text-5xl font-extralight leading-none lg:text-6xl">
+        {time}
       </div>
+      <div className="mt-1 text-sm text-muted-foreground">{date}</div>
+    </div>
+  );
+}
+
+/** Powrót na pulpit: duży na tablecie (ekran ścienny), ikonka na telefonie */
+export function StartButton({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
       <Button
         variant="outline"
-        className="h-14 shrink-0 gap-3 rounded-2xl px-8 text-lg font-semibold [&_svg]:size-6"
+        size="icon"
+        className="size-10 shrink-0 rounded-xl"
         asChild
       >
-        <Link to="/">
-          <Home />
-          Start
+        <Link to="/" aria-label="Start">
+          <Home className="size-5" />
         </Link>
       </Button>
-    </header>
+    );
+  }
+  return (
+    <Button
+      variant="outline"
+      className="h-12 shrink-0 gap-2.5 rounded-2xl px-6 text-base font-semibold [&_svg]:size-5"
+      asChild
+    >
+      <Link to="/">
+        <Home />
+        Start
+      </Link>
+    </Button>
   );
 }

@@ -170,7 +170,7 @@ function MembersPage() {
 
   return (
     <div className="space-y-8">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
             Domownicy

@@ -232,9 +232,13 @@ export function HouseholdCalendar() {
         <div
           className={cn(
             "grid items-start gap-3",
-            cal.viewMode === "3" && "grid-cols-1 md:grid-cols-3",
+            // Telefon: dni obok siebie, przewijane palcem jak karuzela —
+            // zamiast kilku pełnych dób jedna pod drugą
+            cal.viewMode !== "14" &&
+              "max-md:-mx-4 max-md:snap-x max-md:snap-mandatory max-md:auto-cols-[86%] max-md:grid-flow-col max-md:grid-cols-none max-md:overflow-x-auto max-md:scroll-px-4 max-md:px-4 max-md:pb-2 max-md:[&>*]:snap-start",
+            cal.viewMode === "3" && "md:grid-cols-3",
             cal.viewMode === "7" &&
-              "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7",
+              "md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7",
             cal.viewMode === "14" &&
               "grid-flow-col auto-cols-[minmax(220px,1fr)] grid-cols-none overflow-x-auto pb-2",
           )}

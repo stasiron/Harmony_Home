@@ -118,7 +118,9 @@ const xAxisProps = {
   dataKey: "label" as const,
   stroke: "var(--color-muted-foreground)",
   fontSize: 11,
-  interval: 7,
+  // Recharts sam pomija etykiety, które by na siebie nachodziły (telefon)
+  interval: "preserveStartEnd" as const,
+  minTickGap: 32,
   tickMargin: 8,
 };
 

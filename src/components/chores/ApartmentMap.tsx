@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { Task, Status, User } from "@/types";
 import { roomLabel } from "@/config/rooms";
 import { useHousehold } from "@/context/HouseholdContext";
@@ -120,10 +120,13 @@ export function ApartmentMap({
   tasks,
   statusOf,
   users,
+  fitViewport = false,
 }: {
   tasks: Task[];
   statusOf: (task: Task) => Status;
   users: User[];
+  /** Od lg plan mieści się w wysokości ekranu (obok listy obowiązków) */
+  fitViewport?: boolean;
 }) {
   const [colorMode, setColorMode] = useState<MapDisplayMode>("initials");
   const [layers, setLayers] = useState<MapGeometryLayer[]>(() =>
@@ -159,68 +162,67 @@ export function ApartmentMap({
 
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-elevated">
-      <div className="space-y-3 border-b border-border px-4 py-3">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            Plan mieszkania
-          </p>
-          <ToggleGroup
-            type="single"
-            value={colorMode}
-            onValueChange={(v) => {
-              if (v) setColorMode(v as MapDisplayMode);
-            }}
-            className="justify-start"
-          >
-            {MAP_DISPLAY_MODES_UI.map((key) => (
-              <ToggleGroupItem
-                key={key}
-                value={key}
-                className="px-3 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-              >
-                {MAP_MODE_LABELS[key]}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
-
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            Warstwy
-          </p>
-          <ToggleGroup
-            type="multiple"
-            value={layers}
-            onValueChange={(v) => {
-              const next = v as MapGeometryLayer[];
-              setLayers(next.length > 0 ? next : DEFAULT_MAP_LAYERS);
-            }}
-            className="flex-wrap justify-start"
-          >
-            {(Object.keys(MAP_LAYER_LABELS) as MapGeometryLayer[]).map(
-              (key) => (
-                <ToggleGroupItem
-                  key={key}
-                  value={key}
-                  className="px-3 text-xs data-[state=on]:bg-secondary data-[state=on]:text-secondary-foreground"
-                >
-                  {MAP_LAYER_LABELS[key]}
-                </ToggleGroupItem>
-              ),
-            )}
-          </ToggleGroup>
-        </div>
-
-        <MapLegend colorMode={colorMode} />
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+          Plan mieszkania
+        </p>
+        <ToggleGroup
+          type="single"
+          size="sm"
+          value={colorMode}
+          onValueChange={(v) => {
+            if (v) setColorMode(v as MapDisplayMode);
+          }}
+          className="justify-start"
+        >
+          {MAP_DISPLAY_MODES_UI.map((key) => (
+            <ToggleGroupItem
+              key={key}
+              value={key}
+              className="px-3 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            >
+              {MAP_MODE_LABELS[key]}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <ToggleGroup
+          type="multiple"
+          size="sm"
+          value={layers}
+          onValueChange={(v) => {
+            const next = v as MapGeometryLayer[];
+            setLayers(next.length > 0 ? next : DEFAULT_MAP_LAYERS);
+          }}
+          className="w-full flex-wrap justify-start"
+          aria-label="Warstwy mapy"
+        >
+          {(Object.keys(MAP_LAYER_LABELS) as MapGeometryLayer[]).map((key) => (
+            <ToggleGroupItem
+              key={key}
+              value={key}
+              className="px-2.5 text-xs data-[state=on]:bg-secondary data-[state=on]:text-secondary-foreground"
+            >
+              {MAP_LAYER_LABELS[key]}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
 
       <div
-        className="relative w-full overflow-hidden"
-        style={{
-          aspectRatio: floorPlan
-            ? `${floorPlan.width} / ${floorPlan.height}`
-            : undefined,
-        }}
+        className={cn(
+          "relative mx-auto w-full overflow-hidden",
+          // Obok listy plan nie może być wyższy niż ekran
+          fitViewport &&
+            "lg:w-[min(100%,calc((100vh-14rem)*var(--map-ratio)))]",
+        )}
+        style={
+          {
+            aspectRatio: floorPlan
+              ? `${floorPlan.width} / ${floorPlan.height}`
+              : undefined,
+            "--map-ratio": floorPlan ? floorPlan.width / floorPlan.height : 1,
+          } as CSSProperties
+        }
       >
         <img
           src={floorPlan?.src}
@@ -305,6 +307,10 @@ export function ApartmentMap({
             ))
           )}
         </div>
+      </div>
+
+      <div className="border-t border-border px-4 py-3">
+        <MapLegend colorMode={colorMode} />
       </div>
     </div>
   );
