@@ -56,7 +56,14 @@ function Option({
  * Przed Google — jeśli administrator ogólny włączył — miła informacja o tym,
  * co pokaże Google i jak zalogować się bez tego.
  */
-export function LoginDialog({ trigger }: { trigger: ReactNode }) {
+export function LoginDialog({
+  trigger,
+  onStayWithoutAccount,
+}: {
+  trigger: ReactNode;
+  /** „Zostań bez konta” — np. ekran wejścia pokazuje wtedy okienko z kodem */
+  onStayWithoutAccount?: () => void;
+}) {
   const { signInWithGoogle, sendEmailLink } = useAuth();
   const { googleLoginNotice } = useGlobalConfig();
   const [open, setOpen] = useState(false);
@@ -132,7 +139,10 @@ export function LoginDialog({ trigger }: { trigger: ReactNode }) {
                 }
                 title="Zostań bez konta"
                 description="Np. wspólny tablet — do mieszkania dołączysz kodem zaproszenia."
-                onClick={() => changeOpen(false)}
+                onClick={() => {
+                  changeOpen(false);
+                  onStayWithoutAccount?.();
+                }}
               />
             </div>
           </>

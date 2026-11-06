@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { HouseholdCoverField } from "@/components/household/HouseholdCoverField";
+import { InviteQr } from "@/components/household/InviteQr";
 import { SharedCalendarField } from "@/components/household/SharedCalendarField";
 import { WeatherLocationPicker } from "@/components/weather/WeatherLocationPicker";
 import { householdWeatherLocation } from "@/lib/weather";
@@ -142,6 +144,8 @@ export function HouseholdSettingsCard() {
         )}
       </div>
 
+      <HouseholdCoverField />
+
       <div className="space-y-1.5">
         <Label htmlFor="household-weather">Miejscowość — dla pogody</Label>
         {isAdmin ? (
@@ -167,8 +171,8 @@ export function HouseholdSettingsCard() {
         <div className="space-y-2">
           <Label>Kod zaproszenia</Label>
           <p className="text-xs text-muted-foreground">
-            Kto wpisze kod, dołącza jako domownik (także tablet bez konta). Nowy
-            kod unieważnia poprzedni.
+            Kto wpisze albo zeskanuje kod, dołącza jako domownik (także tablet
+            bez konta). Nowy kod unieważnia poprzedni.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {household.inviteCode && (
@@ -195,6 +199,7 @@ export function HouseholdSettingsCard() {
               {household.inviteCode ? "Nowy kod" : "Utwórz kod"}
             </Button>
           </div>
+          {household.inviteCode && <InviteQr code={household.inviteCode} />}
         </div>
       )}
 

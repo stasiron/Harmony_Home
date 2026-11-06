@@ -40,6 +40,24 @@ import type {
 } from "@/types";
 
 const ACTIVE_HOUSEHOLD_KEY = "homeharmony-active-household";
+/** Ekran wejścia: po wyborze mieszkania nie pytamy ponownie w tej karcie */
+const ENTERED_KEY = "homeharmony-entered";
+
+function readEntered(): boolean {
+  try {
+    return sessionStorage.getItem(ENTERED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeEntered() {
+  try {
+    sessionStorage.setItem(ENTERED_KEY, "1");
+  } catch {
+    // ignore private mode
+  }
+}
 
 function readActiveHousehold(): string | null {
   try {
@@ -66,6 +84,15 @@ export type HouseholdStatus = "loading" | "none" | "ready";
 
 type HouseholdContextValue = {
   status: HouseholdStatus;
+  /** Lista mieszkań wczytana (status może być jeszcze "loading") */
+  membershipsLoaded: boolean;
+  /**
+   * Ekran wejścia już przeszedł w tej karcie (null = jeszcze nie wiadomo —
+   * SSR i pierwszy render w przeglądarce)
+   */
+  entered: boolean | null;
+  /** Wybór mieszkania na ekranie wejścia */
+  enterHousehold: (id: string) => void;
   memberships: Membership[];
   householdId: string | null;
   household: HouseholdMeta | null;
@@ -112,6 +139,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const [ownMemberships, setMemberships] = useState<Membership[] | null>(null);
   const [allHouseholds, setAllHouseholds] = useState<Membership[]>([]);
   const [preferredId, setPreferredId] = useState<string | null>(null);
+  const [entered, setEntered] = useState<boolean | null>(null);
   const [household, setHousehold] = useState<HouseholdMeta | null>(null);
   const [householdLoaded, setHouseholdLoaded] = useState(false);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
@@ -119,6 +147,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setPreferredId(readActiveHousehold());
+    setEntered(readEntered());
   }, []);
 
   useEffect(() => {
@@ -242,6 +271,15 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     setPreferredId(id);
   }, []);
 
+  const enterHousehold = useCallback(
+    (id: string) => {
+      switchHousehold(id);
+      writeEntered();
+      setEntered(true);
+    },
+    [switchHousehold],
+  );
+
   const requireUser = useCallback(() => {
     if (!syncUser) throw new Error("Brak sesji Firebase.");
     return syncUser;
@@ -250,23 +288,23 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const createHousehold = useCallback(
     async (input: CreateHouseholdInput) => {
       const id = await createHouseholdDocs(requireUser(), input);
-      switchHousehold(id);
+      enterHousehold(id);
     },
-    [requireUser, switchHousehold],
+    [requireUser, enterHousehold],
   );
 
   const joinHousehold = useCallback(
     async (code: string) => {
       const id = await joinHouseholdDocs(requireUser(), code);
-      switchHousehold(id);
+      enterHousehold(id);
     },
-    [requireUser, switchHousehold],
+    [requireUser, enterHousehold],
   );
 
   const migrateLegacy = useCallback(async () => {
     const id = await migrateLegacyHousehold(requireUser());
-    switchHousehold(id);
-  }, [requireUser, switchHousehold]);
+    enterHousehold(id);
+  }, [requireUser, enterHousehold]);
 
   const requireHousehold = useCallback(() => {
     if (!householdId) throw new Error("Brak aktywnego mieszkania.");
@@ -372,6 +410,9 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
   const value: HouseholdContextValue = {
     status,
+    membershipsLoaded: Boolean(uid) && memberships !== null,
+    entered,
+    enterHousehold,
     memberships: memberships ?? [],
     householdId: status === "ready" ? householdId : null,
     household,

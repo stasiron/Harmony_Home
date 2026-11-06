@@ -452,6 +452,10 @@ export function subscribeHouseholdMeta(
         ...(typeof data.inviteCode === "string"
           ? { inviteCode: data.inviteCode }
           : {}),
+        cover:
+          data.cover && typeof data.cover.updatedAt === "string"
+            ? { updatedAt: data.cover.updatedAt }
+            : null,
       });
     },
     (err) => onError?.(err),
@@ -483,6 +487,7 @@ export async function updateHouseholdMeta(
       | "name"
       | "zones"
       | "floorPlan"
+      | "cover"
       | "weatherLocation"
       | "sharedCalendar"
       | "choreWeights"

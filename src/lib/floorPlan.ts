@@ -40,9 +40,18 @@ function loadImage(file: File): Promise<HTMLImageElement> {
   });
 }
 
-export async function compressFloorPlan(file: File): Promise<FloorPlanUpload> {
+export function compressFloorPlan(file: File): Promise<FloorPlanUpload> {
+  return compressImage(file, MAX_SIDE, MAX_DATA_URL_LENGTH);
+}
+
+/** Zmniejsza obraz do data URL mieszczącego się w dokumencie Firestore */
+export async function compressImage(
+  file: File,
+  maxSide: number,
+  maxLength: number,
+): Promise<FloorPlanUpload> {
   const img = await loadImage(file);
-  let scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+  let scale = Math.min(1, maxSide / Math.max(img.width, img.height));
 
   for (let attempt = 0; attempt < 6; attempt++) {
     const width = Math.max(1, Math.round(img.width * scale));
@@ -57,7 +66,7 @@ export async function compressFloorPlan(file: File): Promise<FloorPlanUpload> {
       const usable = dataUrl.startsWith("data:image/webp")
         ? dataUrl
         : canvas.toDataURL("image/jpeg", quality);
-      if (usable.length <= MAX_DATA_URL_LENGTH) {
+      if (usable.length <= maxLength) {
         return { dataUrl: usable, width, height };
       }
     }

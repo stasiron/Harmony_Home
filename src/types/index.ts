@@ -308,6 +308,8 @@ export interface HouseholdMeta {
   createdAt: string;
   zones: HomeZone[];
   floorPlan: FloorPlanRef;
+  /** Zdjęcie na ekranie wejścia (households/{id}/assets/cover); brak = gradient */
+  cover?: { updatedAt: string } | null;
   /** Aktualny kod zaproszenia (invites/{code}) */
   inviteCode?: string;
   /** Skąd pogoda na pulpicie (wybierane przy tworzeniu / w Ustawieniach) */
