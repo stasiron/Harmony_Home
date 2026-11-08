@@ -22,12 +22,13 @@ export const Route = createFileRoute("/calendar")({
 
 function CalendarPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 md:space-y-8">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+        <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">
           Kalendarz
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        {/* Na telefonie bez opisu — kalendarz ma być od razu na ekranie */}
+        <p className="mt-1 hidden text-sm text-muted-foreground md:block">
           Domyślnie 3 dni — przełącz na 7, 14 lub cały miesiąc. Google Calendar,
           obowiązki i plany gości.
         </p>

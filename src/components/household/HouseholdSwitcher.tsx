@@ -22,7 +22,7 @@ export function HouseholdSwitcher() {
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1.5 rounded-xl">
           <Home className="size-3.5" />
-          <span className="max-w-[6.5rem] truncate sm:max-w-[9rem]">
+          <span className="max-w-[5.5rem] truncate sm:max-w-[9rem]">
             {household.name}
           </span>
           <ChevronDown className="size-3.5 opacity-60" />

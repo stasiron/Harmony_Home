@@ -11,6 +11,7 @@ import { Shell } from "@/components/Shell";
 import { AddChoreDialog } from "@/components/chores/AddChoreDialog";
 import { AddZadanieDialog } from "@/components/chores/AddZadanieDialog";
 import { ExportChoresButton } from "@/components/chores/ExportChoresButton";
+import { ActivityPanel } from "@/components/chores/ActivityPanel";
 import { ApartmentMap } from "@/components/chores/ApartmentMap";
 import { ChoreCard } from "@/components/chores/ChoreCard";
 import { ZadanieCard } from "@/components/chores/ZadanieCard";
@@ -209,19 +210,24 @@ function ChoresPage() {
     return (
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:grid-rows-[auto_1fr] lg:gap-x-8">
         {header}
-        <aside className="flex flex-col gap-3 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-          <MapPanel>
-            <ApartmentMap
-              tasks={visibleTasks}
-              statusOf={statusOf}
-              users={users}
-              fitViewport
-              showLegend={!summary}
-            />
-          </MapPanel>
+        {/* Od laptopa: stała wysokość ekranu — panel aktywności wypełnia
+            miejsce pod planem, ile go zostanie */}
+        <aside className="flex flex-col gap-3 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[calc(100dvh-3rem)] lg:self-start">
+          <div className="shrink-0">
+            <MapPanel>
+              <ApartmentMap
+                tasks={visibleTasks}
+                statusOf={statusOf}
+                users={users}
+                fitViewport
+                showLegend={!summary}
+              />
+            </MapPanel>
+          </div>
           {summary && (
-            <div className="order-first lg:order-none">{summary}</div>
+            <div className="order-first shrink-0 lg:order-none">{summary}</div>
           )}
+          <ActivityPanel className="hidden min-h-0 flex-1 lg:flex" />
         </aside>
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">{lists}</div>
       </div>

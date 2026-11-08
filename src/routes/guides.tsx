@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   BookOpen,
   ChefHat,
@@ -8,7 +8,13 @@ import {
   Shirt,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CustomTabPanel } from "@/components/guides/CustomTabPanel";
+import { TabEditor } from "@/components/guides/TabEditor";
+import { RecipesPanel } from "@/components/kitchen/RecipesPanel";
+import { useKitchen } from "@/hooks/useKitchen";
+import { useSyncedList } from "@/hooks/useSyncedList";
+import { normalizeGuideEntry, normalizeGuideTab } from "@/lib/guideTabs";
+import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Shell } from "@/components/Shell";
 import { LaundryPanel } from "@/components/guides/LaundryPanel";
@@ -31,13 +37,23 @@ import { useHousehold } from "@/context/HouseholdContext";
 import { useVisibilityList } from "@/hooks/useVisibilityList";
 import { FilterChip } from "@/components/FilterChip";
 import { cn } from "@/lib/utils";
-import type { GuideCategory, GuideNote, ItemVisibility } from "@/types";
+import type {
+  GuideCategory,
+  GuideEntry,
+  GuideNote,
+  GuideTab,
+  ItemVisibility,
+} from "@/types";
 
-type Tab = "notes" | "laundry";
+/** Wbudowane zakładki; własne mają id dokumentu */
+type BuiltinTab = "notes" | "recipes" | "laundry";
+const BUILTIN: BuiltinTab[] = ["notes", "recipes", "laundry"];
 
 export const Route = createFileRoute("/guides")({
-  validateSearch: (search: Record<string, unknown>): { tab?: Tab } =>
-    search.tab === "laundry" ? { tab: "laundry" } : {},
+  validateSearch: (search: Record<string, unknown>): { tab?: BuiltinTab } =>
+    BUILTIN.includes(search.tab as BuiltinTab)
+      ? { tab: search.tab as BuiltinTab }
+      : {},
   head: () => ({
     meta: [
       { title: "Poradnik · Homebase" },
@@ -86,97 +102,181 @@ const byTitle = (a: GuideNote, b: GuideNote) =>
 
 function GuidesPage() {
   const { tab: initialTab } = Route.useSearch();
-  const [tab, setTab] = useState<Tab>(initialTab ?? "notes");
+  const [tab, setTab] = useState<string>(initialTab ?? "notes");
+  const [tabEditor, setTabEditor] = useState<GuideTab | "new" | null>(null);
   const { laundryPrograms } = useApp();
   const { syncUser } = useAuth();
-  const { householdId } = useHousehold();
+  const { householdId, canEditItem } = useHousehold();
+  const uid = syncUser?.uid ?? null;
   const privateOwner = syncUser && !syncUser.isAnonymous ? syncUser.uid : null;
   // Tylko na tej stronie — nie obciąża odczytami reszty aplikacji
   const [notes, setNotes] = useVisibilityList<GuideNote>({
     householdId,
     name: "guides",
-    uid: syncUser?.uid ?? null,
+    uid,
     privateOwner,
     normalize: normalizeGuide,
     sort: byTitle,
   });
+  const [customTabs, setCustomTabs] = useSyncedList<GuideTab>({
+    householdId,
+    name: "guideTabs",
+    uid,
+    normalize: normalizeGuideTab,
+    sort: (a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""),
+  });
+  const [entries, setEntries] = useVisibilityList<GuideEntry>({
+    householdId,
+    name: "guideEntries",
+    uid,
+    privateOwner,
+    normalize: normalizeGuideEntry,
+    sort: (a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
+  });
 
-  const tabs: {
-    id: Tab;
-    label: string;
-    icon: typeof BookOpen;
-    count: number;
-  }[] = [
-    { id: "notes", label: "Instrukcje", icon: BookOpen, count: notes.length },
-    {
-      id: "laundry",
-      label: "Pranie",
-      icon: Shirt,
-      count: laundryPrograms.length,
-    },
-  ];
+  const activeCustom = customTabs.find((t) => t.id === tab) ?? null;
+  // Usunięta zakładka — wróć do instrukcji
+  const current =
+    BUILTIN.includes(tab as BuiltinTab) || activeCustom ? tab : "notes";
+
+  const tabs: { id: string; label: string; icon: ReactNode; count?: number }[] =
+    [
+      {
+        id: "notes",
+        label: "Instrukcje",
+        icon: <BookOpen className="size-4" />,
+        count: notes.length,
+      },
+      {
+        id: "recipes",
+        label: "Przepisy",
+        icon: <ChefHat className="size-4" />,
+      },
+      {
+        id: "laundry",
+        label: "Pranie",
+        icon: <Shirt className="size-4" />,
+        count: laundryPrograms.length,
+      },
+      ...customTabs.map((t) => ({
+        id: t.id,
+        label: t.name,
+        icon: <span className="text-base leading-none">{t.emoji}</span>,
+        count: entries.filter((e) => e.tabId === t.id).length,
+      })),
+    ];
+
+  const saveTab = (saved: GuideTab) => {
+    setCustomTabs((prev) =>
+      prev.some((t) => t.id === saved.id)
+        ? prev.map((t) => (t.id === saved.id ? saved : t))
+        : [...prev, saved],
+    );
+    setTabEditor(null);
+    setTab(saved.id);
+  };
+
+  const deleteTab = (target: GuideTab) => {
+    const count = entries.filter((e) => e.tabId === target.id).length;
+    const question =
+      "Usunąć zakładkę „" +
+      target.name +
+      "”" +
+      (count > 0 ? " razem z wpisami (" + count + ")?" : "?");
+    if (!window.confirm(question)) return;
+    setEntries((prev) => prev.filter((e) => e.tabId !== target.id));
+    setCustomTabs((prev) => prev.filter((t) => t.id !== target.id));
+    setTabEditor(null);
+    setTab("notes");
+    toast.success("Usunięto zakładkę.");
+  };
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-            Poradnik
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Domowa wiedza w jednym miejscu — jak prać, jak obsługiwać sprzęty,
-            jak sprzątać.
-          </p>
-        </div>
-        <Link
-          to="/kitchen"
-          search={{ tab: "recipes" }}
-          className="inline-flex items-center gap-2 self-start rounded-2xl border border-border bg-surface px-4 py-2.5 text-sm transition-colors hover:border-primary/40 md:self-auto"
-        >
-          <ChefHat className="size-4 text-primary" />
-          Przepisy są w Kuchni
-        </Link>
+      <header>
+        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+          Poradnik
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Domowa wiedza w jednym miejscu — instrukcje, przepisy, pranie i własne
+          zakładki.
+        </p>
       </header>
 
       <div
         role="tablist"
-        className="inline-flex rounded-2xl border border-border bg-surface p-1"
+        className="hh-scroll -mx-4 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
       >
-        {tabs.map(({ id, label, icon: Icon, count }) => (
+        {tabs.map(({ id, label, icon, count }) => (
           <button
             key={id}
             type="button"
             role="tab"
-            aria-selected={tab === id}
+            aria-selected={current === id}
             onClick={() => setTab(id)}
             className={cn(
-              "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors",
-              tab === id
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground",
+              "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-colors",
+              current === id
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-surface text-muted-foreground hover:text-foreground",
             )}
           >
-            <Icon className="size-4" />
+            {icon}
             {label}
-            <span
-              className={cn(
-                "rounded-full px-1.5 text-xs tabular-nums",
-                tab === id ? "bg-primary-foreground/20" : "bg-muted",
-              )}
-            >
-              {count}
-            </span>
+            {count !== undefined && (
+              <span
+                className={cn(
+                  "rounded-full px-1.5 text-xs tabular-nums",
+                  current === id ? "bg-primary-foreground/20" : "bg-muted",
+                )}
+              >
+                {count}
+              </span>
+            )}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setTabEditor("new")}
+          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-dashed border-border px-3.5 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+        >
+          <Plus className="size-4" />
+          Nowa zakładka
+        </button>
       </div>
 
-      {tab === "notes" ? (
-        <NotesPanel notes={notes} setNotes={setNotes} />
-      ) : (
-        <LaundryPanel />
+      {current === "notes" && <NotesPanel notes={notes} setNotes={setNotes} />}
+      {current === "recipes" && <GuideRecipes />}
+      {current === "laundry" && <LaundryPanel />}
+      {activeCustom && (
+        <CustomTabPanel
+          tab={activeCustom}
+          entries={entries}
+          setEntries={setEntries}
+          onEditTab={() => setTabEditor(activeCustom)}
+        />
+      )}
+
+      {tabEditor !== null && (
+        <TabEditor
+          tab={tabEditor === "new" ? null : tabEditor}
+          onClose={() => setTabEditor(null)}
+          onSave={saveTab}
+          onDelete={
+            tabEditor !== "new" && canEditItem(tabEditor)
+              ? () => deleteTab(tabEditor)
+              : undefined
+          }
+        />
       )}
     </div>
   );
+}
+
+/** Te same przepisy co w Kuchni — jedno źródło danych, dwa wejścia */
+function GuideRecipes() {
+  const kitchen = useKitchen();
+  return <RecipesPanel kitchen={kitchen} />;
 }
 
 function NotesPanel({

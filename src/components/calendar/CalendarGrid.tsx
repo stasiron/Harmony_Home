@@ -149,7 +149,10 @@ export function CalendarGrid({
   getDayBundle,
   guestsMode,
   users,
+  onSwipe,
 }: {
+  /** Przesunięcie palcem w bok (telefon): -1 wcześniej, 1 później */
+  onSwipe?: (direction: -1 | 1) => void;
   days: Date[];
   viewMode: Exclude<CalendarViewMode, "month">;
   getDayBundle: (day: Date) => DayBundle;
@@ -157,6 +160,7 @@ export function CalendarGrid({
   users: { id: string; name: string }[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const touchRef = useRef<{ x: number; y: number } | null>(null);
   const [expanded, setExpanded] = useState(false);
   // Pełne minuty — ta sama pozycja linii „teraz” na serwerze i w przeglądarce
   const [now, setNow] = useState(currentMinute);
@@ -213,7 +217,25 @@ export function CalendarGrid({
     <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-surface-elevated via-surface to-card shadow-elevated">
       <div
         ref={scrollRef}
-        className="hh-scroll max-h-[max(26rem,calc(100dvh-25rem))] overflow-auto overscroll-contain"
+        className="hh-scroll max-h-[max(24rem,calc(100dvh-19rem))] overflow-auto overscroll-contain md:max-h-[max(26rem,calc(100dvh-25rem))]"
+        // Gdy dni mieszczą się w szerokości, przesunięcie w bok zmienia okres
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          touchRef.current = t ? { x: t.clientX, y: t.clientY } : null;
+        }}
+        onTouchEnd={(e) => {
+          const start = touchRef.current;
+          const t = e.changedTouches[0];
+          touchRef.current = null;
+          const el = scrollRef.current;
+          if (!start || !t || !el || !onSwipe) return;
+          if (el.scrollWidth > el.clientWidth + 1) return;
+          const dx = t.clientX - start.x;
+          const dy = t.clientY - start.y;
+          if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
+            onSwipe(dx < 0 ? 1 : -1);
+          }
+        }}
       >
         {/* Nagłówki dni i „cały dzień” — przyklejone u góry */}
         <div

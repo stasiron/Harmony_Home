@@ -19,6 +19,7 @@ import { HouseholdGate } from "@/components/household/HouseholdGate";
 import { AppVersionFooter } from "@/components/AppVersionFooter";
 import { Toaster } from "@/components/ui/sonner";
 import { CHUNK_RELOAD_GUARD_SCRIPT } from "@/lib/chunk-reload-guard";
+import { NO_ZOOM_SCRIPT } from "@/lib/noZoom";
 
 function NotFoundComponent() {
   return (
@@ -104,7 +105,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     head: () => ({
       meta: [
         { charSet: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        // Bez powiększania (pinch / dwuklik) — to aplikacja, nie strona;
+        // viewport-fit=cover: tło sięga pod pasek statusu iPhone'a
+        {
+          name: "viewport",
+          content:
+            "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+        },
+        // Pasek przeglądarki / statusu w kolorze tła (góra gradientu)
+        { name: "theme-color", content: "#211912" },
+        { name: "color-scheme", content: "dark" },
+        { name: "apple-mobile-web-app-capable", content: "yes" },
+        { name: "mobile-web-app-capable", content: "yes" },
+        {
+          name: "apple-mobile-web-app-status-bar-style",
+          content: "black-translucent",
+        },
+        { name: "apple-mobile-web-app-title", content: "HomeHarmony" },
         { title: "Homebase · dom i obowiązki" },
         {
           name: "description",
@@ -141,6 +158,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <script
           dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD_GUARD_SCRIPT }}
         />
+        <script dangerouslySetInnerHTML={{ __html: NO_ZOOM_SCRIPT }} />
       </head>
       <body>
         {children}

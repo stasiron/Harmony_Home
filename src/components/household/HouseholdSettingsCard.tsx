@@ -45,6 +45,7 @@ export function HouseholdSettingsCard() {
     members,
     me,
     isAdmin,
+    isSuperAdmin,
     renameHousehold,
     setWeatherLocation,
     regenerateInvite,
@@ -63,6 +64,11 @@ export function HouseholdSettingsCard() {
   }, [household?.name]);
 
   if (!household || !me) return null;
+
+  // Role nadaje tylko twórca mieszkania albo administrator ogólny;
+  // twórcy nikt poza administratorem ogólnym nie odbierze uprawnień
+  const isOwner = (member: HouseholdMember) => member.uid === household.ownerId;
+  const canManageRoles = isSuperAdmin || me.uid === household.ownerId;
 
   const adminCount = members.filter((m) => m.role === "admin").length;
   const legacyCalendar = Boolean(household.features?.legacyCalendar);
@@ -254,7 +260,7 @@ export function HouseholdSettingsCard() {
                       {profileName(member.profileId) ?? "—"}
                     </span>
                   )}
-                  {isAdmin && !member.anonymous ? (
+                  {canManageRoles && !member.anonymous && !isOwner(member) ? (
                     <Select
                       value={member.role}
                       disabled={lastAdmin}
@@ -275,10 +281,14 @@ export function HouseholdSettingsCard() {
                     </Select>
                   ) : (
                     <span className="text-xs text-muted-foreground">
-                      {member.role === "admin" ? "Administrator" : "Domownik"}
+                      {isOwner(member)
+                        ? "Twórca · administrator"
+                        : member.role === "admin"
+                          ? "Administrator"
+                          : "Domownik"}
                     </span>
                   )}
-                  {isAdmin && !own && (
+                  {isAdmin && !own && (!isOwner(member) || isSuperAdmin) && (
                     <Button
                       size="icon"
                       variant="ghost"

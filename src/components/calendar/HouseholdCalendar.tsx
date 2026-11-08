@@ -76,7 +76,7 @@ export function HouseholdCalendar() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface/60 px-3 py-2">
+      <div className="hh-scroll flex items-center gap-2 overflow-x-auto rounded-2xl border border-border bg-surface/60 px-2 py-1.5 sm:flex-wrap sm:overflow-visible sm:px-3 sm:py-2">
         <button
           type="button"
           onClick={() => setOnlyMine(!onlyMine)}
@@ -88,7 +88,7 @@ export function HouseholdCalendar() {
               : "Wybierz swój profil w Ustawieniach"
           }
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50",
+            "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50",
             onlyMine
               ? "border-primary bg-primary text-primary-foreground"
               : "border-border hover:bg-muted",
@@ -106,7 +106,7 @@ export function HouseholdCalendar() {
               onClick={() => toggleCalendar(source.calendarId)}
               aria-pressed={!hidden}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs transition-colors",
+                "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-1.5 text-xs transition-colors",
                 hidden
                   ? "border-dashed border-border text-muted-foreground line-through"
                   : "border-border bg-background hover:bg-muted",
@@ -128,9 +128,9 @@ export function HouseholdCalendar() {
             </button>
           );
         })}
-        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="ml-auto flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
           {cal.lastSyncedAt && (
-            <span>
+            <span className="hidden sm:inline">
               Synchronizacja{" "}
               {format(new Date(cal.lastSyncedAt), "d MMM, HH:mm", {
                 locale: pl,
@@ -153,7 +153,7 @@ export function HouseholdCalendar() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -165,7 +165,7 @@ export function HouseholdCalendar() {
           >
             <ChevronLeft className="size-4" />
           </Button>
-          <h2 className="min-w-[10rem] text-center text-lg font-semibold capitalize tracking-tight">
+          <h2 className="min-w-[9rem] flex-1 text-center text-base font-semibold capitalize tracking-tight sm:flex-none sm:text-lg">
             {cal.rangeLabel}
           </h2>
           <Button
@@ -184,13 +184,13 @@ export function HouseholdCalendar() {
           type="single"
           value={cal.viewMode}
           onValueChange={cal.handleViewChange}
-          className="rounded-2xl border border-border bg-surface p-1"
+          className="grid grid-cols-4 rounded-2xl border border-border bg-surface p-1 sm:flex"
         >
           {CALENDAR_VIEW_OPTIONS.map((opt) => (
             <ToggleGroupItem
               key={opt.value}
               value={opt.value}
-              className="rounded-xl px-3 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              className="h-8 rounded-xl px-3 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground sm:h-9 sm:text-sm"
             >
               {opt.label}
             </ToggleGroupItem>
@@ -235,6 +235,7 @@ export function HouseholdCalendar() {
           getDayBundle={cal.getDayBundle}
           guestsMode={guestsMode}
           users={users}
+          onSwipe={(dir) => cal.shiftPeriod(dir)}
         />
       )}
 

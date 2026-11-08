@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Eye, Settings, X } from "lucide-react";
+import { Eye, LogIn, Settings, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,14 +38,14 @@ export function AuthUserBadge() {
             <Button
               variant={seeAsMemberId ? "secondary" : "outline"}
               size="sm"
-              className="rounded-xl gap-1.5"
+              className="gap-1.5 rounded-xl max-sm:size-9 max-sm:p-0"
+              aria-label="Podgląd jako domownik"
             >
               <Eye className="size-3.5" />
-              {seeAsLabel ? (
-                <span className="max-w-[7rem] truncate">{seeAsLabel}</span>
-              ) : (
-                "Podgląd"
-              )}
+              {/* Telefon: sama ikona — pełny pasek nie mieści się w szerokości */}
+              <span className="hidden max-w-[7rem] truncate sm:inline">
+                {seeAsLabel ?? "Podgląd"}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
@@ -85,8 +85,14 @@ export function AuthUserBadge() {
         </DropdownMenu>
         <LoginDialog
           trigger={
-            <Button variant="outline" size="sm" className="rounded-xl">
-              Zaloguj
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 rounded-xl max-sm:size-9 max-sm:p-0"
+              aria-label="Zaloguj się"
+            >
+              <LogIn className="size-3.5" />
+              <span className="hidden sm:inline">Zaloguj</span>
             </Button>
           }
         />

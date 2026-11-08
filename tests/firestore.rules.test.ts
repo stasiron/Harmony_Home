@@ -315,6 +315,57 @@ describe("tworzenie i dołączanie", () => {
   });
 });
 
+describe("role — nadaje twórca albo administrator ogólny", () => {
+  const promoteAlice = () =>
+    env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(
+        doc(ctx.firestore(), "households", HID, "members", "alice"),
+        {
+          role: "admin",
+        },
+      );
+    });
+  const member = (db: ReturnType<typeof dbAs>, uid: string) =>
+    doc(db, "households", HID, "members", uid);
+
+  it("twórca nadaje i odbiera administratora", async () => {
+    await assertSucceeds(
+      updateDoc(member(dbAs("admin"), "alice"), { role: "admin" }),
+    );
+    await assertSucceeds(
+      updateDoc(member(dbAs("admin"), "alice"), { role: "member" }),
+    );
+  });
+
+  it("drugi administrator nie zmienia ról i nie rusza twórcy", async () => {
+    await promoteAlice();
+    const alice = dbAs("alice");
+    await assertFails(updateDoc(member(alice, "tablet"), { role: "admin" }));
+    await assertFails(updateDoc(member(alice, "admin"), { role: "member" }));
+    await assertFails(deleteDoc(member(alice, "admin")));
+    // ale zwykłe sprawy mieszkania — tak
+    await assertSucceeds(
+      updateDoc(member(alice, "tablet"), { profileId: "p1" }),
+    );
+    await assertSucceeds(deleteDoc(member(alice, "tablet")));
+  });
+
+  it("nikt poza administratorem ogólnym nie zmieni twórcy mieszkania", async () => {
+    await promoteAlice();
+    await assertFails(
+      updateDoc(doc(dbAs("alice"), "households", HID), { ownerId: "alice" }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(dbAs("alice"), "households", HID), { name: "Nowa" }),
+    );
+    const boss = dbAs("boss", google("boss", "stasiron9102@gmail.com"));
+    await assertSucceeds(updateDoc(member(boss, "admin"), { role: "member" }));
+    await assertSucceeds(
+      updateDoc(doc(boss, "households", HID), { ownerId: "alice" }),
+    );
+  });
+});
+
 describe("sprawy całego mieszkania — tylko admin", () => {
   it("strefy i nazwa", async () => {
     await assertFails(
@@ -528,7 +579,7 @@ describe("prywatne obowiązki, zadania i todo", () => {
   });
 
   it("prywatne zakupy, lodówka i poradnik — tak; inne listy — nie", async () => {
-    for (const name of ["shopping", "fridge", "guides"]) {
+    for (const name of ["shopping", "fridge", "guides", "guideEntries"]) {
       await assertSucceeds(
         setDoc(
           doc(dbAs("alice"), "households", HID, "private", "alice", name, "s"),

@@ -89,7 +89,10 @@ service cloud.firestore {
       allow create: if hasAccount()
         && request.resource.data.ownerId == request.auth.uid;
       // PANIC (goście) włącza każdy domownik — tylko to jedno pole
-      allow update: if isAdmin(hid)
+      // ownerId (twórca) zmienia tylko administrator ogólny
+      allow update: if (isAdmin(hid)
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId'])
+            || isSuperAdmin()))
         || (isMember(hid) && changedOnly(['panic']));
       allow delete: if isAdmin(hid);
 
@@ -131,11 +134,30 @@ service cloud.firestore {
               || request.resource.data.provider == tokenProvider());
         }
 
-        allow update: if isAdmin(hid)
+        function householdOwner() {
+          return get(householdPath(hid)).data.ownerId;
+        }
+
+        // Role nadaje tylko twórca mieszkania albo administrator ogólny
+        function canManageRoles() {
+          return isSuperAdmin() || householdOwner() == request.auth.uid;
+        }
+
+        // Twórcy nie odbierze roli ani nie usunie inny administrator
+        function touchesOwner() {
+          return uid == householdOwner()
+            && request.auth.uid != uid
+            && !isSuperAdmin();
+        }
+
+        allow update: if (isAdmin(hid)
+            && (!memberChanged().hasAny(['role']) || canManageRoles())
+            && !touchesOwner())
           || (signedIn() && request.auth.uid == uid && selfUpdateOk());
 
-        // Admin usuwa, każdy może wyjść sam
-        allow delete: if isAdmin(hid) || (signedIn() && request.auth.uid == uid);
+        // Admin usuwa (poza twórcą), każdy może wyjść sam
+        allow delete: if (isAdmin(hid) && !touchesOwner())
+          || (signedIn() && request.auth.uid == uid);
       }
 
       // Domownicy (też bez konta) — lista osób mieszkania
@@ -157,7 +179,8 @@ service cloud.firestore {
         allow read, write: if hasAccount()
           && request.auth.uid == ownerUid
           && collection in [
-            'chores', 'zadania', 'todos', 'shopping', 'fridge', 'guides'
+            'chores', 'zadania', 'todos', 'shopping', 'fridge', 'guides',
+            'guideEntries'
           ]
           && exists(memberPath(hid));
       }
@@ -199,7 +222,8 @@ service cloud.firestore {
         function lockable() {
           return collection in [
             'chores', 'zadania', 'todos', 'todoFolders',
-            'shopping', 'laundry', 'guestPlans', 'fridge', 'guides'
+            'shopping', 'laundry', 'guestPlans', 'fridge', 'guides',
+            'guideTabs', 'guideEntries'
           ];
         }
 

@@ -115,5 +115,7 @@ export function buildLegacyMigration(
     laundry: legacy.laundryPrograms.map(stamp),
     fridge: [],
     guides: [],
+    guideTabs: [],
+    guideEntries: [],
   };
 }

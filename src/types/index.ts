@@ -248,6 +248,50 @@ export interface GuideNote extends ItemMeta {
 export type GuideCategory =
   "cleaning" | "devices" | "kitchen" | "home" | "other";
 
+/** Rodzaj pola we własnej zakładce Poradnika */
+export type GuideFieldType =
+  | "text" // krótki tekst
+  | "longtext" // opis
+  | "choice" // jedna z listy (a/b/c)
+  | "multi" // kilka z listy
+  | "scale" // skala słów: mało / średnio / dużo
+  | "range" // liczba z zakresu (suwak)
+  | "number" // dowolna liczba
+  | "checkbox" // tak / nie
+  | "date";
+
+export interface GuideField {
+  id: string;
+  label: string;
+  type: GuideFieldType;
+  required: boolean;
+  /** choice / multi / scale */
+  options?: string[];
+  /** range / number */
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+}
+
+/** Własna zakładka Poradnika — jak arkusz: nazwa + pola */
+export interface GuideTab extends ItemMeta {
+  id: string;
+  name: string;
+  emoji: string;
+  fields: GuideField[];
+}
+
+export type GuideFieldValue = string | number | boolean | string[] | null;
+
+/** Wpis we własnej zakładce — wartości pól po id pola */
+export interface GuideEntry extends ItemMeta {
+  id: string;
+  tabId: string;
+  values: Record<string, GuideFieldValue>;
+  updatedAt?: string;
+}
+
 /** Proste zapamiętane sprawy — nie obowiązki domowe */
 export type TodoScope = "personal" | "household";
 
