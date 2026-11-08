@@ -137,17 +137,19 @@
   /* Telefon: bez „gumowania” strony w bok i w dół (białe pola przy
      overscrollu na iPhonie), bez przybliżania dwuklikiem, bez
      powiększania tekstu po obróceniu */
+  /* Uwaga: overflow-x: clip, nie hidden — hidden robi z html/body osobne
+     kontenery przewijania, a z overscroll-behavior na body strona
+     przestaje się przewijać w ogóle */
   html {
     background-color: var(--color-background);
     overscroll-behavior: none;
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
 
   body {
-    overscroll-behavior: none;
-    overflow-x: hidden;
+    overflow-x: clip;
     touch-action: manipulation;
     /* Treść nie wchodzi pod notch / pasek statusu / pasek gestów */
     padding: env(safe-area-inset-top) env(safe-area-inset-right)
