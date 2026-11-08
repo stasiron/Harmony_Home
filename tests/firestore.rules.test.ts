@@ -527,7 +527,15 @@ describe("prywatne obowiązki, zadania i todo", () => {
     );
   });
 
-  it("tylko obowiązki, zadania i todo", async () => {
+  it("prywatne zakupy, lodówka i poradnik — tak; inne listy — nie", async () => {
+    for (const name of ["shopping", "fridge", "guides"]) {
+      await assertSucceeds(
+        setDoc(
+          doc(dbAs("alice"), "households", HID, "private", "alice", name, "s"),
+          { name: "x", createdBy: "alice" },
+        ),
+      );
+    }
     await assertFails(
       setDoc(
         doc(
@@ -536,10 +544,132 @@ describe("prywatne obowiązki, zadania i todo", () => {
           HID,
           "private",
           "alice",
-          "shopping",
+          "laundry",
           "s",
         ),
         { name: "x" },
+      ),
+    );
+  });
+});
+
+describe("lodówka", () => {
+  it("wspólna: domownik dodaje, zablokowaną każdy może zużyć", async () => {
+    const ref = (db: ReturnType<typeof dbAs>) =>
+      doc(db, "households", HID, "fridge", "milk");
+    await assertSucceeds(
+      setDoc(ref(dbAs("alice")), {
+        name: "Mleko",
+        amount: 2,
+        unit: "l",
+        createdBy: "alice",
+        locked: true,
+      }),
+    );
+    await assertSucceeds(updateDoc(ref(dbAs("admin")), { amount: 1 }));
+    await assertSucceeds(
+      updateDoc(ref(dbAs("tablet", anonymous)), { amount: 0.5 }),
+    );
+    await assertFails(
+      updateDoc(ref(dbAs("tablet", anonymous)), { name: "Woda" }),
+    );
+  });
+});
+
+describe("przepisy", () => {
+  const recipe = (over: object = {}) => ({
+    name: "Naleśniki",
+    createdBy: "alice",
+    share: "private",
+    sharedWith: {},
+    ...over,
+  });
+  const ref = (db: ReturnType<typeof dbAs>, id = "r1") =>
+    doc(db, "households", HID, "recipes", id);
+
+  it("tworzy tylko konto, jako autor", async () => {
+    await assertSucceeds(setDoc(ref(dbAs("alice")), recipe()));
+    await assertFails(
+      setDoc(
+        ref(dbAs("tablet", anonymous), "r2"),
+        recipe({ createdBy: "tablet" }),
+      ),
+    );
+    await assertFails(setDoc(ref(dbAs("admin"), "r3"), recipe()));
+    await assertFails(
+      setDoc(ref(dbAs("stranger"), "r4"), recipe({ createdBy: "stranger" })),
+    );
+  });
+
+  it("prywatny widzi tylko autor — nawet nie administrator ogólny", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(ref(ctx.firestore()), recipe());
+    });
+    await assertSucceeds(getDoc(ref(dbAs("alice"))));
+    await assertFails(getDoc(ref(dbAs("admin"))));
+    await assertFails(
+      getDoc(ref(dbAs("boss", google("boss", "stasiron9102@gmail.com")))),
+    );
+  });
+
+  it("udostępniony wszystkim: widzi każdy domownik, także tablet", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(ref(ctx.firestore()), recipe({ share: "all" }));
+    });
+    await assertSucceeds(getDoc(ref(dbAs("admin"))));
+    await assertSucceeds(getDoc(ref(dbAs("tablet", anonymous))));
+    await assertFails(getDoc(ref(dbAs("stranger"))));
+    const { where, query } = await import("firebase/firestore");
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(dbAs("tablet", anonymous), "households", HID, "recipes"),
+          where("share", "==", "all"),
+        ),
+      ),
+    );
+  });
+
+  it("udostępniony wybranym: widzą tylko oni (także zapytaniem)", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        ref(ctx.firestore()),
+        recipe({ share: "people", sharedWith: { admin: true } }),
+      );
+    });
+    await assertSucceeds(getDoc(ref(dbAs("admin"))));
+    await assertFails(getDoc(ref(dbAs("tablet", anonymous))));
+    const { where, query } = await import("firebase/firestore");
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(dbAs("admin"), "households", HID, "recipes"),
+          where("sharedWith.admin", "==", true),
+        ),
+      ),
+    );
+    // Cała kolekcja bez filtra — odmowa (są w niej cudze prywatne)
+    await assertFails(
+      getDocs(collection(dbAs("admin"), "households", HID, "recipes")),
+    );
+  });
+
+  it("zmienia i usuwa tylko autor", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(ref(ctx.firestore()), recipe({ share: "all" }));
+    });
+    await assertFails(updateDoc(ref(dbAs("admin")), { name: "Moje" }));
+    await assertFails(deleteDoc(ref(dbAs("admin"))));
+    await assertSucceeds(updateDoc(ref(dbAs("alice")), { name: "Placki" }));
+    await assertFails(updateDoc(ref(dbAs("alice")), { createdBy: "admin" }));
+    await assertSucceeds(deleteDoc(ref(dbAs("alice"))));
+  });
+
+  it("mapa udostępnień tylko przy share == people", async () => {
+    await assertFails(
+      setDoc(
+        ref(dbAs("alice")),
+        recipe({ share: "private", sharedWith: { admin: true } }),
       ),
     );
   });

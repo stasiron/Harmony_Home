@@ -151,13 +151,47 @@ service cloud.firestore {
         allow write: if isAdmin(hid);
       }
 
-      // Prywatne obowiązki / zadania / todo — tylko autor (z kontem).
-      // Nawet administrator ogólny ich nie widzi.
+      // Prywatne obowiązki / zadania / todo / zakupy / lodówka / poradnik —
+      // tylko autor (z kontem). Nawet administrator ogólny ich nie widzi.
       match /private/{ownerUid}/{collection}/{itemId} {
         allow read, write: if hasAccount()
           && request.auth.uid == ownerUid
-          && collection in ['chores', 'zadania', 'todos']
+          && collection in [
+            'chores', 'zadania', 'todos', 'shopping', 'fridge', 'guides'
+          ]
           && exists(memberPath(hid));
+      }
+
+      // Przepisy — zawsze czyjeś (konto). Widzi autor, wszyscy domownicy
+      // przy share == 'all' albo konta z mapy sharedWith. Zmienia tylko autor.
+      match /recipes/{recipeId} {
+        function recipeOwner() {
+          return hasAccount() && resource.data.createdBy == request.auth.uid;
+        }
+
+        function validShare() {
+          return request.resource.data.share in ['private', 'all', 'people']
+            && request.resource.data.sharedWith is map
+            && (request.resource.data.share == 'people'
+              || request.resource.data.sharedWith.size() == 0);
+        }
+
+        allow read: if isMember(hid) && (
+          resource.data.share == 'all'
+          || (signedIn() && resource.data.createdBy == request.auth.uid)
+          || (signedIn()
+            && resource.data.sharedWith.get(request.auth.uid, false) == true)
+        );
+
+        allow create: if hasAccount() && exists(memberPath(hid))
+          && request.resource.data.createdBy == request.auth.uid
+          && validShare();
+
+        allow update: if recipeOwner() && exists(memberPath(hid))
+          && request.resource.data.createdBy == request.auth.uid
+          && validShare();
+
+        allow delete: if recipeOwner();
       }
 
       // Elementy z przyciskiem „Zablokuj edycję” (decyzja 3a)
@@ -165,7 +199,7 @@ service cloud.firestore {
         function lockable() {
           return collection in [
             'chores', 'zadania', 'todos', 'todoFolders',
-            'shopping', 'laundry', 'guestPlans'
+            'shopping', 'laundry', 'guestPlans', 'fridge', 'guides'
           ];
         }
 
@@ -188,9 +222,10 @@ service cloud.firestore {
         // Odhaczanie zablokowanego elementu — każdy domownik
         function progressOnly() {
           // rotationTurn — „na zmianę”: odhaczenie przesuwa turę
+          // amount — zużycie z lodówki po ugotowaniu przepisu
           return changedOnly([
             'lastCompleted', 'lastCompletedBy', 'done', 'completedBy', 'checked',
-            'rotationTurn'
+            'rotationTurn', 'amount'
           ]);
         }
 

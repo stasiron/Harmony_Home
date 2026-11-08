@@ -21,6 +21,8 @@ export const ITEM_COLLECTIONS = [
   "shopping",
   "laundry",
   "guestPlans",
+  "fridge",
+  "guides",
 ] as const;
 
 export type ItemCollection = (typeof ITEM_COLLECTIONS)[number];
@@ -68,7 +70,14 @@ export function indexById<T extends { id: string }>(
 }
 
 /** Kolekcje, które mogą mieć elementy prywatne */
-export const PRIVATE_COLLECTIONS = ["chores", "zadania", "todos"] as const;
+export const PRIVATE_COLLECTIONS = [
+  "chores",
+  "zadania",
+  "todos",
+  "shopping",
+  "fridge",
+  "guides",
+] as const;
 
 /**
  * Ścieżka listy: publiczna `households/{id}/{name}` albo prywatna

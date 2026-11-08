@@ -1,13 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
+  BookOpen,
   Calendar,
   CalendarCheck,
+  ChefHat,
   Home,
   ListTodo,
   Settings,
-  Shirt,
-  ShoppingBasket,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -25,8 +25,8 @@ export const navItems: NavItem[] = [
   { to: "/calendar", label: "Kalendarz", icon: Calendar },
   { to: "/chores", label: "Obowiązki", icon: CalendarCheck },
   { to: "/todo", label: "TODO", icon: ListTodo },
-  { to: "/laundry", label: "Prania", icon: Shirt },
-  { to: "/kitchen", label: "Kuchnia", icon: ShoppingBasket },
+  { to: "/guides", label: "Poradnik", icon: BookOpen },
+  { to: "/kitchen", label: "Kuchnia", icon: ChefHat },
   { to: "/stats", label: "Statystyki", icon: BarChart3 },
   { to: "/settings", label: "Ustawienia", icon: Settings },
   { to: "/members", label: "Domownicy", icon: Users, wide: true },

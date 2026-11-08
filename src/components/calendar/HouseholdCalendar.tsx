@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import { DayColumn } from "@/components/calendar/DayColumn";
+import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useApp } from "@/context/AppContext";
@@ -229,35 +229,13 @@ export function HouseholdCalendar() {
           />
         </div>
       ) : (
-        <div
-          className={cn(
-            "grid items-start gap-3",
-            // Telefon: dni obok siebie, przewijane palcem jak karuzela —
-            // zamiast kilku pełnych dób jedna pod drugą
-            cal.viewMode !== "14" &&
-              "max-md:-mx-4 max-md:snap-x max-md:snap-mandatory max-md:auto-cols-[86%] max-md:grid-flow-col max-md:grid-cols-none max-md:overflow-x-auto max-md:scroll-px-4 max-md:px-4 max-md:pb-2 max-md:[&>*]:snap-start",
-            cal.viewMode === "3" && "md:grid-cols-3",
-            cal.viewMode === "7" &&
-              "md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7",
-            cal.viewMode === "14" &&
-              "grid-flow-col auto-cols-[minmax(220px,1fr)] grid-cols-none overflow-x-auto pb-2",
-          )}
-        >
-          {cal.daysInView.map((day) => {
-            const bundle = cal.getDayBundle(day);
-            return (
-              <DayColumn
-                key={day.toISOString()}
-                day={day}
-                events={bundle.events}
-                chores={bundle.chores}
-                guestPlans={bundle.guestPlans}
-                guestsMode={guestsMode}
-                users={users}
-              />
-            );
-          })}
-        </div>
+        <CalendarGrid
+          days={cal.daysInView}
+          viewMode={cal.viewMode as "3" | "7" | "14"}
+          getDayBundle={cal.getDayBundle}
+          guestsMode={guestsMode}
+          users={users}
+        />
       )}
 
       {!cal.isMonthView && (

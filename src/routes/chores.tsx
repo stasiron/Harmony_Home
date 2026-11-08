@@ -80,7 +80,7 @@ function ChoresPage() {
 
   // Obok mapy kolumna jest węższa — mniej kart w rzędzie
   const gridClass = hasMap
-    ? "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"
+    ? "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2"
     : "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3";
 
   const empty = visibleTasks.length === 0 && visibleZadania.length === 0;
@@ -152,74 +152,99 @@ function ChoresPage() {
     </div>
   );
 
+  const summary =
+    !empty && !ranked ? (
+      <StatusSummary
+        counts={groups.map((g) => ({
+          key: g.key,
+          count: g.tasks.length + g.zadania.length,
+        }))}
+      />
+    ) : null;
+
+  const header = (
+    <header
+      className={cn(
+        "flex flex-col gap-4",
+        hasMap
+          ? "lg:col-start-1 lg:row-start-1"
+          : "md:flex-row md:items-end md:justify-between",
+      )}
+    >
+      <div className="min-w-0">
+        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+          Obowiązki
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Termin liczy się od ostatniego wykonania.
+          {heavyDayNames.length > 0 &&
+            ` · Heavy Day: ${heavyDayNames.join(", ")}`}
+          {panic?.active && " · PANIC_GOSCIE"}
+        </p>
+        {guestsMode && (
+          <p className="mt-2 flex items-center gap-2 text-sm text-primary">
+            <Users className="size-4 shrink-0" />
+            Tryb gości aktywny
+            {guestCalendarHint ? ` · ${guestCalendarHint}` : ""}
+          </p>
+        )}
+      </div>
+      <div
+        className={cn(
+          "flex flex-wrap gap-2",
+          !hasMap && "md:shrink-0 md:justify-end",
+        )}
+      >
+        {isAdmin && <ExportChoresButton />}
+        <AddZadanieDialog />
+        <AddChoreDialog />
+      </div>
+    </header>
+  );
+
+  if (hasMap) {
+    // Telefon: nagłówek, liczniki, zwinięty plan, lista.
+    // Komputer: lewa kolumna nagłówek + lista, prawa — plan i liczniki
+    // przyklejone przy przewijaniu (liczniki zastępują legendę kolorów).
+    return (
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:grid-rows-[auto_1fr] lg:gap-x-8">
+        {header}
+        <aside className="flex flex-col gap-3 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
+          <MapPanel>
+            <ApartmentMap
+              tasks={visibleTasks}
+              statusOf={statusOf}
+              users={users}
+              fitViewport
+              showLegend={!summary}
+            />
+          </MapPanel>
+          {summary && (
+            <div className="order-first lg:order-none">{summary}</div>
+          )}
+        </aside>
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">{lists}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 md:space-y-8">
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-            Obowiązki
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Termin liczy się od ostatniego wykonania.
-            {heavyDayNames.length > 0 &&
-              ` · Heavy Day: ${heavyDayNames.join(", ")}`}
-            {panic?.active && " · PANIC_GOSCIE"}
+      {header}
+      {summary}
+      {lists}
+      {household && (
+        <section className="space-y-3 rounded-3xl border border-dashed border-border bg-surface/50 p-5">
+          <p className="text-sm text-muted-foreground">
+            To mieszkanie nie ma planu, więc mapa jest ukryta. Skopiuj prompt i
+            wygeneruj plan w stylu mieszkania testowego
+            {isAdmin ? ", potem go wgraj." : " — wgra go administrator."}
           </p>
-          {guestsMode && (
-            <p className="mt-2 flex items-center gap-2 text-sm text-primary">
-              <Users className="size-4 shrink-0" />
-              Tryb gości aktywny
-              {guestCalendarHint ? ` · ${guestCalendarHint}` : ""}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2 md:shrink-0 md:justify-end">
-          <ExportChoresButton />
-          <AddZadanieDialog />
-          <AddChoreDialog />
-        </div>
-      </header>
-
-      {!empty && !ranked && (
-        <StatusSummary
-          counts={groups.map((g) => ({
-            key: g.key,
-            count: g.tasks.length + g.zadania.length,
-          }))}
-        />
-      )}
-
-      {hasMap ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,42%)] lg:items-start">
-          <aside className="lg:sticky lg:top-6 lg:order-2">
-            <MapPanel>
-              <ApartmentMap
-                tasks={visibleTasks}
-                statusOf={statusOf}
-                users={users}
-                fitViewport
-              />
-            </MapPanel>
-          </aside>
-          <div className="min-w-0 lg:order-1">{lists}</div>
-        </div>
-      ) : (
-        <>
-          {lists}
-          {household && (
-            <section className="space-y-3 rounded-3xl border border-dashed border-border bg-surface/50 p-5">
-              <p className="text-sm text-muted-foreground">
-                To mieszkanie nie ma planu, więc mapa jest ukryta. Skopiuj
-                prompt i wygeneruj plan w stylu mieszkania testowego
-                {isAdmin ? ", potem go wgraj." : " — wgra go administrator."}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <CopyFloorPlanPromptButton householdName={household.name} />
-                {isAdmin && <FloorPlanUploadButton />}
-              </div>
-            </section>
-          )}
-        </>
+          <div className="flex flex-wrap gap-2">
+            <CopyFloorPlanPromptButton householdName={household.name} />
+            {isAdmin && <FloorPlanUploadButton />}
+          </div>
+        </section>
       )}
     </div>
   );

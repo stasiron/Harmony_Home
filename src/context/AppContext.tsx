@@ -61,9 +61,7 @@ import type {
   MapPin,
   MapPoint,
   PanicState,
-  Recipe,
   RecurrenceSchedule,
-  ShoppingItem,
   SmartHomeDevice,
   Status,
   Task,
@@ -82,11 +80,9 @@ interface AppState {
   users: User[];
   tasks: Task[];
   zadania: Zadanie[];
-  shopping: ShoppingItem[];
   todos: TodoItem[];
   todoFolders: TodoFolder[];
   laundryPrograms: LaundryProgram[];
-  recipes: Recipe[];
   devices: SmartHomeDevice[];
   guestsMode: boolean;
   guestCalendarHint: string | null;
@@ -108,8 +104,6 @@ interface AppState {
   addGuestPlan: (plan: Omit<GuestPlan, "id">) => void;
   startPanic: () => void;
   endPanic: () => void;
-  toggleShopping: (id: string) => void;
-  addShopping: (items: Omit<ShoppingItem, "id" | "checked">[]) => void;
   addTodo: (input: TodoAddInput) => void;
   toggleTodo: (id: string, memberId?: string | null) => void;
   setTodoAssignee: (id: string, memberId: string | null) => void;
@@ -387,12 +381,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     normalize: normalizeSyncedZadanie,
     sort: byCreatedAt("asc"),
   });
-  const [shopping, setShopping] = useSyncedList<ShoppingItem>({
-    householdId,
-    name: "shopping",
-    uid,
-    sort: byCreatedAt("asc"),
-  });
   const [todos, setTodos] = useVisibilityList<TodoItem>({
     householdId,
     name: "todos",
@@ -421,7 +409,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     uid,
     sort: byCreatedAt("asc"),
   });
-  const [recipes] = useState<Recipe[]>([]);
   const [devices, setDevices] = useState<SmartHomeDevice[]>([]);
   // Z kalendarza domu (serwer) — tak samo na każdym urządzeniu
   const [calendarGuests, setGuestsMode] = useState(false);
@@ -614,32 +601,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast.error("Nie udało się wyłączyć trybu PANIC.");
     });
   }, [householdId]);
-
-  const toggleShopping = useCallback(
-    (id: string) => {
-      setShopping((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, checked: !s.checked } : s)),
-      );
-    },
-    [setShopping],
-  );
-
-  const addShopping = useCallback(
-    (items: Omit<ShoppingItem, "id" | "checked">[]) => {
-      setShopping((prev) => {
-        const next = [...prev];
-        items.forEach((it) => {
-          if (
-            !next.some((s) => s.name.toLowerCase() === it.name.toLowerCase())
-          ) {
-            next.push({ ...it, id: crypto.randomUUID(), checked: false });
-          }
-        });
-        return next;
-      });
-    },
-    [setShopping],
-  );
 
   const addTodo = useCallback(
     (input: TodoAddInput) => {
@@ -921,11 +882,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     users,
     tasks,
     zadania,
-    shopping,
     todos,
     todoFolders,
     laundryPrograms,
-    recipes,
     devices,
     guestsMode,
     guestCalendarHint,
@@ -943,8 +902,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addGuestPlan,
     startPanic,
     endPanic,
-    toggleShopping,
-    addShopping,
     addTodo,
     toggleTodo,
     setTodoAssignee,

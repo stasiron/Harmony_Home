@@ -113,5 +113,7 @@ export function buildLegacyMigration(
     todos: legacy.todos.map(stamp),
     todoFolders: legacy.todoFolders.map(stamp),
     laundry: legacy.laundryPrograms.map(stamp),
+    fridge: [],
+    guides: [],
   };
 }

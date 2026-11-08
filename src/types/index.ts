@@ -170,24 +170,83 @@ export interface Task extends ItemMeta, TurnRotation {
   customized?: boolean;
 }
 
+export interface RecipeIngredient {
+  name: string;
+  /** null — „do smaku”, bez ilości */
+  amount: number | null;
+  unit: string;
+  /** Opcjonalny — nie blokuje „możesz ugotować” */
+  optional?: boolean;
+}
+
+/**
+ * Przepis — zawsze czyjś (konto). `share`: tylko autor, wszyscy domownicy
+ * albo wybrane konta (`sharedWith`, w Firestore jako mapa uid → true).
+ */
 export interface Recipe {
   id: string;
   name: string;
   emoji: string;
-  timeMinutes: number;
-  ingredients: { name: string; category: ShoppingCategory; qty: string }[];
+  description: string;
+  category: string;
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  difficulty: "easy" | "medium" | "hard";
+  ingredients: RecipeIngredient[];
+  steps: string[];
+  notes: string;
+  share: "private" | "all" | "people";
+  sharedWith: string[];
+  createdBy: string;
+  authorName: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ShoppingCategory =
-  "produce" | "dairy" | "bakery" | "pantry" | "frozen" | "household";
+  | "produce"
+  | "dairy"
+  | "meat"
+  | "bakery"
+  | "pantry"
+  | "frozen"
+  | "drinks"
+  | "household"
+  | "other";
 
 export interface ShoppingItem extends ItemMeta {
   id: string;
   name: string;
   category: ShoppingCategory;
-  qty: string;
+  /** null — bez ilości */
+  amount: number | null;
+  unit: string;
   checked: boolean;
 }
+
+/** Produkt w lodówce / spiżarni */
+export interface FridgeItem extends ItemMeta {
+  id: string;
+  name: string;
+  category: ShoppingCategory;
+  amount: number | null;
+  unit: string;
+  /** Termin przydatności, YYYY-MM-DD */
+  expiresOn: string | null;
+}
+
+/** Wpis w Poradniku — „jak to zrobić” (sprzątanie, sprzęty, kuchnia…) */
+export interface GuideNote extends ItemMeta {
+  id: string;
+  title: string;
+  category: GuideCategory;
+  body: string;
+  updatedAt?: string;
+}
+
+export type GuideCategory =
+  "cleaning" | "devices" | "kitchen" | "home" | "other";
 
 /** Proste zapamiętane sprawy — nie obowiązki domowe */
 export type TodoScope = "personal" | "household";

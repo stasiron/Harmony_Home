@@ -121,12 +121,15 @@ export function ApartmentMap({
   statusOf,
   users,
   fitViewport = false,
+  showLegend = true,
 }: {
   tasks: Task[];
   statusOf: (task: Task) => Status;
   users: User[];
   /** Od lg plan mieści się w wysokości ekranu (obok listy obowiązków) */
   fitViewport?: boolean;
+  /** Bez legendy, gdy kolory objaśniają liczniki pod planem */
+  showLegend?: boolean;
 }) {
   const [colorMode, setColorMode] = useState<MapDisplayMode>("initials");
   const [layers, setLayers] = useState<MapGeometryLayer[]>(() =>
@@ -193,7 +196,7 @@ export function ApartmentMap({
             const next = v as MapGeometryLayer[];
             setLayers(next.length > 0 ? next : DEFAULT_MAP_LAYERS);
           }}
-          className="w-full flex-wrap justify-start"
+          className="flex-wrap justify-start"
           aria-label="Warstwy mapy"
         >
           {(Object.keys(MAP_LAYER_LABELS) as MapGeometryLayer[]).map((key) => (
@@ -213,7 +216,7 @@ export function ApartmentMap({
           "relative mx-auto w-full overflow-hidden",
           // Obok listy plan nie może być wyższy niż ekran
           fitViewport &&
-            "lg:w-[min(100%,calc((100vh-14rem)*var(--map-ratio)))]",
+            "lg:w-[min(100%,calc((100vh-17rem)*var(--map-ratio)))]",
         )}
         style={
           {
@@ -309,9 +312,11 @@ export function ApartmentMap({
         </div>
       </div>
 
-      <div className="border-t border-border px-4 py-3">
-        <MapLegend colorMode={colorMode} />
-      </div>
+      {(showLegend || colorMode === "panic") && (
+        <div className="border-t border-border px-4 py-3">
+          <MapLegend colorMode={colorMode} />
+        </div>
+      )}
     </div>
   );
 }

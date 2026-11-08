@@ -1,18 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
-import { useApp } from "@/context/AppContext";
+import {
+  AlarmClock,
+  BookOpen,
+  ChefHat,
+  Refrigerator,
+  ShoppingCart,
+  type LucideIcon,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { Shell } from "@/components/Shell";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
+import { FridgePanel } from "@/components/kitchen/FridgePanel";
+import { RecipesPanel } from "@/components/kitchen/RecipesPanel";
+import { ShoppingPanel } from "@/components/kitchen/ShoppingPanel";
+import { useKitchen } from "@/hooks/useKitchen";
+import { daysToExpiry, recipeAvailability } from "@/lib/kitchen";
 import { cn } from "@/lib/utils";
-import type { ShoppingCategory } from "@/types";
+
+type Tab = "fridge" | "shopping" | "recipes";
+const TABS: Tab[] = ["fridge", "shopping", "recipes"];
 
 export const Route = createFileRoute("/kitchen")({
+  validateSearch: (search: Record<string, unknown>): { tab?: Tab } =>
+    TABS.includes(search.tab as Tab) ? { tab: search.tab as Tab } : {},
   head: () => ({
     meta: [
       { title: "Kuchnia · Homebase" },
-      { name: "description", content: "Lista zakupów mieszkania." },
+      {
+        name: "description",
+        content: "Lodówka, lista zakupów i przepisy całego domu.",
+      },
     ],
   }),
   component: () => (
@@ -22,141 +38,123 @@ export const Route = createFileRoute("/kitchen")({
   ),
 });
 
-const CATEGORY_ORDER: ShoppingCategory[] = [
-  "produce",
-  "dairy",
-  "bakery",
-  "pantry",
-  "frozen",
-  "household",
-];
-
+/** Centrum dowodzenia kuchnią: co jest, czego brakuje, co ugotować */
 function KitchenPage() {
-  const { shopping, toggleShopping, recipes, addShopping } = useApp();
+  const { tab: initialTab } = Route.useSearch();
+  const [tab, setTab] = useState<Tab>(initialTab ?? "fridge");
+  const kitchen = useKitchen();
+  const { fridge, shopping, recipes } = kitchen;
+
+  const stats = useMemo(() => {
+    const expiring = fridge.filter((f) => {
+      const d = daysToExpiry(f.expiresOn);
+      return d !== null && d <= 2;
+    }).length;
+    const toBuy = shopping.filter((s) => !s.checked).length;
+    const ready = recipes.filter(
+      (r) => recipeAvailability(r, fridge).ready,
+    ).length;
+    return { expiring, toBuy, ready };
+  }, [fridge, shopping, recipes]);
+
+  const tiles: {
+    id: Tab;
+    label: string;
+    value: number;
+    hint: string;
+    icon: LucideIcon;
+    tone?: "warn";
+  }[] = [
+    {
+      id: "fridge",
+      label: "Lodówka",
+      value: fridge.length,
+      hint:
+        stats.expiring > 0
+          ? `${stats.expiring} z krótkim terminem`
+          : "produktów",
+      icon: stats.expiring > 0 ? AlarmClock : Refrigerator,
+      tone: stats.expiring > 0 ? "warn" : undefined,
+    },
+    {
+      id: "shopping",
+      label: "Zakupy",
+      value: stats.toBuy,
+      hint: "do kupienia",
+      icon: ShoppingCart,
+    },
+    {
+      id: "recipes",
+      label: "Przepisy",
+      value: recipes.length,
+      hint:
+        stats.ready > 0 ? `${stats.ready} do zrobienia od ręki` : "zapisanych",
+      icon: BookOpen,
+    },
+  ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+        <h1 className="flex items-center gap-3 text-3xl font-semibold tracking-tight md:text-4xl">
+          <ChefHat className="size-8 text-primary" strokeWidth={1.6} />
           Kuchnia
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Wspólna lista zakupów.
+          Co jest w lodówce, czego brakuje i co z tego ugotować.
         </p>
       </header>
 
-      <Tabs defaultValue="shopping">
-        <TabsList>
-          <TabsTrigger value="shopping">Zakupy</TabsTrigger>
-          <TabsTrigger value="recipes">Przepisy · wkrótce</TabsTrigger>
-        </TabsList>
+      {/* Kafelki są też zakładkami */}
+      <div role="tablist" className="grid grid-cols-3 gap-2 sm:gap-3">
+        {tiles.map(({ id, label, value, hint, icon: Icon, tone }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={cn(
+              "flex flex-col gap-2 rounded-2xl border p-3 text-left transition-all sm:flex-row sm:items-center sm:gap-4 sm:rounded-3xl sm:p-5",
+              tab === id
+                ? "border-primary/50 bg-primary/10 ring-2 ring-primary/15"
+                : "border-border bg-surface hover:border-primary/30",
+            )}
+          >
+            <span
+              className={cn(
+                "grid size-9 shrink-0 place-items-center rounded-xl sm:size-12 sm:rounded-2xl",
+                tone === "warn"
+                  ? "bg-warn/20 text-warn"
+                  : tab === id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background/50 text-primary",
+              )}
+            >
+              <Icon className="size-4 sm:size-6" strokeWidth={1.7} />
+            </span>
+            <span className="min-w-0">
+              <span className="flex items-baseline gap-2">
+                <span className="truncate text-sm font-semibold sm:text-lg">
+                  {label}
+                </span>
+                <span className="text-lg font-light tabular-nums sm:text-2xl">
+                  {value}
+                </span>
+              </span>
+              <span className="hidden truncate text-xs text-muted-foreground sm:block">
+                {hint}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
 
-        <TabsContent value="shopping" className="mt-6 space-y-6">
-          {shopping.length === 0 ? (
-            <EmptyPanel
-              title="Lista zakupów jest pusta"
-              description="Dopisz, czego brakuje — zobaczy to cały dom."
-            />
-          ) : (
-            CATEGORY_ORDER.map((cat) => {
-              const items = shopping.filter((s) => s.category === cat);
-              if (items.length === 0) return null;
-              return (
-                <div key={cat}>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                    {cat}
-                  </h3>
-                  <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-                    {items.map((s, idx) => (
-                      <label
-                        key={s.id}
-                        className={cn(
-                          "flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-elevated",
-                          idx > 0 && "border-t border-border",
-                        )}
-                      >
-                        <Checkbox
-                          checked={s.checked}
-                          onCheckedChange={() => toggleShopping(s.id)}
-                        />
-                        <span
-                          className={cn(
-                            "flex-1 min-w-0 truncate",
-                            s.checked && "text-muted-foreground line-through",
-                          )}
-                        >
-                          {s.name}
-                        </span>
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {s.qty}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </TabsContent>
-
-        <TabsContent value="recipes" className="mt-6">
-          {recipes.length === 0 ? (
-            <EmptyPanel
-              title="Przepisy — wkrótce"
-              description="Ta część jest w przygotowaniu: zapisane przepisy dodadzą składniki do listy zakupów jednym kliknięciem."
-            />
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {recipes.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-3xl">{r.emoji}</div>
-                      <div className="mt-2 text-lg font-semibold">{r.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {r.timeMinutes} min
-                      </div>
-                    </div>
-                  </div>
-                  <ul className="space-y-1 text-sm text-muted-foreground">
-                    {r.ingredients.map((i) => (
-                      <li key={i.name} className="flex justify-between gap-2">
-                        <span className="truncate">{i.name}</span>
-                        <span className="shrink-0 text-xs">{i.qty}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    variant="secondary"
-                    className="mt-auto"
-                    onClick={() => addShopping(r.ingredients)}
-                  >
-                    <Plus className="size-4" /> Add to shopping list
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-function EmptyPanel({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      <div role="tabpanel">
+        {tab === "fridge" && <FridgePanel kitchen={kitchen} />}
+        {tab === "shopping" && <ShoppingPanel kitchen={kitchen} />}
+        {tab === "recipes" && <RecipesPanel kitchen={kitchen} />}
+      </div>
     </div>
   );
 }
