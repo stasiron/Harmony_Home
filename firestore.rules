@@ -122,6 +122,13 @@ service cloud.firestore {
           return request.auth.token.firebase.sign_in_provider;
         }
 
+        // Link z maila: token mówi „emailLink”, a konto (providerData) —
+        // „password”. Oba to to samo konto e-mail.
+        function providerMatches(provider) {
+          return provider == tokenProvider()
+            || (provider == 'password' && tokenProvider() == 'emailLink');
+        }
+
         function selfUpdateOk() {
           return memberChanged().hasOnly([
               'profileId', 'displayName', 'email', 'anonymous', 'provider'
@@ -131,7 +138,7 @@ service cloud.firestore {
             && (!memberChanged().hasAny(['anonymous'])
               || request.resource.data.anonymous == (tokenProvider() == 'anonymous'))
             && (!memberChanged().hasAny(['provider'])
-              || request.resource.data.provider == tokenProvider());
+              || providerMatches(request.resource.data.provider));
         }
 
         function householdOwner() {

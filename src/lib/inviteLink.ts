@@ -7,6 +7,18 @@ export function inviteUrl(code: string, origin = window.location.origin) {
   return `${origin}/?${JOIN_PARAM}=${encodeURIComponent(code)}`;
 }
 
+/**
+ * Adres po logowaniu linkiem z maila — bez jednorazowych kodów logowania,
+ * ale z `?join=`, żeby po zalogowaniu od razu dołączyć do mieszkania.
+ */
+export function cleanEmailLinkUrl(href: string): string {
+  const url = new URL(href);
+  const join = url.searchParams.get(JOIN_PARAM);
+  return join
+    ? `${url.pathname}?${JOIN_PARAM}=${encodeURIComponent(join)}`
+    : url.pathname;
+}
+
 /** Kod z zeskanowanego QR — link z `?join=` albo sam kod */
 export function inviteCodeFromScan(text: string): string | null {
   const raw = text.trim();

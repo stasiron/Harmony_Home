@@ -10,15 +10,19 @@ import {
 import {
   EmailAuthProvider,
   GoogleAuthProvider,
+  createUserWithEmailAndPassword,
   isSignInWithEmailLink,
   linkWithCredential,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   sendSignInLinkToEmail,
+  signInWithEmailAndPassword,
   signInWithEmailLink,
   signInAnonymously,
   signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
+  updateProfile,
   type Auth,
   type User,
 } from "firebase/auth";
@@ -26,6 +30,7 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { guardWriteBudget } from "@/lib/householdSync";
 import { isProfileFresh } from "@/lib/profileSync";
 import { clearCachedFeeds } from "@/lib/calendar/feedCache";
+import { cleanEmailLinkUrl } from "@/lib/inviteLink";
 import {
   clearSeeAsMemberId,
   readSeeAsMemberId,
@@ -52,8 +57,20 @@ type AuthContextValue = {
   error: string | null;
   configured: boolean;
   signInWithGoogle: () => Promise<void>;
-  /** Logowanie linkiem na e-mail — bez ekranów Google, bez kalendarza */
-  sendEmailLink: (email: string) => Promise<void>;
+  /**
+   * Logowanie linkiem na e-mail — bez hasła, bez ekranów Google.
+   * `joinCode` wraca w linku, żeby po zalogowaniu od razu dołączyć.
+   */
+  sendEmailLink: (email: string, joinCode?: string | null) => Promise<void>;
+  /** Własne konto: e-mail + hasło (zapamięta je menedżer haseł) */
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  /** Nowe konto e-mail + hasło; urządzenie bez konta zachowuje mieszkania */
+  signUpWithPassword: (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
   /** Otwarto link z maila na innym urządzeniu — trzeba podać adres */
   emailLinkPending: boolean;
   completeEmailLink: (email: string) => Promise<void>;
@@ -125,13 +142,21 @@ async function finishEmailLinkSignIn(auth: Auth, email: string, href: string) {
     await signInWithEmailLink(auth, email, href);
   }
   writeEmailForLink(null);
-  window.history.replaceState(null, "", window.location.pathname);
+  window.history.replaceState(null, "", cleanEmailLinkUrl(href));
 }
 
 function authErrorCode(err: unknown): string {
   return err && typeof err === "object" && "code" in err
     ? String((err as { code: string }).code)
     : "";
+}
+
+/** Konto e-mail + hasło — osobny komunikat, gdy dostawca jest wyłączony */
+function passwordErrorMessage(err: unknown): string {
+  if (authErrorCode(err) === "auth/operation-not-allowed") {
+    return "Logowanie hasłem jest jeszcze wyłączone — administrator włączy je w Firebase (Authentication → E-mail/hasło).";
+  }
+  return authErrorMessage(err);
 }
 
 function authErrorMessage(err: unknown): string {
@@ -147,6 +172,20 @@ function authErrorMessage(err: unknown): string {
       return "Ten link logowania już wygasł albo był użyty — poproś o nowy.";
     case "auth/invalid-email":
       return "To nie wygląda na adres e-mail.";
+    case "auth/invalid-credential":
+    case "auth/invalid-login-credentials":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+      return "Nieprawidłowy e-mail lub hasło.";
+    case "auth/email-already-in-use":
+    case "auth/credential-already-in-use":
+      return "Konto z tym adresem już istnieje — zaloguj się nim.";
+    case "auth/weak-password":
+      return "Hasło jest za słabe — użyj co najmniej 8 znaków.";
+    case "auth/too-many-requests":
+      return "Za dużo prób. Odczekaj chwilę albo zresetuj hasło.";
+    case "auth/user-disabled":
+      return "To konto jest zablokowane.";
     case "auth/network-request-failed":
       return "Brak połączenia z Firebase. Sprawdź internet i spróbuj ponownie.";
     default:
@@ -311,23 +350,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const sendEmailLink = useCallback(async (email: string) => {
+  const sendEmailLink = useCallback(
+    async (email: string, joinCode?: string | null) => {
+      const auth = getFirebaseAuth();
+      if (!auth) throw new Error("Firebase nie skonfigurowany.");
+      const trimmed = email.trim();
+      const join = joinCode ? `&join=${encodeURIComponent(joinCode)}` : "";
+      try {
+        await sendSignInLinkToEmail(auth, trimmed, {
+          url: `${window.location.origin}/?emailLink=1${join}`,
+          handleCodeInApp: true,
+        });
+        writeEmailForLink(trimmed);
+      } catch (err) {
+        if (authErrorCode(err) === "auth/operation-not-allowed") {
+          throw new Error(
+            "Logowanie linkiem jest jeszcze wyłączone — administrator włączy je w Firebase (Authentication → E-mail/hasło → link e-mail).",
+          );
+        }
+        throw new Error(authErrorMessage(err));
+      }
+    },
+    [],
+  );
+
+  const signInWithPassword = useCallback(
+    async (email: string, password: string) => {
+      const auth = getFirebaseAuth();
+      if (!auth) throw new Error("Firebase nie skonfigurowany.");
+      setError(null);
+      try {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+      } catch (err) {
+        throw new Error(passwordErrorMessage(err));
+      }
+    },
+    [],
+  );
+
+  const signUpWithPassword = useCallback(
+    async (email: string, password: string, displayName: string) => {
+      const auth = getFirebaseAuth();
+      if (!auth) throw new Error("Firebase nie skonfigurowany.");
+      setError(null);
+      const trimmed = email.trim();
+      const name = displayName.trim();
+      try {
+        await auth.authStateReady();
+        const current = auth.currentUser;
+        let account: User;
+        if (current?.isAnonymous) {
+          // Ten sam uid — mieszkania, do których urządzenie dołączyło, zostają
+          const result = await linkWithCredential(
+            current,
+            EmailAuthProvider.credential(trimmed, password),
+          );
+          account = result.user;
+        } else {
+          account = (
+            await createUserWithEmailAndPassword(auth, trimmed, password)
+          ).user;
+        }
+        if (name) await updateProfile(account, { displayName: name });
+        await account.getIdToken(true);
+        void syncUserProfile(account);
+        setUserTick((tick) => tick + 1);
+      } catch (err) {
+        throw new Error(passwordErrorMessage(err));
+      }
+    },
+    [],
+  );
+
+  const sendPasswordReset = useCallback(async (email: string) => {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase nie skonfigurowany.");
-    const trimmed = email.trim();
     try {
-      await sendSignInLinkToEmail(auth, trimmed, {
-        url: `${window.location.origin}/?emailLink=1`,
-        handleCodeInApp: true,
+      await sendPasswordResetEmail(auth, email.trim(), {
+        url: window.location.origin,
       });
-      writeEmailForLink(trimmed);
     } catch (err) {
-      if (authErrorCode(err) === "auth/operation-not-allowed") {
-        throw new Error(
-          "Logowanie linkiem jest jeszcze wyłączone — administrator włączy je w Firebase (Authentication → E-mail/hasło → link e-mail).",
-        );
-      }
-      throw new Error(authErrorMessage(err));
+      throw new Error(passwordErrorMessage(err));
     }
   }, []);
 
@@ -374,6 +477,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured,
       signInWithGoogle,
       sendEmailLink,
+      signInWithPassword,
+      signUpWithPassword,
+      sendPasswordReset,
       emailLinkPending,
       completeEmailLink,
       signOut,
@@ -390,6 +496,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured,
       signInWithGoogle,
       sendEmailLink,
+      signInWithPassword,
+      signUpWithPassword,
+      sendPasswordReset,
       emailLinkPending,
       completeEmailLink,
       signOut,

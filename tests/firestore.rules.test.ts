@@ -299,6 +299,47 @@ describe("tworzenie i dołączanie", () => {
     await assertFails(updateDoc(ref, { provider: "password" }));
   });
 
+  it("konto e-mail (hasło albo link z maila) zapisuje swoje dane", async () => {
+    const emailAccount = (provider: string) => ({
+      firebase: { sign_in_provider: provider },
+      email: "alice@example.com",
+      email_verified: false,
+    });
+    const ref = (provider: string) =>
+      doc(
+        dbAs("alice", emailAccount(provider)),
+        "households",
+        HID,
+        "members",
+        "alice",
+      );
+    const fields = {
+      email: "alice@example.com",
+      anonymous: false,
+      provider: "password",
+    };
+    await assertSucceeds(updateDoc(ref("password"), fields));
+    await assertSucceeds(
+      updateDoc(ref("emailLink"), { ...fields, displayName: "Ala" }),
+    );
+    await assertFails(updateDoc(ref("emailLink"), { provider: "google.com" }));
+    await assertFails(updateDoc(ref("password"), { provider: "emailLink" }));
+  });
+
+  it("konto e-mail ma prywatne listy (nie jest „bez konta”)", async () => {
+    const db = dbAs("alice", {
+      firebase: { sign_in_provider: "password" },
+      email: "alice@example.com",
+      email_verified: false,
+    });
+    await assertSucceeds(
+      setDoc(doc(db, "households", HID, "private", "alice", "todos", "t1"), {
+        name: "Moje",
+        createdBy: "alice",
+      }),
+    );
+  });
+
   it("zaproszenia tworzy tylko admin", async () => {
     await assertFails(
       setDoc(doc(dbAs("alice"), "invites", "NEW"), {

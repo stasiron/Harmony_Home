@@ -287,13 +287,14 @@ export function EntryScreen({
   const corner = hasAccount ? <AuthUserBadge /> : undefined;
   const loginLink = (
     <LoginDialog
+      joinCode={inviteCode}
       trigger={
         <button
           type="button"
           className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
         >
           <LogIn className="size-3.5" />
-          Zaloguj się
+          Zaloguj się lub załóż konto
         </button>
       }
     />

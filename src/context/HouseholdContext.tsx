@@ -248,7 +248,11 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const isAdmin = superAdmin || me?.role === "admin";
 
   // Własny wpis członkostwa pokazuje aktualne konto (np. po zalogowaniu
-  // linkiem urządzenie przestaje być „bez konta”) — zapis tylko przy zmianie
+  // linkiem urządzenie przestaje być „bez konta”) — zapis tylko przy zmianie.
+  // Połączenie konta zmienia ten sam obiekt User, stąd klucz z jego pól.
+  const accountKey = syncUser
+    ? JSON.stringify(memberAccountFields(syncUser))
+    : null;
   useEffect(() => {
     if (!me || !syncUser || !householdId) return;
     const fields = memberAccountFields(syncUser);
@@ -259,7 +263,8 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     void updateMember(householdId, syncUser.uid, fields).catch((err) =>
       console.error("Member account sync failed:", err),
     );
-  }, [me, syncUser, householdId]);
+    // accountKey — zmiana pól tego samego obiektu User
+  }, [me, syncUser, householdId, accountKey]);
 
   const canMigrateLegacy =
     superAdmin &&
