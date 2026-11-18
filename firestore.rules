@@ -116,7 +116,28 @@ service cloud.firestore {
       match /members/{uid} {
         allow read: if isMember(hid);
 
-        allow create: if signedIn() && request.auth.uid == uid && (
+        // Nowy wpis: tylko znane pola, a dane konta zgodne z tokenem —
+        // nikt nie dołączy z cudzym e-mailem (admin łączy konta po nim)
+        function newMemberOk() {
+          let data = request.resource.data;
+          return data.keys().hasOnly([
+              'uid', 'role', 'profileId', 'anonymous', 'displayName', 'email',
+              'provider', 'joinedAt', 'inviteCode'
+            ])
+            && (!('email' in data) || data.email == null
+              || data.email == request.auth.token.get('email', null))
+            && (!('anonymous' in data)
+              || data.anonymous == (request.auth.token.firebase.sign_in_provider == 'anonymous'));
+        }
+
+        // Konto z e-mailem dołącza kodem dopiero po potwierdzeniu adresu.
+        // Urządzenie bez konta (np. wspólny tablet) — bez zmian.
+        function verifiedOrDevice() {
+          return request.auth.token.firebase.sign_in_provider == 'anonymous'
+            || request.auth.token.get('email_verified', false) == true;
+        }
+
+        allow create: if signedIn() && request.auth.uid == uid && newMemberOk() && (
           // Twórca mieszkania — w tym samym batchu co dokument mieszkania
           (request.resource.data.role == 'admin'
             && getAfter(householdPath(hid)).data.ownerId == request.auth.uid)
@@ -124,6 +145,7 @@ service cloud.firestore {
           || (request.resource.data.role == 'admin' && isSuperAdmin())
           // Dołączenie kodem zaproszenia
           || (request.resource.data.role == 'member'
+            && verifiedOrDevice()
             && request.resource.data.inviteCode is string
             && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode))
             && get(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.householdId == hid)

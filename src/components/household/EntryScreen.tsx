@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Home, LogIn, Plus, QrCode } from "lucide-react";
+import { ArrowRight, Home, LogIn, MailCheck, Plus, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { AuthUserBadge } from "@/components/AuthUserBadge";
 import { LoginDialog } from "@/components/auth/LoginDialog";
@@ -17,7 +17,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
+import { EmailNotVerifiedError } from "@/lib/householdSetup";
 import {
   fetchHouseholdCard,
   type HouseholdCardData,
@@ -85,6 +87,7 @@ function JoinForm({
   const [code, setCode] = useState(initialCode ?? "");
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [needsVerify, setNeedsVerify] = useState(false);
 
   const join = async (value = code) => {
     if (!value.trim()) return;
@@ -93,11 +96,27 @@ function JoinForm({
       await joinHousehold(value);
       onJoined?.();
     } catch (err) {
+      setBusy(false);
+      if (err instanceof EmailNotVerifiedError) {
+        setNeedsVerify(true);
+        return;
+      }
       console.error("Join failed:", err);
       toast.error(errorText(err, "Nie udało się dołączyć."));
-      setBusy(false);
     }
   };
+
+  if (needsVerify) {
+    return (
+      <VerifyEmailPanel
+        code={code}
+        onVerified={() => {
+          setNeedsVerify(false);
+          void join();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -142,6 +161,72 @@ function JoinForm({
           void join(scanned);
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * Konto z e-mailem dołącza po potwierdzeniu adresu — link z maila, potem
+ * „Już potwierdziłem”. Kod zostaje w linku, więc po kliknięciu w mailu
+ * wraca się prosto do dołączania.
+ */
+function VerifyEmailPanel({
+  code,
+  onVerified,
+}: {
+  code: string;
+  onVerified: () => void;
+}) {
+  const { user, sendVerification, refreshVerification } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const resend = async () => {
+    setBusy(true);
+    try {
+      await sendVerification(`/?join=${encodeURIComponent(code)}`);
+      setSent(true);
+      toast.success("Wysłane — sprawdź skrzynkę (także spam)");
+    } catch (err) {
+      toast.error(errorText(err, "Nie udało się wysłać maila."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const check = async () => {
+    setBusy(true);
+    try {
+      if (await refreshVerification()) onVerified();
+      else toast.error("Adres jeszcze niepotwierdzony — kliknij link w mailu.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 text-center">
+      <MailCheck className="mx-auto size-8 text-primary" />
+      <p className="text-sm font-semibold">Potwierdź swój e-mail</p>
+      <p className="text-xs text-muted-foreground">
+        Żeby dołączyć do mieszkania, kliknij link, który wysłaliśmy na{" "}
+        <strong className="text-foreground">{user?.email}</strong>.
+      </p>
+      <Button
+        className="h-11 rounded-xl"
+        disabled={busy}
+        onClick={() => void check()}
+      >
+        Już potwierdziłem — dołącz
+      </Button>
+      <Button
+        variant="outline"
+        className="h-11 rounded-xl"
+        disabled={busy}
+        onClick={() => void resend()}
+      >
+        {sent ? "Wyślij jeszcze raz" : "Wyślij link ponownie"}
+      </Button>
     </div>
   );
 }

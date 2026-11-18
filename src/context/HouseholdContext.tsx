@@ -16,6 +16,7 @@ import {
   subscribeAllHouseholds,
   joinHousehold as joinHouseholdDocs,
   migrateLegacyHousehold,
+  deactivateInvite as deactivateInviteDoc,
   regenerateInvite as regenerateInviteDoc,
   removeMember as removeMemberDoc,
   removeMembership,
@@ -123,6 +124,7 @@ type HouseholdContextValue = {
   setLandlord: (contact: LandlordContact | null) => Promise<void>;
   setZones: (zones: HomeZone[]) => Promise<void>;
   regenerateInvite: () => Promise<string>;
+  deactivateInvite: () => Promise<void>;
   linkProfile: (profileId: string | null) => Promise<void>;
   setMemberRole: (uid: string, role: HouseholdRole) => Promise<void>;
   setMemberProfile: (uid: string, profileId: string | null) => Promise<void>;
@@ -385,6 +387,12 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [requireHousehold, requireUser, household?.inviteCode],
   );
 
+  const deactivateInvite = useCallback(async () => {
+    const code = household?.inviteCode;
+    if (!code) return;
+    await deactivateInviteDoc(requireHousehold(), code);
+  }, [requireHousehold, household?.inviteCode]);
+
   const linkProfile = useCallback(
     async (profileId: string | null) => {
       await updateMember(requireHousehold(), requireUser().uid, { profileId });
@@ -460,6 +468,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     setLandlord,
     setZones,
     regenerateInvite,
+    deactivateInvite,
     linkProfile,
     setMemberRole,
     setMemberProfile,

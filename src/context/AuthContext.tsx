@@ -14,6 +14,7 @@ import {
   isSignInWithEmailLink,
   linkWithCredential,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   sendSignInLinkToEmail,
   signInWithEmailAndPassword,
@@ -71,6 +72,10 @@ type AuthContextValue = {
     displayName: string,
   ) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
+  /** Mail z linkiem potwierdzającym adres (konto e-mail + hasło) */
+  sendVerification: (continuePath?: string) => Promise<void>;
+  /** Odświeża konto po kliknięciu linku z maila; true = adres potwierdzony */
+  refreshVerification: () => Promise<boolean>;
   /** Otwarto link z maila na innym urządzeniu — trzeba podać adres */
   emailLinkPending: boolean;
   completeEmailLink: (email: string) => Promise<void>;
@@ -412,6 +417,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ).user;
         }
         if (name) await updateProfile(account, { displayName: name });
+        // Do mieszkania dołączy dopiero z potwierdzonym adresem (reguły)
+        void sendEmailVerification(account, {
+          url: window.location.href,
+        }).catch((err) => console.error("Verification email failed:", err));
         await account.getIdToken(true);
         void syncUserProfile(account);
         setUserTick((tick) => tick + 1);
@@ -432,6 +441,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       throw new Error(passwordErrorMessage(err));
     }
+  }, []);
+
+  const sendVerification = useCallback(async (continuePath?: string) => {
+    const auth = getFirebaseAuth();
+    const current = auth?.currentUser;
+    if (!current || current.isAnonymous) return;
+    try {
+      await sendEmailVerification(current, {
+        url: `${window.location.origin}${continuePath ?? "/"}`,
+      });
+    } catch (err) {
+      throw new Error(authErrorMessage(err));
+    }
+  }, []);
+
+  const refreshVerification = useCallback(async () => {
+    const auth = getFirebaseAuth();
+    const current = auth?.currentUser;
+    if (!current) return false;
+    await current.reload();
+    // Nowy token — reguły Firestore widzą email_verified dopiero w nim
+    await current.getIdToken(true);
+    setUserTick((tick) => tick + 1);
+    return current.emailVerified;
   }, []);
 
   const completeEmailLink = useCallback(async (email: string) => {
@@ -480,6 +513,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithPassword,
       signUpWithPassword,
       sendPasswordReset,
+      sendVerification,
+      refreshVerification,
       emailLinkPending,
       completeEmailLink,
       signOut,
@@ -499,6 +534,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithPassword,
       signUpWithPassword,
       sendPasswordReset,
+      sendVerification,
+      refreshVerification,
       emailLinkPending,
       completeEmailLink,
       signOut,

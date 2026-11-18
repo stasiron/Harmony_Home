@@ -260,6 +260,73 @@ describe("tworzenie i dołączanie", () => {
     );
   });
 
+  it("konto dołącza kodem dopiero z potwierdzonym e-mailem", async () => {
+    const passwordAccount = (verified: boolean) => ({
+      firebase: { sign_in_provider: "password" },
+      email: "bob@example.com",
+      email_verified: verified,
+    });
+    const entry = {
+      uid: "bob",
+      role: "member",
+      profileId: null,
+      anonymous: false,
+      displayName: "Bob",
+      email: "bob@example.com",
+      provider: "password",
+      joinedAt: "2026-11-18T10:00:00Z",
+      inviteCode: "CODE1234",
+    };
+    const ref = (verified: boolean) =>
+      doc(
+        dbAs("bob", passwordAccount(verified)),
+        "households",
+        HID,
+        "members",
+        "bob",
+      );
+    await assertFails(setDoc(ref(false), entry));
+    await assertSucceeds(setDoc(ref(true), entry));
+  });
+
+  it("nie dołączy z cudzym e-mailem ani obcymi polami", async () => {
+    const ref = doc(dbAs("bob"), "households", HID, "members", "bob");
+    await assertFails(
+      setDoc(ref, {
+        role: "member",
+        inviteCode: "CODE1234",
+        email: "admin@example.com",
+      }),
+    );
+    await assertFails(
+      setDoc(ref, { role: "member", inviteCode: "CODE1234", anonymous: true }),
+    );
+    await assertFails(
+      setDoc(ref, { role: "member", inviteCode: "CODE1234", extra: 1 }),
+    );
+    await assertSucceeds(
+      setDoc(ref, {
+        role: "member",
+        inviteCode: "CODE1234",
+        email: "bob@example.com",
+        anonymous: false,
+      }),
+    );
+  });
+
+  it("dezaktywowany kod nie wpuszcza", async () => {
+    await assertSucceeds(deleteDoc(doc(dbAs("admin"), "invites", "CODE1234")));
+    await assertFails(
+      setDoc(
+        doc(dbAs("kiosk", anonymous), "households", HID, "members", "kiosk"),
+        {
+          role: "member",
+          inviteCode: "CODE1234",
+        },
+      ),
+    );
+  });
+
   it("zły kod nie wpuszcza", async () => {
     const db = dbAs("bob");
     await assertFails(

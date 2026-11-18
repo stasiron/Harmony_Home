@@ -2,6 +2,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   onSnapshot,
@@ -216,12 +217,23 @@ export async function createHousehold(
   return householdId;
 }
 
+/** Konto z e-mailem musi najpierw potwierdzić adres (reguła members) */
+export class EmailNotVerifiedError extends Error {
+  constructor() {
+    super("Potwierdź najpierw swój adres e-mail.");
+    this.name = "EmailNotVerifiedError";
+  }
+}
+
 export async function joinHousehold(
   user: FirebaseUser,
   rawCode: string,
 ): Promise<string> {
   const db = requireDb();
   const code = normalizeInviteCode(rawCode);
+  if (!user.isAnonymous && !user.emailVerified) {
+    throw new EmailNotVerifiedError();
+  }
   const invite = await getDoc(doc(db, "invites", code));
   const householdId = invite.data()?.householdId;
   if (typeof householdId !== "string") {
@@ -268,6 +280,19 @@ export async function regenerateInvite(
     await deleteDoc(doc(db, "invites", previousCode)).catch(() => undefined);
   }
   return code;
+}
+
+/**
+ * Dezaktywuje kod — kto go zna, już nie dołączy. Domownicy, którzy dołączyli
+ * wcześniej, zostają. Nowy kod można utworzyć w każdej chwili.
+ */
+export async function deactivateInvite(householdId: string, code: string) {
+  guardWriteBudget();
+  const db = requireDb();
+  await deleteDoc(doc(db, "invites", code));
+  await updateDoc(doc(db, "households", householdId), {
+    inviteCode: deleteField(),
+  });
 }
 
 /** Administrator ogólny — admin każdego mieszkania (też w firestore.rules) */

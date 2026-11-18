@@ -7,6 +7,7 @@ import { householdWeatherLocation } from "@/lib/weather";
 import {
   Check,
   Copy,
+  Ban,
   Home,
   RefreshCw,
   Smartphone,
@@ -49,6 +50,7 @@ export function HouseholdSettingsCard() {
     renameHousehold,
     setWeatherLocation,
     regenerateInvite,
+    deactivateInvite,
     linkProfile,
     setMemberRole,
     setMemberProfile,
@@ -79,6 +81,25 @@ export function HouseholdSettingsCard() {
       await regenerateInvite();
     } catch (err) {
       fail("Nie udało się utworzyć kodu.")(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const turnOffInvite = async () => {
+    if (
+      !window.confirm(
+        "Dezaktywować kod? Nikt nowy nim nie dołączy. Obecni domownicy zostają, a nowy kod utworzysz w każdej chwili.",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await deactivateInvite();
+      toast.success("Kod dezaktywowany");
+    } catch (err) {
+      fail("Nie udało się dezaktywować kodu.")(err);
     } finally {
       setBusy(false);
     }
@@ -178,7 +199,8 @@ export function HouseholdSettingsCard() {
           <Label>Kod zaproszenia</Label>
           <p className="text-xs text-muted-foreground">
             Kto wpisze albo zeskanuje kod, dołącza jako domownik (także tablet
-            bez konta). Nowy kod unieważnia poprzedni.
+            bez konta; konto z e-mailem musi mieć potwierdzony adres). Nowy kod
+            unieważnia poprzedni, a „Dezaktywuj” wyłącza zaproszenia całkiem.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {household.inviteCode && (
@@ -204,7 +226,24 @@ export function HouseholdSettingsCard() {
               <RefreshCw className="size-4" />
               {household.inviteCode ? "Nowy kod" : "Utwórz kod"}
             </Button>
+            {household.inviteCode && (
+              <Button
+                variant="ghost"
+                className="text-alert hover:text-alert"
+                disabled={busy}
+                onClick={() => void turnOffInvite()}
+              >
+                <Ban className="size-4" />
+                Dezaktywuj
+              </Button>
+            )}
           </div>
+          {!household.inviteCode && (
+            <p className="text-xs text-muted-foreground">
+              Zaproszenia są wyłączone — nikt nowy nie dołączy, dopóki nie
+              utworzysz kodu.
+            </p>
+          )}
           {household.inviteCode && <InviteQr code={household.inviteCode} />}
         </div>
       )}

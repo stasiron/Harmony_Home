@@ -1,4 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import {
   browserLocalPersistence,
   browserPopupRedirectResolver,
@@ -98,10 +99,32 @@ function createFirestore(firebaseApp: FirebaseApp): Firestore {
   }
 }
 
+/**
+ * App Check (reCAPTCHA v3): Firestore przyjmuje ruch tylko z tej aplikacji,
+ * nie z cudzych skryptów z naszym kluczem API. Klucz witryny — publiczny —
+ * z VITE_APPCHECK_SITE_KEY; bez niego (i na emulatorze) App Check jest wyłączony.
+ * Wymuszanie włącza się w konsoli Firebase dopiero, gdy metryki pokażą,
+ * że prawdziwy ruch przechodzi weryfikację.
+ */
+function startAppCheck(firebaseApp: FirebaseApp) {
+  const siteKey = import.meta.env.VITE_APPCHECK_SITE_KEY as string | undefined;
+  if (!siteKey || firebaseEmulatorEnabled) return;
+  try {
+    initializeAppCheck(firebaseApp, {
+      provider: new ReCaptchaV3Provider(siteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (err) {
+    // HMR: App Check już działa dla tej aplikacji
+    console.warn("App Check:", err);
+  }
+}
+
 function ensureFirebase(): boolean {
   if (typeof window === "undefined" || !isFirebaseConfigured()) return false;
   if (!app) {
     app = getApps().length ? getApps()[0]! : initializeApp(getFirebaseConfig());
+    startAppCheck(app);
     auth = createAuth(app);
     db = createFirestore(app);
     if (firebaseEmulatorEnabled) {
