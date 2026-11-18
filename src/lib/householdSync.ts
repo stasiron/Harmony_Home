@@ -25,6 +25,9 @@ export const ITEM_COLLECTIONS = [
   "guides",
   "guideTabs",
   "guideEntries",
+  "bills",
+  "purchases",
+  "products",
 ] as const;
 
 export type ItemCollection = (typeof ITEM_COLLECTIONS)[number];
@@ -80,6 +83,7 @@ export const PRIVATE_COLLECTIONS = [
   "fridge",
   "guides",
   "guideEntries",
+  "products",
 ] as const;
 
 /**

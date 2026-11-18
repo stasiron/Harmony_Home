@@ -5,6 +5,7 @@ import {
   CalendarCheck,
   Home,
   Map as MapIcon,
+  Receipt,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
@@ -14,19 +15,22 @@ import { HomeZoneEditor } from "@/components/chores/HomeZoneEditor";
 import { GoogleAccountCard } from "@/components/settings/GoogleAccountCard";
 import { SuperAdminCard } from "@/components/settings/SuperAdminCard";
 import { MyCalendarCard } from "@/components/settings/MyCalendarCard";
+import { BillSettingsCard } from "@/components/settings/BillSettingsCard";
 import { ChoreWeightSettingsCard } from "@/components/settings/ChoreWeightSettingsCard";
 import { FloorPlanCard } from "@/components/household/NoFloorPlan";
 import { HouseholdSettingsCard } from "@/components/household/HouseholdSettingsCard";
 import { useHousehold } from "@/context/HouseholdContext";
 import { cn } from "@/lib/utils";
 
-type Section = "account" | "calendar" | "household" | "plan" | "chores";
+type Section =
+  "account" | "calendar" | "household" | "plan" | "chores" | "bills";
 const SECTIONS: Section[] = [
   "account",
   "calendar",
   "household",
   "plan",
   "chores",
+  "bills",
 ];
 
 export const Route = createFileRoute("/settings")({
@@ -91,6 +95,7 @@ function SettingsPage() {
       icon: CalendarCheck,
       show: !!household,
     },
+    { id: "bills", label: "Rachunki", icon: Receipt, show: !!household },
   ];
   const visibleTabs = tabs.filter((t) => t.show);
   const current = visibleTabs.some((t) => t.id === section)
@@ -156,6 +161,7 @@ function SettingsPage() {
           </Group>
         )}
         {household && current === "chores" && <ChoreWeightSettingsCard />}
+        {household && current === "bills" && <BillSettingsCard />}
       </div>
     </div>
   );

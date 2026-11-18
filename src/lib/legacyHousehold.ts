@@ -117,5 +117,8 @@ export function buildLegacyMigration(
     guides: [],
     guideTabs: [],
     guideEntries: [],
+    bills: [],
+    purchases: [],
+    products: [],
   };
 }

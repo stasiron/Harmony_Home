@@ -34,6 +34,7 @@ import type {
   HouseholdRole,
   ItemMeta,
   Membership,
+  BillSettings,
   ChoreWeightSettings,
   SharedCalendarSettings,
   WeatherLocation,
@@ -117,6 +118,7 @@ type HouseholdContextValue = {
   setWeatherLocation: (location: WeatherLocation) => Promise<void>;
   setSharedCalendar: (settings: SharedCalendarSettings | null) => Promise<void>;
   setChoreWeights: (settings: ChoreWeightSettings) => Promise<void>;
+  setBillSettings: (settings: BillSettings) => Promise<void>;
   setZones: (zones: HomeZone[]) => Promise<void>;
   regenerateInvite: () => Promise<string>;
   linkProfile: (profileId: string | null) => Promise<void>;
@@ -350,6 +352,13 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [requireHousehold],
   );
 
+  const setBillSettings = useCallback(
+    async (settings: BillSettings) => {
+      await updateHouseholdMeta(requireHousehold(), { billSettings: settings });
+    },
+    [requireHousehold],
+  );
+
   const setZones = useCallback(
     async (zones: HomeZone[]) => {
       await updateHouseholdMeta(requireHousehold(), { zones });
@@ -438,6 +447,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     setWeatherLocation,
     setSharedCalendar,
     setChoreWeights,
+    setBillSettings,
     setZones,
     regenerateInvite,
     linkProfile,

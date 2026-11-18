@@ -7,6 +7,7 @@ import {
   ChefHat,
   Home,
   ListTodo,
+  Receipt,
   Settings,
   Users,
 } from "lucide-react";
@@ -27,6 +28,7 @@ export const navItems: NavItem[] = [
   { to: "/todo", label: "TODO", icon: ListTodo },
   { to: "/guides", label: "Poradnik", icon: BookOpen },
   { to: "/kitchen", label: "Kuchnia", icon: ChefHat },
+  { to: "/bills", label: "Rachunki", icon: Receipt },
   { to: "/stats", label: "Statystyki", icon: BarChart3 },
   { to: "/settings", label: "Ustawienia", icon: Settings },
   { to: "/members", label: "Domownicy", icon: Users, wide: true },
@@ -39,7 +41,14 @@ function isActive(pathname: string, to: string) {
   return to === "/" ? pathname === "/" : pathname.startsWith(to);
 }
 
-export function MainNav({ compact = false }: { compact?: boolean }) {
+export function MainNav({
+  compact = false,
+  badges = {},
+}: {
+  compact?: boolean;
+  /** Licznik na kafelku, np. { "/bills": 2 } — prośby o zwrot */
+  badges?: Record<string, number>;
+}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
@@ -53,6 +62,7 @@ export function MainNav({ compact = false }: { compact?: boolean }) {
           active={isActive(pathname, to)}
           compact={compact}
           wide={wide}
+          badge={badges[to] ?? 0}
         />
       ))}
     </nav>
@@ -66,7 +76,9 @@ function NavButton({
   active,
   compact,
   wide,
+  badge,
 }: {
+  badge: number;
   to: string;
   label: string;
   icon: LucideIcon;
@@ -78,7 +90,7 @@ function NavButton({
     <Link
       to={to}
       className={cn(
-        "group flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border bg-gradient-to-br from-surface-elevated via-surface to-card shadow-elevated transition-transform hover:-translate-y-0.5 sm:gap-3 sm:rounded-3xl",
+        "group relative flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border bg-gradient-to-br from-surface-elevated via-surface to-card shadow-elevated transition-transform hover:-translate-y-0.5 sm:gap-3 sm:rounded-3xl",
         compact
           ? "min-h-[88px] p-4"
           : "min-h-[104px] p-3 sm:min-h-[140px] sm:p-6 md:min-h-[160px]",
@@ -88,6 +100,14 @@ function NavButton({
           : "border-border text-foreground hover:border-primary/20",
       )}
     >
+      {badge > 0 && (
+        <span
+          className="absolute right-2 top-2 grid min-w-5 place-items-center rounded-full bg-warn px-1.5 text-[11px] font-bold leading-5 text-background sm:right-3 sm:top-3"
+          aria-label={`${badge} do sprawdzenia`}
+        >
+          {badge}
+        </span>
+      )}
       <div
         className={cn(
           "grid place-items-center rounded-2xl bg-background/40",

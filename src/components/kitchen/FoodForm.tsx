@@ -1,5 +1,5 @@
 import { Lock, Plus, Users } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,9 +11,11 @@ import {
 } from "@/components/ui/select";
 import { useHousehold } from "@/context/HouseholdContext";
 import { useRememberedVisibility } from "@/hooks/useKitchenPrefs";
+import { findProduct, suggestPrice } from "@/lib/bills";
 import { FOOD_CATEGORIES, UNITS, type FoodInput } from "@/lib/kitchen";
+import { formatPLN, parsePLN, toInputPLN } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import type { ItemVisibility, ShoppingCategory } from "@/types";
+import type { ItemVisibility, Product, ShoppingCategory } from "@/types";
 
 /** Wspólne / Prywatne — prywatne tylko z kontem */
 export function VisibilityToggle({
@@ -71,45 +73,98 @@ export function VisibilityToggle({
   );
 }
 
+export type FoodFormInput = FoodInput & {
+  expiresOn?: string | null;
+  /** Grosze — tylko z `withPrice` */
+  price?: number | null;
+};
+
+function parseAmount(text: string): number | null {
+  const parsed = Number(text.replace(",", "."));
+  return text.trim() && Number.isFinite(parsed) ? parsed : null;
+}
+
 /**
  * Szybkie dodawanie produktu: nazwa, ilość, jednostka, kategoria, widoczność
- * (i termin — w lodówce). Enter w nazwie dodaje.
+ * (i termin — w lodówce, cena — w zakupach). Z pamięci produktów podpowiada
+ * nazwy, a po wybraniu znanego produktu — jednostkę, kategorię i cenę.
  */
 export function FoodForm({
   onAdd,
   withExpiry = false,
+  withPrice = false,
+  products = [],
   storageKey,
   placeholder,
   submitLabel = "Dodaj",
 }: {
-  onAdd: (input: FoodInput & { expiresOn?: string | null }) => void;
+  onAdd: (input: FoodFormInput) => void;
   withExpiry?: boolean;
+  withPrice?: boolean;
+  /** Pamięć produktów (podpowiedzi nazw i cen) */
+  products?: readonly Product[];
   storageKey: string;
   placeholder: string;
   submitLabel?: string;
 }) {
+  const listId = useId();
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [unit, setUnit] = useState("szt");
   const [category, setCategory] = useState<ShoppingCategory>("other");
   const [expiresOn, setExpiresOn] = useState("");
+  const [price, setPrice] = useState("");
+  // Cena wpisana ręcznie — nie nadpisujemy jej podpowiedzią
+  const [priceTouched, setPriceTouched] = useState(false);
   const [visibility, setVisibility] = useRememberedVisibility(storageKey);
+
+  const known = useMemo(
+    () => (name.trim() ? findProduct(products, name, visibility) : null),
+    [products, name, visibility],
+  );
+  // Prywatne ceny tylko w prywatnych pozycjach
+  const memory =
+    known && (known.visibility === "private") === (visibility === "private")
+      ? known
+      : null;
+  const suggested = withPrice
+    ? suggestPrice(memory, parseAmount(amount), unit)
+    : null;
+
+  // Znany produkt — jednostka i kategoria jak ostatnio
+  useEffect(() => {
+    if (!known) return;
+    setUnit(known.unit);
+    setCategory(known.category);
+  }, [known]);
+
+  useEffect(() => {
+    if (!priceTouched)
+      setPrice(suggested !== null ? toInputPLN(suggested) : "");
+  }, [suggested, priceTouched]);
+
+  const names = useMemo(
+    () => [...new Set(products.map((p) => p.name))].slice(0, 200),
+    [products],
+  );
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    const parsed = Number(amount.replace(",", "."));
     onAdd({
       name,
-      amount: amount.trim() && Number.isFinite(parsed) ? parsed : null,
+      amount: parseAmount(amount),
       unit,
       category,
       visibility,
       expiresOn: expiresOn || null,
+      ...(withPrice ? { price: parsePLN(price) } : {}),
     });
     setName("");
     setAmount("");
     setExpiresOn("");
+    setPrice("");
+    setPriceTouched(false);
   };
 
   return (
@@ -124,7 +179,16 @@ export function FoodForm({
           placeholder={placeholder}
           className="h-11 flex-1"
           aria-label="Nazwa produktu"
+          list={names.length > 0 ? listId : undefined}
+          autoComplete="off"
         />
+        {names.length > 0 && (
+          <datalist id={listId}>
+            {names.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+        )}
         <div className="flex gap-2">
           <Input
             value={amount}
@@ -164,6 +228,27 @@ export function FoodForm({
             ))}
           </SelectContent>
         </Select>
+        {withPrice && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            Cena
+            <Input
+              value={price}
+              onChange={(e) => {
+                setPrice(e.target.value);
+                setPriceTouched(true);
+              }}
+              inputMode="decimal"
+              placeholder="zł"
+              className="h-9 w-24"
+              aria-label="Cena w złotych"
+            />
+          </label>
+        )}
+        {withPrice && memory?.lastPrice != null && (
+          <span className="text-xs text-muted-foreground">
+            ostatnio {formatPLN(memory.lastPrice)}
+          </span>
+        )}
         {withExpiry && (
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             Ważne do

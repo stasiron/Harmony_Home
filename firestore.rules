@@ -187,7 +187,7 @@ service cloud.firestore {
           && request.auth.uid == ownerUid
           && collection in [
             'chores', 'zadania', 'todos', 'shopping', 'fridge', 'guides',
-            'guideEntries'
+            'guideEntries', 'products'
           ]
           && exists(memberPath(hid));
       }
@@ -230,7 +230,7 @@ service cloud.firestore {
           return collection in [
             'chores', 'zadania', 'todos', 'todoFolders',
             'shopping', 'laundry', 'guestPlans', 'fridge', 'guides',
-            'guideTabs', 'guideEntries'
+            'guideTabs', 'guideEntries', 'bills', 'purchases', 'products'
           ];
         }
 
@@ -254,9 +254,12 @@ service cloud.firestore {
         function progressOnly() {
           // rotationTurn — „na zmianę”: odhaczenie przesuwa turę
           // amount — zużycie z lodówki po ugotowaniu przepisu
+          // settled, refundRequestedAt — rozliczenia rachunków i wspólnych zakupów
+          // stock, stockAmount, lastBoughtAt — zużycie i uzupełnienie zapasów
           return changedOnly([
             'lastCompleted', 'lastCompletedBy', 'done', 'completedBy', 'checked',
-            'rotationTurn', 'amount'
+            'rotationTurn', 'amount', 'settled', 'stock', 'stockAmount',
+            'lastBoughtAt', 'refundRequestedAt'
           ]);
         }
 

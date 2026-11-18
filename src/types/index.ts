@@ -223,6 +223,107 @@ export interface ShoppingItem extends ItemMeta {
   amount: number | null;
   unit: string;
   checked: boolean;
+  /** Cena całej pozycji w groszach; null/brak — nie podano */
+  price?: number | null;
+  /** Dlaczego na liście: zapas się kończy albo go brak */
+  reason?: StockState | null;
+}
+
+/** Stan zapasu: wystarczy / kończy się / brak */
+export type StockState = "ok" | "low" | "out";
+
+/**
+ * Pamięć produktu (`products`) — ostatnia cena, kiedy kupione, a dla zapasów
+ * (papier, płyn do naczyń…) ile jest i od ilu „kończy się”. Prywatna pamięć
+ * leży w ścieżce prywatnej — ceny widzi tylko właściciel.
+ */
+export interface Product extends ItemMeta {
+  /** `p-` + nazwa bez polskich znaków (patrz productId) */
+  id: string;
+  name: string;
+  category: ShoppingCategory;
+  unit: string;
+  /** Ostatnia cena w groszach za `lastAmount` × `unit` */
+  lastPrice: number | null;
+  lastAmount: number | null;
+  lastBoughtAt: string | null;
+  lastAddedAt: string | null;
+  /** Zapas domowy — widoczny w zakładce Zapasy */
+  supply?: boolean;
+  stockAmount?: number | null;
+  /** Przy tej ilości lub mniej — „kończy się” */
+  lowAt?: number | null;
+  stock?: StockState;
+}
+
+/** Wbudowane rodzaje rachunków + własne */
+export type BillKind = "rent" | "electricity" | "gas" | "internet" | "custom";
+
+export type BillSplitMode = "equal" | "weights";
+
+/** Rodzaj rachunku w ustawieniach mieszkania */
+export interface BillTypeConfig {
+  /** Wbudowane: jak `kind`; własne: losowe id */
+  id: string;
+  kind: BillKind;
+  name: string;
+  enabled: boolean;
+  /** Dzień miesiąca terminu płatności (1–31) */
+  dueDay: number | null;
+  /** Stała kwota co miesiąc (np. czynsz, internet), grosze */
+  defaultAmount: number | null;
+  /** Kto płaci; puste = wszyscy aktywni domownicy */
+  participants: string[];
+  splitMode: BillSplitMode;
+  /** Udziały przy `weights` — np. większy pokój = większa część czynszu */
+  weights: Record<string, number>;
+}
+
+export interface BillSettings {
+  types: BillTypeConfig[];
+}
+
+/** Rachunek za dany miesiąc (`bills/{month}_{typeId}`) */
+export interface Bill extends ItemMeta {
+  id: string;
+  typeId: string;
+  name: string;
+  /** YYYY-MM */
+  month: string;
+  /** Grosze */
+  amount: number;
+  /** YYYY-MM-DD */
+  dueOn: string | null;
+  /** Kto zapłacił dostawcy / właścicielowi (User.id); null — jeszcze nikt */
+  paidBy: string | null;
+  /** User.id → grosze */
+  shares: Record<string, number>;
+  /** User.id → kiedy oddał(a) swoją część płacącemu */
+  settled: Record<string, string>;
+}
+
+export interface PurchaseLine {
+  name: string;
+  amount: number | null;
+  unit: string;
+  /** Grosze */
+  price: number;
+}
+
+/** Wspólny zakup dla domu — podzielony między domowników */
+export interface Purchase extends ItemMeta {
+  id: string;
+  title: string;
+  items: PurchaseLine[];
+  /** Grosze */
+  total: number;
+  paidBy: string;
+  shares: Record<string, number>;
+  settled: Record<string, string>;
+  /** ISO — płacący poprosił o zwrot */
+  refundRequestedAt?: string | null;
+  /** ISO — kiedy kupione */
+  at: string;
 }
 
 /** Produkt w lodówce / spiżarni */
@@ -423,6 +524,8 @@ export interface HouseholdMeta {
   sharedCalendar?: SharedCalendarSettings | null;
   /** Brak = domyślne (CHORE_WEIGHT_DEFAULTS) */
   choreWeights?: ChoreWeightSettings;
+  /** Rachunki mieszkania (włączone rodzaje, terminy, podział) */
+  billSettings?: BillSettings;
   features?: {
     /** Kalendarze Google z src/config/calendars — tylko pierwsze mieszkanie */
     legacyCalendar?: boolean;

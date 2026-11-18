@@ -491,6 +491,7 @@ export async function updateHouseholdMeta(
       | "weatherLocation"
       | "sharedCalendar"
       | "choreWeights"
+      | "billSettings"
     >
   >,
 ) {

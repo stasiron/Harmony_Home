@@ -6,6 +6,9 @@ import { MemberMustTodos } from "@/components/dashboard/MemberMustTodos";
 import { StatusBanner } from "@/components/dashboard/StatusBanner";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { useAuth } from "@/context/AuthContext";
+import { useBills } from "@/hooks/useBills";
+import { usePeople } from "@/hooks/usePeople";
+import { openShare } from "@/lib/money";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,8 +33,19 @@ export const Route = createFileRoute("/")({
   ),
 });
 
+/** Ile próśb o zwrot czeka na mnie — licznik na kafelku Rachunki */
+function useRefundBadge(): number {
+  const { purchases } = useBills();
+  const { actorId } = usePeople();
+  if (!actorId) return 0;
+  return purchases.filter(
+    (p) => p.refundRequestedAt && openShare(p, actorId) > 0,
+  ).length;
+}
+
 function Dashboard() {
   const { seeAsMemberId } = useAuth();
+  const refunds = useRefundBadge();
 
   return (
     <div className="space-y-8">
@@ -47,7 +61,7 @@ function Dashboard() {
       ) : null}
 
       <section>
-        <MainNav />
+        <MainNav badges={{ "/bills": refunds }} />
       </section>
 
       <section>

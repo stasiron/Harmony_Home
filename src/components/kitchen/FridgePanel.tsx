@@ -19,6 +19,7 @@ import {
   addToFridge,
   daysToExpiry,
   FOOD_CATEGORIES,
+  foodKey,
   formatAmount,
   newShoppingItem,
 } from "@/lib/kitchen";
@@ -81,6 +82,38 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
     return d !== null && d <= 2;
   });
 
+  /** Dopisuje do zakupów, chyba że już tam czeka (wtedy tylko oznacza) */
+  const addToShopping = (item: FridgeItem, reason: "low" | "out") => {
+    const visibility = item.visibility === "private" ? "private" : "public";
+    let added = false;
+    setShopping((prev) => {
+      const index = prev.findIndex(
+        (s) =>
+          !s.checked &&
+          foodKey(s.name) === foodKey(item.name) &&
+          (s.visibility === "private" ? "private" : "public") === visibility,
+      );
+      if (index >= 0) {
+        return prev.map((s, i) => (i === index ? { ...s, reason } : s));
+      }
+      added = true;
+      return [
+        ...prev,
+        {
+          ...newShoppingItem({
+            name: item.name,
+            amount: null,
+            unit: item.unit,
+            category: item.category,
+            visibility,
+          }),
+          reason,
+        },
+      ];
+    });
+    return added;
+  };
+
   const changeAmount = (item: FridgeItem, delta: number) => {
     const next = Math.round(((item.amount ?? 0) + delta) * 100) / 100;
     setFridge((prev) =>
@@ -88,21 +121,15 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
         ? prev.filter((f) => f.id !== item.id)
         : prev.map((f) => (f.id === item.id ? { ...f, amount: next } : f)),
     );
-    if (next <= 0) toast(`${item.name} — skończyło się`);
+    if (next <= 0) {
+      addToShopping(item, "out");
+      toast(`${item.name} — skończyło się, dopisane do zakupów`);
+    }
   };
 
   const toShopping = (item: FridgeItem) => {
-    setShopping((prev) => [
-      ...prev,
-      newShoppingItem({
-        name: item.name,
-        amount: null,
-        unit: item.unit,
-        category: item.category,
-        visibility: item.visibility === "private" ? "private" : "public",
-      }),
-    ]);
-    toast.success(`${item.name} — dopisane do zakupów`);
+    addToShopping(item, "low");
+    toast.success(`${item.name} — kończy się, dopisane do zakupów`);
   };
 
   return (
@@ -231,8 +258,8 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
                           size="icon"
                           className="size-8 text-muted-foreground"
                           onClick={() => toShopping(item)}
-                          title="Dopisz do zakupów"
-                          aria-label={`Dopisz ${item.name} do zakupów`}
+                          title="Kończy się — dopisz do zakupów"
+                          aria-label={`${item.name} kończy się — dopisz do zakupów`}
                         >
                           <ShoppingCart className="size-4" />
                         </Button>

@@ -3,6 +3,7 @@ import {
   AlarmClock,
   BookOpen,
   ChefHat,
+  Package,
   Refrigerator,
   ShoppingCart,
   type LucideIcon,
@@ -12,12 +13,14 @@ import { Shell } from "@/components/Shell";
 import { FridgePanel } from "@/components/kitchen/FridgePanel";
 import { RecipesPanel } from "@/components/kitchen/RecipesPanel";
 import { ShoppingPanel } from "@/components/kitchen/ShoppingPanel";
+import { SuppliesPanel } from "@/components/kitchen/SuppliesPanel";
 import { useKitchen } from "@/hooks/useKitchen";
+import { stockStateOf } from "@/lib/bills";
 import { daysToExpiry, recipeAvailability } from "@/lib/kitchen";
 import { cn } from "@/lib/utils";
 
-type Tab = "fridge" | "shopping" | "recipes";
-const TABS: Tab[] = ["fridge", "shopping", "recipes"];
+type Tab = "fridge" | "shopping" | "supplies" | "recipes";
+const TABS: Tab[] = ["fridge", "shopping", "supplies", "recipes"];
 
 export const Route = createFileRoute("/kitchen")({
   validateSearch: (search: Record<string, unknown>): { tab?: Tab } =>
@@ -27,7 +30,7 @@ export const Route = createFileRoute("/kitchen")({
       { title: "Kuchnia · Homebase" },
       {
         name: "description",
-        content: "Lodówka, lista zakupów i przepisy całego domu.",
+        content: "Lodówka, lista zakupów, zapasy i przepisy całego domu.",
       },
     ],
   }),
@@ -43,7 +46,7 @@ function KitchenPage() {
   const { tab: initialTab } = Route.useSearch();
   const [tab, setTab] = useState<Tab>(initialTab ?? "fridge");
   const kitchen = useKitchen();
-  const { fridge, shopping, recipes } = kitchen;
+  const { fridge, shopping, recipes, products } = kitchen;
 
   const stats = useMemo(() => {
     const expiring = fridge.filter((f) => {
@@ -54,8 +57,10 @@ function KitchenPage() {
     const ready = recipes.filter(
       (r) => recipeAvailability(r, fridge).ready,
     ).length;
-    return { expiring, toBuy, ready };
-  }, [fridge, shopping, recipes]);
+    const supplies = products.filter((p) => p.supply);
+    const running = supplies.filter((p) => stockStateOf(p) !== "ok").length;
+    return { expiring, toBuy, ready, supplies: supplies.length, running };
+  }, [fridge, shopping, recipes, products]);
 
   const tiles: {
     id: Tab;
@@ -84,6 +89,14 @@ function KitchenPage() {
       icon: ShoppingCart,
     },
     {
+      id: "supplies",
+      label: "Zapasy",
+      value: stats.supplies,
+      hint: stats.running > 0 ? `${stats.running} się kończy` : "wszystko jest",
+      icon: Package,
+      tone: stats.running > 0 ? "warn" : undefined,
+    },
+    {
       id: "recipes",
       label: "Przepisy",
       value: recipes.length,
@@ -101,12 +114,15 @@ function KitchenPage() {
           Kuchnia
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Co jest w lodówce, czego brakuje i co z tego ugotować.
+          Co jest w lodówce, czego brakuje, jakie są zapasy i co ugotować.
         </p>
       </header>
 
       {/* Kafelki są też zakładkami */}
-      <div role="tablist" className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div
+        role="tablist"
+        className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4"
+      >
         {tiles.map(({ id, label, value, hint, icon: Icon, tone }) => (
           <button
             key={id}
@@ -153,6 +169,7 @@ function KitchenPage() {
       <div role="tabpanel">
         {tab === "fridge" && <FridgePanel kitchen={kitchen} />}
         {tab === "shopping" && <ShoppingPanel kitchen={kitchen} />}
+        {tab === "supplies" && <SuppliesPanel kitchen={kitchen} />}
         {tab === "recipes" && <RecipesPanel kitchen={kitchen} />}
       </div>
     </div>

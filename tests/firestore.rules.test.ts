@@ -787,3 +787,88 @@ describe("prywatne miejsca", () => {
     );
   });
 });
+
+describe("rachunki i wspólne zakupy", () => {
+  const bill = {
+    typeId: "electricity",
+    name: "Prąd",
+    month: "2026-11",
+    amount: 24000,
+    dueOn: "2026-11-15",
+    paidBy: null,
+    shares: { p1: 12000, p2: 12000 },
+    settled: {},
+  };
+
+  it("domownik (także tablet) wpisuje rachunek, obcy nie widzi", async () => {
+    const ref = (uid: string, token?: object) =>
+      doc(dbAs(uid, token), "households", HID, "bills", "2026-11_electricity");
+    await assertSucceeds(
+      setDoc(ref("tablet", anonymous), { ...bill, createdBy: "tablet" }),
+    );
+    await assertSucceeds(updateDoc(ref("alice"), { paidBy: "p1" }));
+    await assertFails(getDoc(ref("bob")));
+  });
+
+  it("zablokowany zakup: inni tylko oddają i proszą o zwrot", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "households", HID, "purchases", "z1"), {
+        title: "Chemia",
+        items: [],
+        total: 3000,
+        paidBy: "p1",
+        shares: { p1: 1500, p2: 1500 },
+        settled: {},
+        createdBy: "alice",
+        locked: true,
+      });
+    });
+    const ref = (uid: string, token?: object) =>
+      doc(dbAs(uid, token), "households", HID, "purchases", "z1");
+    await assertSucceeds(
+      updateDoc(ref("tablet", anonymous), {
+        settled: { p2: "2026-11-18T10:00:00Z" },
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(ref("admin"), { refundRequestedAt: "2026-11-18T11:00:00Z" }),
+    );
+    await assertFails(updateDoc(ref("tablet", anonymous), { total: 1 }));
+    await assertFails(deleteDoc(ref("tablet", anonymous)));
+    await assertSucceeds(updateDoc(ref("alice"), { total: 3200 }));
+  });
+});
+
+describe("pamięć produktów i zapasy", () => {
+  it("wspólne zapasy zmienia każdy domownik", async () => {
+    const ref = (uid: string, token?: object) =>
+      doc(dbAs(uid, token), "households", HID, "products", "p-papier");
+    await assertSucceeds(
+      setDoc(ref("alice"), {
+        name: "Papier",
+        supply: true,
+        stockAmount: 4,
+        lowAt: 2,
+        createdBy: "alice",
+        locked: true,
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(ref("tablet", anonymous), { stockAmount: 3, stock: "ok" }),
+    );
+    await assertFails(updateDoc(ref("tablet", anonymous), { lowAt: 0 }));
+  });
+
+  it("prywatne ceny widzi tylko właściciel", async () => {
+    const path = ["households", HID, "private", "alice", "products", "p-kawa"];
+    await assertSucceeds(
+      setDoc(doc(dbAs("alice"), path.join("/")), {
+        name: "Kawa",
+        lastPrice: 3000,
+        createdBy: "alice",
+      }),
+    );
+    await assertFails(getDoc(doc(dbAs("admin"), path.join("/"))));
+    await assertFails(getDoc(doc(dbAs("tablet", anonymous), path.join("/"))));
+  });
+});
