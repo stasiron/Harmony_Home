@@ -872,3 +872,114 @@ describe("pamięć produktów i zapasy", () => {
     await assertFails(getDoc(doc(dbAs("tablet", anonymous), path.join("/"))));
   });
 });
+
+// Adres administratora ogólnego bierzemy z reguł — bez przepisywania go tu
+const SUPER_ADMIN_EMAIL = readFileSync("firestore.rules", "utf8").match(
+  /token\.email == '([^']+)'/,
+)![1]!;
+
+describe("zgłoszenia błędów", () => {
+  const report = (uid: string) => ({
+    description: "Nie działa przycisk",
+    status: "new",
+    createdAt: "2026-11-18T10:00:00Z",
+    uid,
+    email: null,
+    anonymous: true,
+    householdId: HID,
+    householdName: "Flat",
+    role: "member",
+    path: "/bills",
+    search: "",
+    tab: "Rachunki: month",
+    selector: "main > button",
+    elementText: "Zapisz",
+    heading: "Rachunki",
+    x: 10,
+    y: 20,
+    viewport: "375x812",
+    scrollY: 0,
+    appVersion: "dev",
+    appCommit: "",
+    userAgent: "test",
+  });
+
+  it("wysyła każdy (także tablet), czyta tylko administrator ogólny", async () => {
+    const boss = dbAs("boss", google("boss", SUPER_ADMIN_EMAIL));
+    await assertSucceeds(
+      setDoc(
+        doc(dbAs("tablet", anonymous), "bugReports", "r1"),
+        report("tablet"),
+      ),
+    );
+    await assertFails(
+      getDoc(doc(dbAs("tablet", anonymous), "bugReports", "r1")),
+    );
+    await assertFails(getDoc(doc(dbAs("admin"), "bugReports", "r1")));
+    await assertSucceeds(getDoc(doc(boss, "bugReports", "r1")));
+    await assertSucceeds(
+      updateDoc(doc(boss, "bugReports", "r1"), { status: "fixed" }),
+    );
+  });
+
+  it("nie da się podszyć ani dopisać obcych pól", async () => {
+    const db = dbAs("alice");
+    await assertFails(setDoc(doc(db, "bugReports", "r2"), report("admin")));
+    await assertFails(
+      setDoc(doc(db, "bugReports", "r3"), { ...report("alice"), extra: 1 }),
+    );
+    await assertFails(
+      setDoc(doc(db, "bugReports", "r4"), {
+        ...report("alice"),
+        status: "fixed",
+      }),
+    );
+  });
+});
+
+describe("ogłoszenia i usterki", () => {
+  it("ogłoszenie dodaje każdy domownik, obcy nie widzi", async () => {
+    const ref = (uid: string, token?: object) =>
+      doc(dbAs(uid, token), "households", HID, "announcements", "a1");
+    await assertSucceeds(
+      setDoc(ref("tablet", anonymous), {
+        title: "Impreza",
+        body: "",
+        pinned: false,
+        expiresOn: null,
+        createdBy: "tablet",
+      }),
+    );
+    await assertFails(getDoc(ref("bob")));
+  });
+
+  it("status usterki zmienia każdy, także na zablokowanej sprawie", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "households", HID, "todos", "u1"), {
+        text: "Cieknie kran",
+        done: false,
+        folderId: "usterki",
+        issueStatus: "new",
+        createdBy: "alice",
+        locked: true,
+      });
+    });
+    const ref = doc(
+      dbAs("tablet", anonymous),
+      "households",
+      HID,
+      "todos",
+      "u1",
+    );
+    await assertSucceeds(updateDoc(ref, { issueStatus: "reported" }));
+    await assertFails(updateDoc(ref, { text: "Nic" }));
+  });
+
+  it("regulamin zapisuje tylko administrator", async () => {
+    const ref = (uid: string) =>
+      doc(dbAs(uid), "households", HID, "assets", "houseRules");
+    await assertFails(setDoc(ref("alice"), { body: "Cisza nocna" }));
+    await assertSucceeds(setDoc(ref("admin"), { body: "Cisza nocna" }));
+    await assertSucceeds(getDoc(ref("alice")));
+  });
+});

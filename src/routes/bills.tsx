@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useReportTab } from "@/lib/reportContext";
 import {
   CalendarRange,
   Receipt,
@@ -42,6 +43,7 @@ export const Route = createFileRoute("/bills")({
 function BillsPage() {
   const { tab: initialTab } = Route.useSearch();
   const [tab, setTab] = useState<Tab>(initialTab ?? "month");
+  useReportTab(`Rachunki: ${tab}`);
   const data = useBills();
   const { actorId } = usePeople();
   const { bills, purchases } = data;

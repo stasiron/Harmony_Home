@@ -111,6 +111,12 @@ export function buildTodoFolder(name: string): TodoFolder | null {
   };
 }
 
+/**
+ * Stały folder „Usterki” — nie ma dokumentu w todoFolders, sprawy mają
+ * po prostu `folderId: "usterki"`. Nie da się go usunąć ani zmienić nazwy.
+ */
+export const ISSUES_FOLDER_ID = "usterki";
+
 export function todoInFolder(todo: TodoItem, folderId: string | null): boolean {
   const id = todo.folderId ?? null;
   return id === folderId;

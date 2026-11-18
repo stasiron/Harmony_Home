@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useReportTab } from "@/lib/reportContext";
 import {
   BookOpen,
   ChefHat,
@@ -103,6 +104,7 @@ const byTitle = (a: GuideNote, b: GuideNote) =>
 function GuidesPage() {
   const { tab: initialTab } = Route.useSearch();
   const [tab, setTab] = useState<string>(initialTab ?? "notes");
+  useReportTab(`Poradnik: ${tab}`);
   const [tabEditor, setTabEditor] = useState<GuideTab | "new" | null>(null);
   const { laundryPrograms } = useApp();
   const { syncUser } = useAuth();

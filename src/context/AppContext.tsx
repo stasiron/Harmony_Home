@@ -57,6 +57,7 @@ import {
 import type {
   ChoreRoom,
   GuestPlan,
+  IssueStatus,
   LaundryProgram,
   MapPin,
   MapPoint,
@@ -110,6 +111,7 @@ interface AppState {
   /** Prywatne ↔ publiczne — przenosi sprawę między ścieżkami */
   setTodoVisibility: (id: string, visibility: ItemVisibility) => void;
   setTodoFolder: (id: string, folderId: string | null) => void;
+  setTodoIssueStatus: (id: string, status: IssueStatus) => void;
   removeTodo: (id: string) => void;
   clearDoneTodos: (folderId?: string | null) => void;
   addTodoFolder: (name: string) => string | null;
@@ -657,6 +659,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [setTodos],
   );
 
+  const setTodoIssueStatus = useCallback(
+    (id: string, status: IssueStatus) => {
+      setTodos((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? // Naprawiona usterka = sprawa zrobiona
+              { ...t, issueStatus: status, done: status === "fixed" }
+            : t,
+        ),
+      );
+    },
+    [setTodos],
+  );
+
   const setTodoFolder = useCallback(
     (id: string, folderId: string | null) => {
       setTodos((prev) =>
@@ -907,6 +923,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTodoAssignee,
     setTodoVisibility,
     setTodoFolder,
+    setTodoIssueStatus,
     removeTodo,
     clearDoneTodos,
     addTodoFolder,

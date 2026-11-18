@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useReportTab } from "@/lib/reportContext";
 import {
   AlarmClock,
   BookOpen,
@@ -45,6 +46,7 @@ export const Route = createFileRoute("/kitchen")({
 function KitchenPage() {
   const { tab: initialTab } = Route.useSearch();
   const [tab, setTab] = useState<Tab>(initialTab ?? "fridge");
+  useReportTab(`Kuchnia: ${tab}`);
   const kitchen = useKitchen();
   const { fridge, shopping, recipes, products } = kitchen;
 

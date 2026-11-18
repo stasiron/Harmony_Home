@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BillsRouteImport } from './routes/bills'
+import { Route as BoardRouteImport } from './routes/board'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as ChoresRouteImport } from './routes/chores'
 import { Route as GuidesRouteImport } from './routes/guides'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const BillsRoute = BillsRouteImport.update({
   id: '/bills',
   path: '/bills',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BoardRoute = BoardRouteImport.update({
+  id: '/board',
+  path: '/board',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalendarRoute = CalendarRouteImport.update({
@@ -98,6 +104,7 @@ const WeatherRoute = WeatherRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bills': typeof BillsRoute
+  '/board': typeof BoardRoute
   '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
   '/guides': typeof GuidesRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bills': typeof BillsRoute
+  '/board': typeof BoardRoute
   '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
   '/guides': typeof GuidesRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/bills': typeof BillsRoute
+  '/board': typeof BoardRoute
   '/calendar': typeof CalendarRoute
   '/chores': typeof ChoresRoute
   '/guides': typeof GuidesRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/bills'
+    | '/board'
     | '/calendar'
     | '/chores'
     | '/guides'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/bills'
+    | '/board'
     | '/calendar'
     | '/chores'
     | '/guides'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/bills'
+    | '/board'
     | '/calendar'
     | '/chores'
     | '/guides'
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BillsRoute: typeof BillsRoute
+  BoardRoute: typeof BoardRoute
   CalendarRoute: typeof CalendarRoute
   ChoresRoute: typeof ChoresRoute
   GuidesRoute: typeof GuidesRoute
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/bills'
       fullPath: '/bills'
       preLoaderRoute: typeof BillsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/board': {
+      id: '/board'
+      path: '/board'
+      fullPath: '/board'
+      preLoaderRoute: typeof BoardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calendar': {
@@ -318,6 +338,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BillsRoute: BillsRoute,
+  BoardRoute: BoardRoute,
   CalendarRoute: CalendarRoute,
   ChoresRoute: ChoresRoute,
   GuidesRoute: GuidesRoute,

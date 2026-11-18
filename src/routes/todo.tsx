@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useReportTab } from "@/lib/reportContext";
 import {
   ChevronDown,
   Download,
@@ -14,8 +15,11 @@ import {
   Trash2,
   User,
   UserRound,
+  Wrench,
+  type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { LandlordCard } from "@/components/board/LandlordCard";
 import { Shell } from "@/components/Shell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -48,10 +52,12 @@ import {
   buildTodoExport,
   downloadTodoJson,
   isTodoOpen,
+  ISSUES_FOLDER_ID,
   todoInFolder,
 } from "@/lib/todoHelpers";
 import { cn } from "@/lib/utils";
 import type {
+  IssueStatus,
   TodoFolder,
   TodoHouseholdMode,
   TodoItem,
@@ -120,7 +126,7 @@ function TodoPage() {
   }, [actorId, assigneeId, members]);
 
   useEffect(() => {
-    if (activeFolderId === null) return;
+    if (activeFolderId === null || activeFolderId === ISSUES_FOLDER_ID) return;
     if (!todoFolders.some((f) => f.id === activeFolderId)) {
       setActiveFolderId(null);
     }
@@ -202,6 +208,9 @@ function TodoPage() {
   };
 
   const activeFolder = todoFolders.find((f) => f.id === activeFolderId);
+  useReportTab(
+    `TODO: ${activeFolderId === ISSUES_FOLDER_ID ? "Usterki" : (activeFolder?.name ?? "Bez folderu")}`,
+  );
 
   const renameFolder = () => {
     if (!activeFolder) return;
@@ -290,6 +299,16 @@ function TodoPage() {
             label="Bez folderu"
             count={inboxCount}
           />
+          <FolderTab
+            active={activeFolderId === ISSUES_FOLDER_ID}
+            onClick={() => setActiveFolderId(ISSUES_FOLDER_ID)}
+            label="Usterki"
+            icon={Wrench}
+            count={
+              todos.filter((t) => todoInFolder(t, ISSUES_FOLDER_ID) && !t.done)
+                .length
+            }
+          />
           {todoFolders.map((folder) => (
             <FolderTab
               key={folder.id}
@@ -340,6 +359,12 @@ function TodoPage() {
           </form>
         ) : null}
       </div>
+
+      {activeFolderId === ISSUES_FOLDER_ID && (
+        <LandlordCard
+          issues={folderTodos.filter((t) => !t.done).map((t) => t.text)}
+        />
+      )}
 
       {/* Jeden pasek dodawania: treść + dla kogo + tryb/osoba */}
       <form
@@ -458,9 +483,11 @@ function TodoPage() {
         <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-16 text-center">
           <h2 className="text-lg font-semibold">Pusto</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {activeFolder
-              ? `Brak spraw w folderze „${activeFolder.name}”.`
-              : "Dodaj sprawę osobistą albo dla całego domu."}
+            {activeFolderId === ISSUES_FOLDER_ID
+              ? "Nic się nie psuje. Wpisz usterkę, np. „cieknie kran w łazience”."
+              : activeFolder
+                ? `Brak spraw w folderze „${activeFolder.name}”.`
+                : "Dodaj sprawę osobistą albo dla całego domu."}
           </p>
         </div>
       ) : (
@@ -557,11 +584,13 @@ function FolderTab({
   onClick,
   label,
   count,
+  icon: Icon,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
   count: number;
+  icon?: LucideIcon;
 }) {
   return (
     <button
@@ -574,6 +603,7 @@ function FolderTab({
           : "border-border bg-surface text-muted-foreground hover:text-foreground",
       )}
     >
+      {Icon && <Icon className="size-4 shrink-0" />}
       <span className="truncate max-w-[10rem]">{label}</span>
       <span
         className={cn(
@@ -792,6 +822,7 @@ function TodoRow({
         >
           <span className="truncate">{item.text}</span>
           {isPrivate && <PrivateBadge />}
+          {item.folderId === ISSUES_FOLDER_ID && <IssueChip item={item} />}
           {item.locked && (
             <Lock
               className="size-3 shrink-0 text-muted-foreground"
@@ -937,5 +968,39 @@ function TodoRow({
         </DropdownMenu>
       )}
     </div>
+  );
+}
+
+const ISSUE_STEPS: { id: IssueStatus; label: string; className: string }[] = [
+  { id: "new", label: "Nowa", className: "bg-alert/15 text-alert" },
+  {
+    id: "reported",
+    label: "Zgłoszona",
+    className: "bg-warn/20 text-warn",
+  },
+  { id: "fixed", label: "Naprawiona", className: "bg-safe/15 text-safe" },
+];
+
+/** Status usterki — kliknięcie przesuwa dalej: nowa → zgłoszona → naprawiona */
+function IssueChip({ item }: { item: TodoItem }) {
+  const { setTodoIssueStatus } = useApp();
+  const index = Math.max(
+    0,
+    ISSUE_STEPS.findIndex((s) => s.id === (item.issueStatus ?? "new")),
+  );
+  const step = ISSUE_STEPS[index]!;
+  const next = ISSUE_STEPS[(index + 1) % ISSUE_STEPS.length]!;
+  return (
+    <button
+      type="button"
+      onClick={() => setTodoIssueStatus(item.id, next.id)}
+      className={cn(
+        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider no-underline",
+        step.className,
+      )}
+      title={`Zmień na: ${next.label}`}
+    >
+      {step.label}
+    </button>
   );
 }

@@ -70,6 +70,23 @@ service cloud.firestore {
       }
     }
 
+    // Zgłoszenia błędów — wysyła każdy zalogowany (także tablet), czyta
+    // i obsługuje tylko administrator ogólny
+    match /bugReports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'new'
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 4000
+        && request.resource.data.keys().hasOnly([
+          'description', 'status', 'createdAt', 'uid', 'email', 'anonymous',
+          'householdId', 'householdName', 'role', 'path', 'search', 'tab',
+          'selector', 'elementText', 'heading', 'x', 'y', 'viewport',
+          'scrollY', 'appVersion', 'appCommit', 'userAgent'
+        ]);
+      allow read, update, delete: if isSuperAdmin();
+    }
+
     // Ustawienia całej aplikacji (src/lib/globalConfig.ts)
     match /config/{docId} {
       allow read: if signedIn();
@@ -230,7 +247,8 @@ service cloud.firestore {
           return collection in [
             'chores', 'zadania', 'todos', 'todoFolders',
             'shopping', 'laundry', 'guestPlans', 'fridge', 'guides',
-            'guideTabs', 'guideEntries', 'bills', 'purchases', 'products'
+            'guideTabs', 'guideEntries', 'bills', 'purchases', 'products',
+            'announcements'
           ];
         }
 
@@ -259,7 +277,7 @@ service cloud.firestore {
           return changedOnly([
             'lastCompleted', 'lastCompletedBy', 'done', 'completedBy', 'checked',
             'rotationTurn', 'amount', 'settled', 'stock', 'stockAmount',
-            'lastBoughtAt', 'refundRequestedAt'
+            'lastBoughtAt', 'refundRequestedAt', 'issueStatus'
           ]);
         }
 

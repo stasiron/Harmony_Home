@@ -28,6 +28,7 @@ export const ITEM_COLLECTIONS = [
   "bills",
   "purchases",
   "products",
+  "announcements",
 ] as const;
 
 export type ItemCollection = (typeof ITEM_COLLECTIONS)[number];

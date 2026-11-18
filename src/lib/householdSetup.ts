@@ -27,6 +27,7 @@ import {
 import { guessMemberId } from "@/lib/memberLink";
 import { resolveChoreWeights } from "@/config/choreWeight";
 import type {
+  BillSettings,
   FloorPlanRef,
   HomeZone,
   HouseholdMember,
@@ -452,6 +453,21 @@ export function subscribeHouseholdMeta(
         ...(typeof data.inviteCode === "string"
           ? { inviteCode: data.inviteCode }
           : {}),
+        // Kształt sprawdza resolveBillSettings przy użyciu
+        ...(data.billSettings &&
+        typeof data.billSettings === "object" &&
+        Array.isArray((data.billSettings as BillSettings).types)
+          ? { billSettings: data.billSettings as BillSettings }
+          : {}),
+        landlord:
+          data.landlord && typeof data.landlord === "object"
+            ? {
+                name: String(data.landlord.name ?? ""),
+                phone: String(data.landlord.phone ?? ""),
+                email: String(data.landlord.email ?? ""),
+                notes: String(data.landlord.notes ?? ""),
+              }
+            : null,
         cover:
           data.cover && typeof data.cover.updatedAt === "string"
             ? { updatedAt: data.cover.updatedAt }
@@ -492,6 +508,7 @@ export async function updateHouseholdMeta(
       | "sharedCalendar"
       | "choreWeights"
       | "billSettings"
+      | "landlord"
     >
   >,
 ) {

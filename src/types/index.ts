@@ -420,6 +420,55 @@ export interface TodoItem extends ItemMeta {
   householdMode?: TodoHouseholdMode;
   /** Id domowników którzy odhaczyli (everyone / opcjonalnie anyone) */
   completedBy?: string[];
+  /** Tylko w folderze Usterki: nowa → zgłoszona właścicielowi → naprawiona */
+  issueStatus?: IssueStatus;
+}
+
+export type IssueStatus = "new" | "reported" | "fixed";
+
+/** Kontakt do właściciela / administracji budynku */
+export interface LandlordContact {
+  name: string;
+  phone: string;
+  email: string;
+  notes: string;
+}
+
+/** Ogłoszenie na tablicy mieszkania */
+export interface Announcement extends ItemMeta {
+  id: string;
+  title: string;
+  body: string;
+  pinned: boolean;
+  /** YYYY-MM-DD — po tej dacie znika z tablicy */
+  expiresOn: string | null;
+}
+
+/** Zgłoszenie błędu z przycisku „Zgłoś błąd” (bugReports/{id}) */
+export interface BugReport {
+  id: string;
+  description: string;
+  status: "new" | "progress" | "fixed";
+  createdAt: string;
+  uid: string;
+  email: string | null;
+  anonymous: boolean;
+  householdId: string | null;
+  householdName: string | null;
+  role: string | null;
+  path: string;
+  search: string;
+  tab: string | null;
+  selector: string | null;
+  elementText: string | null;
+  heading: string | null;
+  x: number | null;
+  y: number | null;
+  viewport: string;
+  scrollY: number;
+  appVersion: string;
+  appCommit: string;
+  userAgent: string;
 }
 
 /** Instrukcja prania — jak prać dany materiał / zestaw ubrań */
@@ -526,6 +575,8 @@ export interface HouseholdMeta {
   choreWeights?: ChoreWeightSettings;
   /** Rachunki mieszkania (włączone rodzaje, terminy, podział) */
   billSettings?: BillSettings;
+  /** Kontakt do właściciela — Ogłoszenia i folder Usterki w TODO */
+  landlord?: LandlordContact | null;
   features?: {
     /** Kalendarze Google z src/config/calendars — tylko pierwsze mieszkanie */
     legacyCalendar?: boolean;

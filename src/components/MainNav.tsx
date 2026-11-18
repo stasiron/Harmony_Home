@@ -7,6 +7,7 @@ import {
   ChefHat,
   Home,
   ListTodo,
+  Megaphone,
   Receipt,
   Settings,
   Users,
@@ -29,12 +30,13 @@ export const navItems: NavItem[] = [
   { to: "/guides", label: "Poradnik", icon: BookOpen },
   { to: "/kitchen", label: "Kuchnia", icon: ChefHat },
   { to: "/bills", label: "Rachunki", icon: Receipt },
+  { to: "/board", label: "Ogłoszenia", icon: Megaphone },
   { to: "/stats", label: "Statystyki", icon: BarChart3 },
   { to: "/settings", label: "Ustawienia", icon: Settings },
   { to: "/members", label: "Domownicy", icon: Users, wide: true },
 ];
 
-// Telefon: 3 × 3 mniejsze kafelki — całe menu mieści się na ekranie
+// 10 kafelków + szerokie „Domownicy” = 12 pól: telefon 4 × 3, tablet 3 × 4
 const navGridClass = "grid-cols-3 gap-2 sm:gap-3 md:grid-cols-4";
 
 function isActive(pathname: string, to: string) {
@@ -94,7 +96,7 @@ function NavButton({
         compact
           ? "min-h-[88px] p-4"
           : "min-h-[104px] p-3 sm:min-h-[140px] sm:p-6 md:min-h-[160px]",
-        wide && "md:col-span-2",
+        wide && "col-span-2",
         active
           ? "border-primary/40 text-primary ring-2 ring-primary/20"
           : "border-border text-foreground hover:border-primary/20",

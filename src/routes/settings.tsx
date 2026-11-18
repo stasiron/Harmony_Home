@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CalendarCheck,
   Home,
+  Bug,
   Map as MapIcon,
   Receipt,
   UserRound,
@@ -16,6 +17,10 @@ import { GoogleAccountCard } from "@/components/settings/GoogleAccountCard";
 import { SuperAdminCard } from "@/components/settings/SuperAdminCard";
 import { MyCalendarCard } from "@/components/settings/MyCalendarCard";
 import { BillSettingsCard } from "@/components/settings/BillSettingsCard";
+import { BugReportsCard } from "@/components/settings/BugReportsCard";
+import { useAuth } from "@/context/AuthContext";
+import { isSuperAdmin } from "@/lib/householdSetup";
+import { useReportTab } from "@/lib/reportContext";
 import { ChoreWeightSettingsCard } from "@/components/settings/ChoreWeightSettingsCard";
 import { FloorPlanCard } from "@/components/household/NoFloorPlan";
 import { HouseholdSettingsCard } from "@/components/household/HouseholdSettingsCard";
@@ -23,7 +28,13 @@ import { useHousehold } from "@/context/HouseholdContext";
 import { cn } from "@/lib/utils";
 
 type Section =
-  "account" | "calendar" | "household" | "plan" | "chores" | "bills";
+  | "account"
+  | "calendar"
+  | "household"
+  | "plan"
+  | "chores"
+  | "bills"
+  | "reports";
 const SECTIONS: Section[] = [
   "account",
   "calendar",
@@ -31,6 +42,7 @@ const SECTIONS: Section[] = [
   "plan",
   "chores",
   "bills",
+  "reports",
 ];
 
 export const Route = createFileRoute("/settings")({
@@ -57,6 +69,8 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
   const queryClient = useQueryClient();
   const { household, isAdmin } = useHousehold();
+  const { syncUser } = useAuth();
+  const superAdmin = isSuperAdmin(syncUser);
   const { section: initialSection } = Route.useSearch();
   const [section, setSection] = useState<Section>(initialSection ?? "account");
   const [banner, setBanner] = useState<string | null>(null);
@@ -96,11 +110,13 @@ function SettingsPage() {
       show: !!household,
     },
     { id: "bills", label: "Rachunki", icon: Receipt, show: !!household },
+    { id: "reports", label: "Zgłoszenia", icon: Bug, show: superAdmin },
   ];
   const visibleTabs = tabs.filter((t) => t.show);
   const current = visibleTabs.some((t) => t.id === section)
     ? section
     : "account";
+  useReportTab(`Ustawienia: ${current}`);
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -162,6 +178,7 @@ function SettingsPage() {
         )}
         {household && current === "chores" && <ChoreWeightSettingsCard />}
         {household && current === "bills" && <BillSettingsCard />}
+        {superAdmin && current === "reports" && <BugReportsCard />}
       </div>
     </div>
   );
