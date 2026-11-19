@@ -1,6 +1,8 @@
 import {
   collection,
+  deleteField,
   doc,
+  FieldPath,
   onSnapshot,
   writeBatch,
   type Firestore,
@@ -55,7 +57,12 @@ export function stableStringify(value: unknown): string {
   });
 }
 
-export type CollectionDiff<T> = { upserts: T[]; deletes: string[] };
+export type CollectionDiff<T> = {
+  upserts: T[];
+  deletes: string[];
+  /** Ostatnio znana wersja z chmury (id → element) — do zapisu samych zmian */
+  previous?: ReadonlyMap<string, Record<string, unknown>>;
+};
 
 /** Co zapisać, żeby chmura (`known`: id → stableStringify) wyglądała jak `next` */
 export function diffCollection<T extends { id: string }>(
@@ -69,7 +76,57 @@ export function diffCollection<T extends { id: string }>(
     if (known.get(item.id) !== stableStringify(item)) upserts.push(item);
   }
   const deletes = [...known.keys()].filter((id) => !nextIds.has(id));
-  return { upserts, deletes };
+  const previous = new Map<string, Record<string, unknown>>();
+  for (const item of upserts) {
+    const raw = known.get(item.id);
+    if (raw === undefined) continue;
+    try {
+      previous.set(item.id, JSON.parse(raw) as Record<string, unknown>);
+    } catch {
+      // nieczytelny wpis — zapiszemy cały element
+    }
+  }
+  return { upserts, deletes, previous };
+}
+
+/** Usunięcie pola w zapisie zmian */
+export const DELETE_FIELD = Symbol("deleteField");
+
+export type FieldChange = { field: string[]; value: unknown };
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Które pola się zmieniły (mapy jak `settled`, `shares` — o jeden poziom
+ * głębiej). Zapis samych zmian zamiast całego dokumentu: dwie osoby
+ * zmieniające różne pola (albo różne osoby w `settled`) nie nadpisują sobie
+ * nawzajem zmian.
+ */
+export function fieldChanges(
+  previous: Record<string, unknown>,
+  next: Record<string, unknown>,
+  depth = 1,
+): FieldChange[] {
+  const changes: FieldChange[] = [];
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+  for (const key of keys) {
+    if (key === "id") continue;
+    const before = previous[key];
+    const after = next[key];
+    if (stableStringify(before) === stableStringify(after)) continue;
+    if (after === undefined) {
+      changes.push({ field: [key], value: DELETE_FIELD });
+    } else if (depth > 0 && isPlainObject(before) && isPlainObject(after)) {
+      for (const change of fieldChanges(before, after, depth - 1)) {
+        changes.push({ field: [key, ...change.field], value: change.value });
+      }
+    } else {
+      changes.push({ field: [key], value: after });
+    }
+  }
+  return changes;
 }
 
 export function indexById<T extends { id: string }>(
@@ -127,6 +184,7 @@ export function subscribeCollection<T extends { id: string }>(
 
 export type PlannedWrite =
   | { kind: "set"; path: string[]; data: Record<string, unknown> }
+  | { kind: "update"; path: string[]; changes: FieldChange[] }
   | { kind: "delete"; path: string[] };
 
 /**
@@ -180,7 +238,20 @@ export async function commitWrites(
       const [first, ...rest] = write.path;
       const ref = doc(db, first!, ...rest);
       if (write.kind === "set") batch.set(ref, write.data);
-      else batch.delete(ref);
+      else if (write.kind === "update") {
+        const pairs = write.changes.map(
+          (change) =>
+            [
+              new FieldPath(...change.field),
+              change.value === DELETE_FIELD ? deleteField() : change.value,
+            ] as const,
+        );
+        const [[field, value], ...more] = pairs as [
+          (typeof pairs)[number],
+          ...(typeof pairs)[number][],
+        ];
+        batch.update(ref, field, value, ...more.flat());
+      } else batch.delete(ref);
     }
     await batch.commit();
   }
@@ -193,12 +264,27 @@ export function itemWrites<T extends { id: string }>(
   privateOwner?: string | null,
 ): PlannedWrite[] {
   const base = collectionPath(householdId, name, privateOwner);
+  const upserts: PlannedWrite[] = [];
+  for (const item of diff.upserts) {
+    const path = [...base, item.id];
+    const before = diff.previous?.get(item.id);
+    // Znany element — tylko zmienione pola (update); nowy — cały (set)
+    if (before) {
+      const changes = fieldChanges(
+        before,
+        JSON.parse(stableStringify(item)) as Record<string, unknown>,
+      );
+      if (changes.length > 0) upserts.push({ kind: "update", path, changes });
+    } else {
+      upserts.push({
+        kind: "set",
+        path,
+        data: item as Record<string, unknown>,
+      });
+    }
+  }
   return [
-    ...diff.upserts.map((item): PlannedWrite => ({
-      kind: "set",
-      path: [...base, item.id],
-      data: item as Record<string, unknown>,
-    })),
+    ...upserts,
     ...diff.deletes.map((id): PlannedWrite => ({
       kind: "delete",
       path: [...base, id],

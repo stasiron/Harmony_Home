@@ -13,6 +13,7 @@ import {
   getDoc,
   getDocs,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
@@ -317,7 +318,39 @@ describe("tworzenie i dołączanie", () => {
     batch.set(doc(db, "households", "new", "members", "bob"), {
       role: "admin",
     });
+    batch.set(
+      doc(db, "rateLimits", "bob"),
+      { household: serverTimestamp() },
+      { merge: true },
+    );
     await assertSucceeds(batch.commit());
+  });
+
+  it("drugie mieszkanie w ciągu minuty i bez znacznika — odmowa", async () => {
+    const db = dbAs("bob");
+    const create = (id: string, stamp: boolean) => {
+      const batch = writeBatch(db);
+      batch.set(doc(db, "households", id), { name: id, ownerId: "bob" });
+      batch.set(doc(db, "households", id, "members", "bob"), { role: "admin" });
+      if (stamp) {
+        batch.set(
+          doc(db, "rateLimits", "bob"),
+          { household: serverTimestamp() },
+          { merge: true },
+        );
+      }
+      return batch.commit();
+    };
+    await assertFails(create("a", false));
+    await assertSucceeds(create("b", true));
+    await assertFails(create("c", true));
+    // Znacznika nie da się cofnąć ani usunąć
+    await assertFails(deleteDoc(doc(db, "rateLimits", "bob")));
+    await assertFails(
+      setDoc(doc(db, "rateLimits", "bob"), {
+        household: new Date("2020-01-01"),
+      }),
+    );
   });
 
   it("anonimowy nie tworzy mieszkania", async () => {
@@ -1047,6 +1080,20 @@ const SUPER_ADMIN_EMAIL = readFileSync("firestore.rules", "utf8").match(
 )![1]!;
 
 describe("zgłoszenia błędów", () => {
+  const sendReport = (
+    db: ReturnType<typeof dbAs>,
+    id: string,
+    data: Record<string, unknown>,
+  ) => {
+    const batch = writeBatch(db);
+    batch.set(doc(db, "bugReports", id), data);
+    batch.set(
+      doc(db, "rateLimits", String(data.uid)),
+      { bugReport: serverTimestamp() },
+      { merge: true },
+    );
+    return batch.commit();
+  };
   const report = (uid: string) => ({
     description: "Nie działa przycisk",
     status: "new",
@@ -1074,12 +1121,14 @@ describe("zgłoszenia błędów", () => {
 
   it("wysyła każdy (także tablet), czyta tylko administrator ogólny", async () => {
     const boss = dbAs("boss", google("boss", SUPER_ADMIN_EMAIL));
-    await assertSucceeds(
-      setDoc(
-        doc(dbAs("tablet", anonymous), "bugReports", "r1"),
-        report("tablet"),
-      ),
+    const tablet = dbAs("tablet", anonymous);
+    // Bez znacznika częstotliwości — odmowa
+    await assertFails(
+      setDoc(doc(tablet, "bugReports", "r0"), report("tablet")),
     );
+    await assertSucceeds(sendReport(tablet, "r1", report("tablet")));
+    // Drugie zgłoszenie w ciągu minuty — odmowa
+    await assertFails(sendReport(tablet, "r1b", report("tablet")));
     await assertFails(
       getDoc(doc(dbAs("tablet", anonymous), "bugReports", "r1")),
     );

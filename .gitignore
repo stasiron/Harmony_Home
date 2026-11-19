@@ -35,3 +35,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Lokalne dane serwera (kalendarze w trybie dev)
+.data/

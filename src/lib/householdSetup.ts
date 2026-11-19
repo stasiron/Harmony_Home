@@ -8,6 +8,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  serverTimestamp,
   setDoc,
   updateDoc,
   where,
@@ -225,11 +226,26 @@ export async function createHousehold(
   // Mieszkanie + admin w jednym batchu — reguły sprawdzają ownerId (getAfter)
   const first = writeBatch(db);
   first.set(doc(db, "households", householdId), meta);
+  // Znacznik dla reguły: jedno nowe mieszkanie na minutę (anty-spam)
+  first.set(
+    doc(db, "rateLimits", user.uid),
+    { household: serverTimestamp() },
+    { merge: true },
+  );
   first.set(
     doc(db, "households", householdId, "members", user.uid),
     memberFor(user, "admin", myProfile?.id ?? null, nowIso),
   );
-  await first.commit();
+  try {
+    await first.commit();
+  } catch (err) {
+    if ((err as { code?: string }).code === "permission-denied") {
+      throw new Error(
+        "Mieszkanie założone przed chwilą — kolejne możesz założyć za minutę.",
+      );
+    }
+    throw err;
+  }
 
   await commitWrites(db, [
     ...upserts(householdId, "profiles", profiles),

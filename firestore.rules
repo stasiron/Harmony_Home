@@ -74,6 +74,37 @@ service cloud.firestore {
       return isMember(hid) && (roleOf(hid) != 'guest' || guestReadable(collection));
     }
 
+    // Ograniczniki częstotliwości (anty-spam, ochrona limitu bazy): przy
+    // zgłoszeniu błędu albo założeniu mieszkania klient w tym samym batchu
+    // wpisuje rateLimits/{uid}.{key} = serverTimestamp(). Reguła wymaga tego
+    // znacznika i odstępu od poprzedniego. Wpisu nie da się usunąć ani
+    // ustawić na inny czas niż „teraz”.
+    function rateLimitPath() {
+      return /databases/$(database)/documents/rateLimits/$(request.auth.uid);
+    }
+
+    function rateOk(key, seconds) {
+      return existsAfter(rateLimitPath())
+        && getAfter(rateLimitPath()).data.get(key, null) == request.time
+        && (!exists(rateLimitPath())
+          || get(rateLimitPath()).data.get(key, null) == null
+          || get(rateLimitPath()).data.get(key, null)
+            < request.time - duration.value(seconds, 's'));
+    }
+
+    match /rateLimits/{uid} {
+      function stampOk(key) {
+        return !(key in request.resource.data)
+          || request.resource.data[key] == request.time
+          || (resource != null && resource.data.get(key, null) == request.resource.data[key]);
+      }
+
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['bugReport', 'household'])
+        && stampOk('bugReport') && stampOk('household');
+    }
+
     match /users/{userId} {
       // E-mail w dokumencie konta zgodny z tokenem — serwer szuka po nim
       // administratora ogólnego (push zgłoszeń), więc nie da się go podrobić
@@ -105,7 +136,7 @@ service cloud.firestore {
     // Zgłoszenia błędów — wysyła każdy zalogowany (także tablet), czyta
     // i obsługuje tylko administrator ogólny
     match /bugReports/{reportId} {
-      allow create: if signedIn()
+      allow create: if signedIn() && rateOk('bugReport', 60)
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.status == 'new'
         && request.resource.data.description is string
@@ -136,7 +167,8 @@ service cloud.firestore {
     match /households/{hid} {
       allow read: if isMember(hid);
       allow create: if hasAccount()
-        && request.resource.data.ownerId == request.auth.uid;
+        && request.resource.data.ownerId == request.auth.uid
+        && rateOk('household', 60);
       // Przekazanie własności: twórca (albo administrator ogólny) oddaje
       // mieszkanie innemu administratorowi
       function ownerChangeOk() {

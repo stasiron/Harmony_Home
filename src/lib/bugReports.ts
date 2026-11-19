@@ -6,8 +6,9 @@ import {
   onSnapshot,
   orderBy,
   query,
-  setDoc,
+  serverTimestamp,
   updateDoc,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getFirestoreDb } from "@/lib/firebase";
@@ -101,12 +102,29 @@ export async function sendBugReport(
   if (!db) throw new Error("Firestore niedostępny");
   guardWriteBudget();
   const ref = doc(collection(db, "bugReports"));
-  await setDoc(ref, {
+  const uid = report.uid;
+  // Znacznik czasu w tym samym batchu — reguły wpuszczają jedno zgłoszenie
+  // na minutę (ochrona przed zalaniem bazy)
+  const batch = writeBatch(db);
+  batch.set(ref, {
     ...report,
     description: report.description.slice(0, 4000),
     status: "new",
     createdAt: new Date().toISOString(),
   });
+  batch.set(
+    doc(db, "rateLimits", uid),
+    { bugReport: serverTimestamp() },
+    { merge: true },
+  );
+  try {
+    await batch.commit();
+  } catch (err) {
+    if ((err as { code?: string }).code === "permission-denied") {
+      throw new Error("Zgłoszenie wysłane przed chwilą — spróbuj za minutę.");
+    }
+    throw err;
+  }
   return ref.id;
 }
 
