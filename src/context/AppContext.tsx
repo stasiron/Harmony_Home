@@ -119,6 +119,7 @@ interface AppState {
   updateGuestPlan: (plan: GuestPlan) => void;
   removeGuestPlan: (id: string) => void;
   addAbsence: (absence: Omit<Absence, "id">) => string;
+  updateAbsence: (absence: Absence) => void;
   removeAbsence: (id: string) => void;
   startPanic: () => void;
   endPanic: () => void;
@@ -372,6 +373,22 @@ function completeRecurringItem<
   );
 }
 
+/**
+ * Koniec wizyty: „do kiedy”, a bez niego przy „na noc” — następny dzień
+ * o 10:00; inaczej sama godzina przyjścia.
+ */
+function guestPlanEnd(plan: GuestPlan, when: number): number {
+  const until = plan.until ? Date.parse(plan.until) : NaN;
+  if (Number.isFinite(until) && until > when) return until;
+  if (plan.overnight) {
+    const morning = new Date(when);
+    morning.setDate(morning.getDate() + 1);
+    morning.setHours(10, 0, 0, 0);
+    return morning.getTime();
+  }
+  return when;
+}
+
 /** PANIC wygasa sam po kilku godzinach */
 const PANIC_MAX_MS = 6 * 60 * 60 * 1000;
 
@@ -464,10 +481,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const now = Date.now();
     return guestPlans.some((plan) => {
       const when = Date.parse(plan.when);
+      if (!Number.isFinite(when)) return false;
       return (
-        Number.isFinite(when) &&
         when - now <= GUEST_LEAD_HOURS * 3600_000 &&
-        now - when <= GUEST_TAIL_HOURS * 3600_000
+        now - guestPlanEnd(plan, when) <= GUEST_TAIL_HOURS * 3600_000
       );
     });
   }, [calendarGuests, guestPlans]);
@@ -677,6 +694,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAbsences((prev) => [...prev, { ...absence, id }]);
       return id;
     },
+    [setAbsences],
+  );
+
+  const updateAbsence = useCallback(
+    (absence: Absence) =>
+      setAbsences((prev) =>
+        prev.map((a) => (a.id === absence.id ? absence : a)),
+      ),
     [setAbsences],
   );
 
@@ -1022,6 +1047,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateGuestPlan,
     removeGuestPlan,
     addAbsence,
+    updateAbsence,
     removeAbsence,
     startPanic,
     endPanic,

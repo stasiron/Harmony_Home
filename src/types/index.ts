@@ -300,6 +300,8 @@ export interface Bill extends ItemMeta {
   shares: Record<string, number>;
   /** User.id → kiedy oddał(a) swoją część płacącemu */
   settled: Record<string, string>;
+  /** User.id → kiedy płacący potwierdził, że pieniądze doszły */
+  confirmed?: Record<string, string>;
 }
 
 export interface PurchaseLine {
@@ -320,6 +322,8 @@ export interface Purchase extends ItemMeta {
   paidBy: string;
   shares: Record<string, number>;
   settled: Record<string, string>;
+  /** User.id → płacący potwierdził zwrot */
+  confirmed?: Record<string, string>;
   /** ISO — płacący poprosił o zwrot */
   refundRequestedAt?: string | null;
   /** ISO — kiedy kupione */

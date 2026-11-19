@@ -119,6 +119,13 @@ function BillsPage() {
         </p>
       </header>
 
+      {!actorId && (
+        <p className="rounded-2xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm">
+          Wybierz, kim jesteś w tym mieszkaniu (Ustawienia → Konto → „Kim
+          jesteś”), żeby widzieć swój bilans i prośby o zwrot.
+        </p>
+      )}
+
       <div role="tablist" className="grid grid-cols-3 gap-2 sm:gap-3">
         {tiles.map(({ id, label, value, hint, icon: Icon, tone }) => (
           <button

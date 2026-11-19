@@ -1118,3 +1118,51 @@ describe("nieobecności i historia wykonań", () => {
     );
   });
 });
+
+describe("domknięcia: potwierdzenia, ogłoszenia, dziennik powiadomień", () => {
+  it("płacący potwierdza zwrot na zablokowanym zakupie", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "households", HID, "purchases", "z2"), {
+        title: "Chemia",
+        total: 2000,
+        paidBy: "p1",
+        shares: { p1: 1000, p2: 1000 },
+        settled: { p1: "x", p2: "y" },
+        confirmed: { p1: "x" },
+        createdBy: "admin",
+        locked: true,
+      });
+    });
+    const ref = doc(dbAs("alice"), "households", HID, "purchases", "z2");
+    await assertSucceeds(updateDoc(ref, { confirmed: { p1: "x", p2: "z" } }));
+    await assertFails(updateDoc(ref, { paidBy: "p2" }));
+  });
+
+  it("zablokowanego ogłoszenia nie przypnie ani nie usunie ktoś inny", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), "households", HID, "announcements", "a9"),
+        {
+          title: "Impreza",
+          body: "",
+          pinned: false,
+          expiresOn: null,
+          createdBy: "admin",
+          locked: true,
+        },
+      );
+    });
+    const ref = (uid: string) =>
+      doc(dbAs(uid), "households", HID, "announcements", "a9");
+    await assertFails(updateDoc(ref("alice"), { pinned: true }));
+    await assertFails(deleteDoc(ref("alice")));
+    await assertSucceeds(updateDoc(ref("admin"), { pinned: true }));
+  });
+
+  it("dziennika powiadomień nie czyta ani nie pisze żaden klient", async () => {
+    await assertFails(getDoc(doc(dbAs("admin"), "notifyLog", "u_admin")));
+    await assertFails(
+      setDoc(doc(dbAs("admin"), "notifyLog", "u_admin"), { calls: 0 }),
+    );
+  });
+});

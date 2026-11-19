@@ -187,6 +187,7 @@ export function normalizeBill(raw: unknown): Bill | null {
     paidBy: typeof r.paidBy === "string" && r.paidBy ? r.paidBy : null,
     shares: shareMap(r.shares),
     settled: stringMap(r.settled),
+    confirmed: stringMap(r.confirmed),
   } as Bill;
 }
 
@@ -213,6 +214,7 @@ export function normalizePurchase(raw: unknown): Purchase | null {
     paidBy: r.paidBy,
     shares: shareMap(r.shares),
     settled: stringMap(r.settled),
+    confirmed: stringMap(r.confirmed),
     refundRequestedAt:
       typeof r.refundRequestedAt === "string" ? r.refundRequestedAt : null,
     at:
@@ -467,6 +469,7 @@ export function newPurchase(
     shares: result.shares,
     // Płacący oddaje sam sobie — od razu rozliczone
     settled: { [result.paidBy]: now },
+    confirmed: { [result.paidBy]: now },
     refundRequestedAt: null,
     at: now,
     // Z kontem — zmienia tylko autor, pozostali mogą tylko „oddać”
@@ -474,14 +477,36 @@ export function newPurchase(
   };
 }
 
-/** Oznacza (albo cofa) oddanie części przez osobę */
-export function withSettled<T extends { settled: Record<string, string> }>(
+/**
+ * Oddanie części:
+ * - paid — dłużnik (albo ktoś za niego) zaznacza „oddane”,
+ * - confirm — płacący potwierdza, że pieniądze doszły,
+ * - received — płacący sam zaznacza „otrzymane” (od razu potwierdzone),
+ * - undo — cofnięcie obu.
+ * „Oddane” liczy się w saldzie od razu; potwierdzenie to informacja dla
+ * domowników, że płacący naprawdę dostał pieniądze.
+ */
+export type ShareAction = "paid" | "confirm" | "received" | "undo";
+
+export function markShare<
+  T extends {
+    settled: Record<string, string>;
+    confirmed?: Record<string, string>;
+  },
+>(
   item: T,
   person: string,
-  value: boolean,
+  action: ShareAction,
+  at = new Date().toISOString(),
 ): T {
   const settled = { ...item.settled };
-  if (value) settled[person] = new Date().toISOString();
-  else delete settled[person];
-  return { ...item, settled };
+  const confirmed = { ...(item.confirmed ?? {}) };
+  if (action === "undo") {
+    delete settled[person];
+    delete confirmed[person];
+  } else {
+    settled[person] ??= at;
+    if (action !== "paid") confirmed[person] = at;
+  }
+  return { ...item, settled, confirmed };
 }

@@ -174,6 +174,29 @@ export async function listDocuments(path: string): Promise<RestDoc[]> {
   return docs;
 }
 
+/** Zapis prostego dokumentu (liczby i teksty) — nadpisuje cały dokument */
+export async function setDocument(
+  path: string,
+  data: Record<string, string | number>,
+): Promise<void> {
+  const fields = Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [
+      k,
+      typeof v === "number"
+        ? Number.isInteger(v)
+          ? { integerValue: String(v) }
+          : { doubleValue: v }
+        : { stringValue: v },
+    ]),
+  );
+  const res = await call(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fields }),
+  });
+  if (!res.ok) throw new Error(`Firestore SET ${path}: ${res.status}`);
+}
+
 export async function deleteDocument(path: string): Promise<void> {
   const res = await call(path, { method: "DELETE" });
   if (!res.ok && res.status !== 404) {

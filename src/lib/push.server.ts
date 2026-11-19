@@ -4,6 +4,7 @@ import { verifyFirebaseIdToken } from "@/lib/firebaseToken.server";
 import {
   deleteDocument,
   firestoreServerConfigured,
+  setDocument,
   getDocument,
   listDocuments,
   type RestDoc,
@@ -169,6 +170,10 @@ export async function notifyImpl(
   if (!/^[\w-]{1,128}$/.test(hid) || !/^[\w-]{1,128}$/.test(req.refId)) {
     return { ok: false, sent: 0, reason: "bad-request" };
   }
+  // Limit: to samo zdarzenie najwyżej raz na jakiś czas, osoba najwyżej
+  // kilkanaście wywołań na godzinę — nikt nie zaspamuje domowników
+  const limited = await rateLimited(viewer.uid, hid, req.kind, req.refId);
+  if (limited) return { ok: false, sent: 0, reason: limited };
 
   if (req.kind === "bugReport") {
     // Do administratora ogólnego — jego konto znajdziemy po członkostwach
@@ -301,6 +306,51 @@ export async function notifyImpl(
     default:
       return { ok: false, sent: 0, reason: "bad-kind" };
   }
+}
+
+/** Jak długo to samo zdarzenie nie wyśle się ponownie */
+const EVENT_COOLDOWN_MS: Partial<Record<NotifyKind, number>> = {
+  // „Przypomnij” o zwrocie — najwyżej co 6 godzin
+  refund: 6 * 3600_000,
+};
+const DEFAULT_COOLDOWN_MS = 24 * 3600_000;
+const USER_LIMIT = { calls: 15, windowMs: 3600_000 };
+
+/**
+ * Limity w bazie (kolekcja notifyLog — klienci nie mają do niej dostępu,
+ * pisze tylko serwer kontem serwisowym). Zwraca powód odmowy albo null.
+ */
+async function rateLimited(
+  uid: string,
+  householdId: string,
+  kind: NotifyKind,
+  refId: string,
+): Promise<string | null> {
+  const now = Date.now();
+  const userPath = `notifyLog/u_${uid}`;
+  const user = await getDocument(userPath);
+  const windowStart = Number(user?.data.windowStart ?? 0);
+  const calls = Number(user?.data.calls ?? 0);
+  const inWindow = now - windowStart < USER_LIMIT.windowMs;
+  if (inWindow && calls >= USER_LIMIT.calls) return "rate-limited";
+
+  const eventPath = `notifyLog/e_${householdId}_${kind}_${refId}`.slice(
+    0,
+    1400,
+  );
+  const event = await getDocument(eventPath);
+  const last = Number(event?.data.at ?? 0);
+  const cooldown = EVENT_COOLDOWN_MS[kind] ?? DEFAULT_COOLDOWN_MS;
+  if (now - last < cooldown) return "already-sent";
+
+  await Promise.all([
+    setDocument(userPath, {
+      windowStart: inWindow ? windowStart : now,
+      calls: inWindow ? calls + 1 : 1,
+    }),
+    setDocument(eventPath, { at: now, by: uid }),
+  ]);
+  return null;
 }
 
 async function superAdminUids(): Promise<string[]> {

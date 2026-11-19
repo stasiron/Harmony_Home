@@ -16,6 +16,7 @@ import {
   writeCachedFeed,
 } from "@/lib/calendar/feedCache";
 import { useApp } from "@/context/AppContext";
+import { dayKey } from "@/lib/absence";
 import { useAuth } from "@/context/AuthContext";
 import { usePersonalIcals } from "@/lib/personalCalendars";
 import { useHousehold } from "@/context/HouseholdContext";
@@ -56,7 +57,7 @@ export function useHouseholdCalendar(
 ) {
   const { icals, ready: icalsReady } = usePersonalIcals();
   const { household } = useHousehold();
-  const { assigneesOf } = useApp();
+  const { assigneesOf, absences } = useApp();
   const sharedKey = household?.sharedCalendar?.icalUrl ?? "";
   const loadEvents = useServerFn(fetchCalendarEvents);
   const { syncUser } = useAuth();
@@ -170,8 +171,10 @@ export function useHouseholdCalendar(
         eventsForDay(eventIndex, day).some((e) => e.isGuest),
       chore: (day: Date) => dateHasChoreDue(tasks, day, guestsMode),
       plan: (day: Date) => guestPlansOnDate(guestPlans, day).length > 0,
+      away: (day: Date) =>
+        absences.some((a) => a.from <= dayKey(day) && dayKey(day) <= a.to),
     }),
-    [eventIndex, tasks, guestPlans, guestsMode],
+    [eventIndex, tasks, guestPlans, guestsMode, absences],
   );
 
   const handleViewChange = useCallback((value: string) => {

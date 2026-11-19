@@ -154,6 +154,42 @@ export function netFor(costs: readonly SharedCost[], person: string): number {
   return net;
 }
 
+/**
+ * Najmniej przelewów, żeby wszyscy byli na zero: największy dłużnik oddaje
+ * największemu wierzycielowi, aż do wyrównania. Tylko podpowiedź —
+ * rozliczenie dalej zaznacza się parami (wtedy wiadomo, które koszty).
+ */
+export function simplifyTransfers(
+  costs: readonly SharedCost[],
+  people: readonly string[],
+): { from: string; to: string; amount: number }[] {
+  const balances = people
+    .map((id) => ({ id, net: netFor(costs, id) }))
+    .filter((p) => p.net !== 0);
+  const debtors = balances
+    .filter((p) => p.net < 0)
+    .map((p) => ({ id: p.id, left: -p.net }))
+    .sort((a, b) => b.left - a.left);
+  const creditors = balances
+    .filter((p) => p.net > 0)
+    .map((p) => ({ id: p.id, left: p.net }))
+    .sort((a, b) => b.left - a.left);
+  const transfers: { from: string; to: string; amount: number }[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < debtors.length && j < creditors.length) {
+    const amount = Math.min(debtors[i]!.left, creditors[j]!.left);
+    if (amount > 0) {
+      transfers.push({ from: debtors[i]!.id, to: creditors[j]!.id, amount });
+    }
+    debtors[i]!.left -= amount;
+    creditors[j]!.left -= amount;
+    if (debtors[i]!.left === 0) i++;
+    if (creditors[j]!.left === 0) j++;
+  }
+  return transfers;
+}
+
 /** Zamyka udziały między dwiema osobami (oba kierunki) */
 export function settlePair<T extends SharedCost>(
   cost: T,

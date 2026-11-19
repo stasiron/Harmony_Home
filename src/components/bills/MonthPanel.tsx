@@ -22,7 +22,7 @@ import {
   monthKey,
   monthLabel,
   shiftMonth,
-  withSettled,
+  markShare,
 } from "@/lib/bills";
 import { formatPLN, openShare, parsePLN, toInputPLN } from "@/lib/money";
 import { notify } from "@/lib/push";
@@ -297,6 +297,7 @@ function BillCard({
                   ...bill,
                   paidBy: value === NOBODY ? null : value,
                   settled: {},
+                  confirmed: {},
                 })
               }
             >
@@ -328,11 +329,13 @@ function BillCard({
           <ShareList
             shares={bill.shares}
             settled={bill.settled}
+            confirmed={bill.confirmed}
             paidBy={bill.paidBy}
-            onSettle={(person, value) =>
-              onSave(withSettled(bill, person, value))
+            onAction={(person, action) =>
+              onSave(markShare(bill, person, action))
             }
           />
+          <SharesEditor bill={bill} onSave={onSave} />
           {!bill.paidBy && (
             <p className="text-xs text-muted-foreground">
               Gdy ktoś zapłaci całość, wybierz go wyżej — reszta zobaczy, ile mu
@@ -371,4 +374,104 @@ function formatDay(iso: string) {
     day: "numeric",
     month: "long",
   });
+}
+
+/**
+ * Ręczna zmiana podziału tego jednego rachunku (np. ktoś był pół miesiąca,
+ * ktoś zużył więcej prądu). Suma musi zgadzać się z kwotą rachunku.
+ */
+function SharesEditor({
+  bill,
+  onSave,
+}: {
+  bill: Bill;
+  onSave: (bill: Bill | null) => void;
+}) {
+  const { active, nameOf } = usePeople();
+  const { canEditItem } = useHousehold();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+
+  if (!canEditItem(bill)) return null;
+  const people = [
+    ...new Set([...Object.keys(bill.shares), ...active.map((u) => u.id)]),
+  ];
+  const parsed = Object.fromEntries(
+    people.map((id) => [id, parsePLN(draft[id] ?? "") ?? 0]),
+  );
+  const sum = Object.values(parsed).reduce((s, v) => s + v, 0);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(
+            Object.fromEntries(
+              people.map((id) => [id, toInputPLN(bill.shares[id] ?? 0)]),
+            ),
+          );
+          setOpen(true);
+        }}
+        className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+      >
+        Zmień podział tego rachunku
+      </button>
+    );
+  }
+
+  const save = () => {
+    const shares = Object.fromEntries(
+      Object.entries(parsed).filter(([, v]) => v > 0),
+    );
+    onSave({
+      ...bill,
+      shares,
+      settled: Object.fromEntries(
+        Object.entries(bill.settled).filter(([id]) => id in shares),
+      ),
+      confirmed: Object.fromEntries(
+        Object.entries(bill.confirmed ?? {}).filter(([id]) => id in shares),
+      ),
+    });
+    setOpen(false);
+  };
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-surface/60 p-3">
+      <ul className="space-y-1.5">
+        {people.map((id) => (
+          <li key={id} className="flex items-center gap-2 text-sm">
+            <span className="flex-1">{nameOf(id)}</span>
+            <Input
+              value={draft[id] ?? ""}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, [id]: e.target.value }))
+              }
+              inputMode="decimal"
+              className="h-8 w-24 text-right"
+              aria-label={`Część ${nameOf(id)}`}
+            />
+            <span className="text-xs text-muted-foreground">zł</span>
+          </li>
+        ))}
+      </ul>
+      <p
+        className={cn(
+          "text-xs",
+          sum === bill.amount ? "text-muted-foreground" : "text-alert",
+        )}
+      >
+        Razem {formatPLN(sum)} z {formatPLN(bill.amount)}
+      </p>
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Anuluj
+        </Button>
+        <Button size="sm" disabled={sum !== bill.amount} onClick={save}>
+          Zapisz podział
+        </Button>
+      </div>
+    </div>
+  );
 }

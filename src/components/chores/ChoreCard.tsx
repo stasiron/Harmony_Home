@@ -1,5 +1,13 @@
 import { Check, ListChecks, Repeat } from "lucide-react";
 import type { Task } from "@/types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useApp } from "@/context/AppContext";
 import { EditChoreDialog } from "@/components/chores/EditChoreDialog";
 import { ZadanieCard } from "@/components/chores/ZadanieCard";
@@ -204,21 +212,52 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
         </div>
         <div className="flex items-center gap-1.5">
           <EditChoreDialog task={task} />
-          <button
-            onClick={() =>
-              // Historia: kto zrobił — ten domownik, jeśli to jego obowiązek
-              completeTask(
-                task.id,
-                actorId && assignees.some((u) => u.id === actorId)
-                  ? actorId
-                  : undefined,
-              )
-            }
-            className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
-            aria-label="Oznacz jako zrobione"
-          >
-            <Check className="size-4" />
-          </button>
+          {/* Kilka osób, a to urządzenie nie jest żadną z nich (np. tablet):
+              pytamy, kto zrobił — inaczej statystyki nie wiedzą, komu liczyć */}
+          {assignees.length > 1 &&
+          !(actorId && assignees.some((u) => u.id === actorId)) ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+                  aria-label="Oznacz jako zrobione"
+                >
+                  <Check className="size-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Kto zrobił?</DropdownMenuLabel>
+                {assignees.map((u) => (
+                  <DropdownMenuItem
+                    key={u.id}
+                    onClick={() => completeTask(task.id, u.id)}
+                  >
+                    {u.name}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => completeTask(task.id, null)}>
+                  Nie wiem / ktoś inny
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <button
+              onClick={() =>
+                // Historia: kto zrobił — ten domownik, jeśli to jego obowiązek
+                completeTask(
+                  task.id,
+                  actorId && assignees.some((u) => u.id === actorId)
+                    ? actorId
+                    : undefined,
+                )
+              }
+              className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+              aria-label="Oznacz jako zrobione"
+            >
+              <Check className="size-4" />
+            </button>
+          )}
         </div>
       </div>
     </div>

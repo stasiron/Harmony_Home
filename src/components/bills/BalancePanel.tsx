@@ -18,6 +18,7 @@ import {
   formatPLN,
   netFor,
   pairBalances,
+  simplifyTransfers,
   settlePair,
   type PairDebt,
 } from "@/lib/money";
@@ -31,6 +32,14 @@ export function BalancePanel({ data }: { data: BillsData }) {
 
   const costs = useMemo(() => [...bills, ...purchases], [bills, purchases]);
   const debts = useMemo(() => pairBalances(costs), [costs]);
+  const shortest = useMemo(
+    () =>
+      simplifyTransfers(
+        costs,
+        active.map((u) => u.id),
+      ),
+    [costs, active],
+  );
   const mine = actorId ? netFor(costs, actorId) : null;
 
   const settle = (debt: PairDebt) => {
@@ -72,6 +81,30 @@ export function BalancePanel({ data }: { data: BillsData }) {
               : mine < 0
                 ? "Tyle masz do oddania"
                 : "Jesteś na czysto"}
+          </p>
+        </section>
+      )}
+
+      {/* Mniej przelewów niż par — podpowiedź, jak oddać najprościej */}
+      {shortest.length > 0 && shortest.length < debts.length && (
+        <section className="space-y-2 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Najprościej: {shortest.length}{" "}
+            {shortest.length === 1 ? "przelew" : "przelewy"} zamiast{" "}
+            {debts.length}
+          </h3>
+          <ul className="space-y-1 text-sm">
+            {shortest.map((t) => (
+              <li key={`${t.from}-${t.to}`} className="flex items-center gap-2">
+                <span className="font-medium">{nameOf(t.from)}</span>
+                <ArrowRight className="size-4 text-muted-foreground" />
+                <span className="flex-1 font-medium">{nameOf(t.to)}</span>
+                <span className="tabular-nums">{formatPLN(t.amount)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            Po przelewach zaznaczcie „Rozliczone” przy parach poniżej.
           </p>
         </section>
       )}

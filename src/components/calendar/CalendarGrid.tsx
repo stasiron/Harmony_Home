@@ -27,6 +27,7 @@ import {
   topPxForDate,
 } from "@/lib/daySchedule";
 import { useApp } from "@/context/AppContext";
+import { dayKey } from "@/lib/absence";
 import { cn } from "@/lib/utils";
 import type { GuestPlan, Task } from "@/types";
 
@@ -170,7 +171,7 @@ export function CalendarGrid({
   guestsMode: boolean;
   users: { id: string; name: string }[];
 }) {
-  const { assigneesOf } = useApp();
+  const { assigneesOf, absences } = useApp();
   const scrollRef = useRef<HTMLDivElement>(null);
   const touchRef = useRef<{ x: number; y: number } | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -192,9 +193,11 @@ export function CalendarGrid({
     events: bundle.events.filter((e) => isAllDayEvent(e.start, e.end, day)),
     plans: bundle.guestPlans.filter((p) => isAllDayEvent(p.when, null, day)),
     chores: bundle.chores,
+    away: absences.filter((a) => a.from <= dayKey(day) && dayKey(day) <= a.to),
   }));
   const hasAllDay = allDay.some(
-    (d) => d.events.length + d.plans.length + d.chores.length > 0,
+    (d) =>
+      d.events.length + d.plans.length + d.chores.length + d.away.length > 0,
   );
   const showsToday = days.some((day) => isToday(day));
 
@@ -299,8 +302,16 @@ export function CalendarGrid({
                   dzień
                 </span>
               </div>
-              {allDay.map(({ day, events, plans, chores }) => {
+              {allDay.map(({ day, events, plans, chores, away }) => {
                 const chips = [
+                  ...away.map((a) => (
+                    <Chip
+                      key={a.id}
+                      label={`${users.find((u) => u.id === a.profileId)?.name ?? "ktoś"} — nie ma`}
+                      sub={a.mode === "reassign" ? "robią inni" : "czeka"}
+                      tone="busy"
+                    />
+                  )),
                   ...events.map((event) => (
                     <Chip
                       key={event.id}

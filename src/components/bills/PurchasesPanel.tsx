@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useHousehold } from "@/context/HouseholdContext";
 import type { BillsData } from "@/hooks/useBills";
 import { usePeople } from "@/hooks/usePeople";
-import { daysAgoLabel, newPurchase, withSettled } from "@/lib/bills";
+import { daysAgoLabel, markShare, newPurchase } from "@/lib/bills";
 import { formatAmount } from "@/lib/kitchen";
 import { formatPLN, openShare } from "@/lib/money";
 import { notify } from "@/lib/push";
@@ -155,9 +155,10 @@ function PurchaseCard({
       <ShareList
         shares={purchase.shares}
         settled={purchase.settled}
+        confirmed={purchase.confirmed}
         paidBy={purchase.paidBy}
-        onSettle={(person, value) =>
-          onChange(withSettled(purchase, person, value))
+        onAction={(person, action) =>
+          onChange(markShare(purchase, person, action))
         }
       />
 

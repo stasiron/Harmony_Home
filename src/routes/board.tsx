@@ -180,6 +180,7 @@ function BoardPage() {
 }
 
 function PostForm({ onAdd }: { onAdd: (post: Announcement) => void }) {
+  const { hasAccount } = useHousehold();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -195,6 +196,9 @@ function PostForm({ onAdd }: { onAdd: (post: Announcement) => void }) {
       body: body.trim(),
       pinned,
       expiresOn: expiresOn || null,
+      // Z kontem — przypiąć, zmienić i usunąć może tylko autor lub admin
+      // (reguły „blokady”); tablet bez konta nie może blokować
+      ...(hasAccount ? { locked: true } : {}),
     });
     setTitle("");
     setBody("");

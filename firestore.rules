@@ -314,7 +314,7 @@ service cloud.firestore {
           return changedOnly([
             'lastCompleted', 'lastCompletedBy', 'done', 'completedBy', 'checked',
             'rotationTurn', 'amount', 'settled', 'stock', 'stockAmount',
-            'lastBoughtAt', 'refundRequestedAt', 'issueStatus'
+            'lastBoughtAt', 'refundRequestedAt', 'issueStatus', 'confirmed'
           ]);
         }
 

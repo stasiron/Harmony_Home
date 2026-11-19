@@ -64,7 +64,10 @@ export function HouseEvents() {
   const [guestDialog, setGuestDialog] = useState<GuestPlan | "new" | null>(
     null,
   );
-  const [absenceOpen, setAbsenceOpen] = useState(false);
+  // null — zamknięte, "new" — nowa, obiekt — edycja
+  const [absenceDialog, setAbsenceDialog] = useState<Absence | "new" | null>(
+    null,
+  );
 
   const today = dayKey(new Date());
   const upcoming = useMemo(() => {
@@ -88,7 +91,7 @@ export function HouseEvents() {
           <UserPlus className="size-4" />
           Zapowiedz gościa
         </Button>
-        <Button variant="outline" onClick={() => setAbsenceOpen(true)}>
+        <Button variant="outline" onClick={() => setAbsenceDialog("new")}>
           <Luggage className="size-4" />
           Nie ma mnie / wyjazd
         </Button>
@@ -155,15 +158,26 @@ export function HouseEvents() {
                   </p>
                 </div>
                 {canEditItem(entry.absence) && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 hover:text-destructive"
-                    onClick={() => removeAbsence(entry.absence.id)}
-                    aria-label="Usuń nieobecność"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <div className="flex">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
+                      onClick={() => setAbsenceDialog(entry.absence)}
+                      aria-label="Edytuj nieobecność"
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 hover:text-destructive"
+                      onClick={() => removeAbsence(entry.absence.id)}
+                      aria-label="Usuń nieobecność"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 )}
               </li>
             ),
@@ -175,7 +189,11 @@ export function HouseEvents() {
         value={guestDialog}
         onClose={() => setGuestDialog(null)}
       />
-      <AbsenceDialog open={absenceOpen} onOpenChange={setAbsenceOpen} />
+      <AbsenceDialog
+        open={absenceDialog !== null}
+        absence={absenceDialog === "new" ? null : absenceDialog}
+        onOpenChange={(open) => !open && setAbsenceDialog(null)}
+      />
     </section>
   );
 }
@@ -337,12 +355,19 @@ function GuestPlanForm({
   );
 }
 
-function AbsenceDialog({
+/** Dodanie albo edycja nieobecności — kalendarz i strona Domownicy */
+export function AbsenceDialog({
   open,
   onOpenChange,
+  absence = null,
+  defaultProfileId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Edytowana nieobecność; null — nowa */
+  absence?: Absence | null;
+  /** Kto domyślnie (np. wybrany domownik) */
+  defaultProfileId?: string | null;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -354,34 +379,56 @@ function AbsenceDialog({
             mogą poczekać albo przejść na pozostałych.
           </DialogDescription>
         </DialogHeader>
-        {open && <AbsenceForm onDone={() => onOpenChange(false)} />}
+        {open && (
+          <AbsenceForm
+            key={absence?.id ?? "new"}
+            absence={absence}
+            defaultProfileId={defaultProfileId}
+            onDone={() => onOpenChange(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function AbsenceForm({ onDone }: { onDone: () => void }) {
-  const { addAbsence } = useApp();
+function AbsenceForm({
+  absence,
+  defaultProfileId,
+  onDone,
+}: {
+  absence: Absence | null;
+  defaultProfileId?: string | null;
+  onDone: () => void;
+}) {
+  const { addAbsence, updateAbsence } = useApp();
   const { householdId } = useHousehold();
   const { active, actorId } = usePeople();
   const today = dayKey(new Date());
-  const [who, setWho] = useState(actorId ?? active[0]?.id ?? "");
-  const [from, setFrom] = useState(today);
-  const [to, setTo] = useState(today);
-  const [mode, setMode] = useState<Absence["mode"]>("shift");
-  const [note, setNote] = useState("");
+  const [who, setWho] = useState(
+    absence?.profileId ?? defaultProfileId ?? actorId ?? active[0]?.id ?? "",
+  );
+  const [from, setFrom] = useState(absence?.from ?? today);
+  const [to, setTo] = useState(absence?.to ?? today);
+  const [mode, setMode] = useState<Absence["mode"]>(absence?.mode ?? "shift");
+  const [note, setNote] = useState(absence?.note ?? "");
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!who || !from || !to) return;
-    const id = addAbsence({
+    const fields = {
       profileId: who,
       from: from <= to ? from : to,
       to: from <= to ? to : from,
       mode,
       note: note.trim(),
-    });
-    notify(householdId, "absence", id);
+    };
+    if (absence) {
+      updateAbsence({ ...absence, ...fields });
+    } else {
+      const id = addAbsence(fields);
+      notify(householdId, "absence", id);
+    }
     toast.success("Nieobecność zapisana");
     onDone();
   };

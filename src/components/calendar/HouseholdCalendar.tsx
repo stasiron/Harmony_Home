@@ -258,6 +258,8 @@ const MODIFIERS_CLASS_NAMES = {
   chore:
     "[&_button]:before:absolute [&_button]:before:bottom-1 [&_button]:before:right-1/2 [&_button]:before:mr-2 [&_button]:before:size-1.5 [&_button]:before:rounded-full [&_button]:before:bg-warn [&_button]:before:content-['']",
   plan: "[&_button]:bg-accent/10",
+  // Ktoś nieobecny — podkreślenie dnia
+  away: "[&_button]:shadow-[inset_0_-3px_0_var(--color-warn)]",
 };
 
 function CalendarPanel({

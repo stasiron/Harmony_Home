@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   Flame,
   Link2,
+  Luggage,
   Mail,
   Pencil,
   Smartphone,
@@ -33,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { dayKey } from "@/lib/absence";
+import { AbsenceDialog } from "@/components/calendar/HouseEvents";
 import { cn } from "@/lib/utils";
 import type { HouseholdMember, User } from "@/types";
 
@@ -139,6 +141,7 @@ function MembersPage() {
   const [name, setName] = useState("");
 
   const selected = users.find((u) => u.id === selectedId);
+  const [absenceFor, setAbsenceFor] = useState<string | null>(null);
   const memberTasks = selected
     ? tasks.filter((t) => {
         if (!assigneesOf(t).includes(selected.id)) return false;
@@ -249,6 +252,12 @@ function MembersPage() {
         </section>
       )}
 
+      <AbsenceDialog
+        open={absenceFor !== null}
+        defaultProfileId={absenceFor}
+        onOpenChange={(open) => !open && setAbsenceFor(null)}
+      />
+
       {selected && (
         <section className="space-y-4">
           <ProfilePanel
@@ -278,6 +287,10 @@ function MembersPage() {
             user={selected}
             onToggle={() => toggleUserHeavyDay(selected.id)}
           />
+          <Button variant="outline" onClick={() => setAbsenceFor(selected.id)}>
+            <Luggage className="size-4" />
+            Nieobecność / wyjazd: {selected.name}
+          </Button>
           <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Obowiązki · {selected.name} · {memberTasks.length}
           </h2>
