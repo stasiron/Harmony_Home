@@ -1,5 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Home, LogIn, MailCheck, Plus, QrCode } from "lucide-react";
+import {
+  ArrowRight,
+  Home,
+  LogIn,
+  MailCheck,
+  Plus,
+  QrCode,
+  Smartphone,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AuthUserBadge } from "@/components/AuthUserBadge";
 import { LoginDialog } from "@/components/auth/LoginDialog";
@@ -234,9 +242,12 @@ function VerifyEmailPanel({
 function JoinCard({
   initialCode,
   onJoined,
+  asDevice = false,
 }: {
   initialCode?: string | null;
   onJoined?: () => void;
+  /** Bez konta — dołączenie jako wspólne urządzenie (np. tablet) */
+  asDevice?: boolean;
 }) {
   return (
     <section
@@ -248,7 +259,9 @@ function JoinCard({
       <div className="text-center">
         <h2 className="text-lg font-semibold">Dołącz do mieszkania</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Kod dostaniesz od administratora.
+          {asDevice
+            ? "Bez konta dołączasz jako wspólne urządzenie: odhaczasz obowiązki i kuchnię, ale nie masz prywatnych list ani rachunków na siebie."
+            : "Kod dostaniesz od administratora."}
         </p>
       </div>
       <JoinForm initialCode={initialCode} onJoined={onJoined} />
@@ -439,11 +452,54 @@ export function EntryScreen({
       );
     }
 
+    // Link z zaproszeniem, a jeszcze bez konta: najpierw konto — inaczej
+    // „Dołącz” zrobiłby z osoby wspólne urządzenie (ograniczone prawa)
+    if (!hasAccount && !withoutAccount) {
+      return (
+        <Screen>
+          <div className="flex flex-col items-center gap-8 duration-500 animate-in fade-in slide-in-from-bottom-2">
+            <Wordmark small />
+            <section
+              className={cn(
+                CARD,
+                "flex flex-col justify-center gap-5 border border-border bg-surface p-6 text-center shadow-elevated",
+              )}
+            >
+              <div>
+                <h2 className="text-lg font-semibold">Masz zaproszenie</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Załóż konto albo zaloguj się — dołączysz jako domownik, a kod
+                  zaproszenia wpiszemy za Ciebie.
+                </p>
+              </div>
+              <LoginDialog
+                joinCode={inviteCode}
+                onStayWithoutAccount={() => setWithoutAccount(true)}
+                trigger={
+                  <Button size="lg" className="h-12 rounded-full">
+                    Załóż konto lub zaloguj się
+                  </Button>
+                }
+              />
+            </section>
+            <SmallLink onClick={() => setWithoutAccount(true)}>
+              <Smartphone className="size-3.5" />
+              To wspólny tablet — dołącz bez konta
+            </SmallLink>
+          </div>
+        </Screen>
+      );
+    }
+
     return (
       <Screen corner={corner}>
         <div className="flex flex-col items-center gap-8 duration-500 animate-in fade-in slide-in-from-bottom-2">
           <Wordmark small />
-          <JoinCard initialCode={inviteCode} onJoined={onInviteDone} />
+          <JoinCard
+            initialCode={inviteCode}
+            onJoined={onInviteDone}
+            asDevice={!hasAccount}
+          />
           <div className="flex flex-wrap justify-center gap-1">
             {extraLinks}
           </div>
