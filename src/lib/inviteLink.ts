@@ -39,9 +39,40 @@ export function inviteCodeFromScan(text: string): string | null {
 export function takeInviteCodeFromLocation(): string | null {
   if (typeof window === "undefined") return null;
   const url = new URL(window.location.href);
-  const code = url.searchParams.get(JOIN_PARAM);
-  if (!code) return null;
+  const raw = url.searchParams.get(JOIN_PARAM);
+  if (!raw) return readPendingInvite();
   url.searchParams.delete(JOIN_PARAM);
   window.history.replaceState(window.history.state, "", url.toString());
-  return normalizeInviteCode(code) || null;
+  const code = normalizeInviteCode(raw) || null;
+  // Logowanie Google przez przekierowanie wraca bez ?join= — kod czeka
+  // w tej karcie, aż dołączenie się uda albo ktoś je anuluje
+  if (code) writePendingInvite(code);
+  return code;
+}
+
+const PENDING_INVITE_KEY = "homeharmony-pending-join";
+
+function readPendingInvite(): string | null {
+  try {
+    return sessionStorage.getItem(PENDING_INVITE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writePendingInvite(code: string) {
+  try {
+    sessionStorage.setItem(PENDING_INVITE_KEY, code);
+  } catch {
+    // tryb prywatny — kod zostaje tylko w pamięci
+  }
+}
+
+/** Dołączenie zakończone (albo anulowane) — kod już nie wraca */
+export function clearPendingInvite() {
+  try {
+    sessionStorage.removeItem(PENDING_INVITE_KEY);
+  } catch {
+    // ignore
+  }
 }

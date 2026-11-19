@@ -106,6 +106,57 @@ describe("pamięć produktów", () => {
     expect(suggestPrice(ser, null, "szt")).toBe(1200);
   });
 
+  it("zakup zapasu w innej jednostce przelicza stan i próg", () => {
+    const mąka: Product = {
+      id: productId("Mąka"),
+      name: "Mąka",
+      category: "pantry",
+      unit: "kg",
+      lastPrice: null,
+      lastAmount: null,
+      lastBoughtAt: null,
+      lastAddedAt: null,
+      supply: true,
+      stockAmount: 2,
+      lowAt: 0.5,
+    } as Product;
+    const [after] = rememberBought(
+      [mąka],
+      [
+        {
+          name: "Mąka",
+          amount: 500,
+          unit: "g",
+          category: "pantry",
+          price: 600,
+          visibility: "public",
+        },
+      ],
+      "2026-11-19T10:00:00Z",
+    );
+    expect(after?.unit).toBe("g");
+    expect(after?.stockAmount).toBe(2500);
+    expect(after?.lowAt).toBe(500);
+  });
+
+  it("nieaktywny domownik nie dostaje udziału, nawet gdy był wybrany", () => {
+    const shares = billShares(
+      {
+        id: "net",
+        kind: "internet",
+        name: "Internet",
+        enabled: true,
+        dueDay: 10,
+        participants: ["a", "b"],
+        splitMode: "equal",
+        weights: {},
+      } as never,
+      1000,
+      [user("a"), user("b", false), user("c")],
+    );
+    expect(shares).toEqual({ a: 1000 });
+  });
+
   it("prywatna cena zostaje prywatna, wspólna osobno", () => {
     const products = rememberBought(
       [],

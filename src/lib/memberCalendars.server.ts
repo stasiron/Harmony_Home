@@ -35,12 +35,38 @@ import type { SharedCalendarSettings } from "@/types";
 /** Kalendarz wspólny domu (goście) — widzi każdy domownik */
 export const SHARED_MEMBER_ID = "household";
 
-export async function fetchIcalText(url: string): Promise<string> {
-  const res = await fetch(url, { headers: { Accept: "text/calendar" } });
-  if (!res.ok) {
-    throw new Error("calendar fetch failed");
+const ICAL_TIMEOUT_MS = 10_000;
+const ICAL_MAX_BYTES = 5 * 1024 * 1024;
+const ICAL_MAX_REDIRECTS = 3;
+
+/**
+ * Pobiera kalendarz iCal tylko z dozwolonych hostów (normalizeIcalUrl) —
+ * także po przekierowaniach, z limitem czasu i rozmiaru, żeby serwera nie
+ * dało się użyć do odpytywania dowolnych adresów ani zawiesić dużym plikiem.
+ */
+export async function fetchIcalText(rawUrl: string): Promise<string> {
+  let url = normalizeIcalUrl(rawUrl);
+  for (let hop = 0; url && hop <= ICAL_MAX_REDIRECTS; hop++) {
+    const res = await fetch(url, {
+      headers: { Accept: "text/calendar" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(ICAL_TIMEOUT_MS),
+    });
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      url = location
+        ? normalizeIcalUrl(new URL(location, url).toString())
+        : null;
+      continue;
+    }
+    if (!res.ok) throw new Error("calendar fetch failed");
+    const length = Number(res.headers.get("content-length") ?? 0);
+    if (length > ICAL_MAX_BYTES) throw new Error("calendar too large");
+    const text = await res.text();
+    if (text.length > ICAL_MAX_BYTES) throw new Error("calendar too large");
+    return text;
   }
-  return res.text();
+  throw new Error("calendar fetch failed");
 }
 
 export function displaySummary(

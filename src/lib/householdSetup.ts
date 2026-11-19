@@ -5,9 +5,12 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
+  query,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -19,7 +22,9 @@ import {
   guardWriteBudget,
   diffCollection,
   itemWrites,
+  ITEM_COLLECTIONS,
   type ItemCollection,
+  type PlannedWrite,
 } from "@/lib/householdSync";
 import {
   buildLegacyMigration,
@@ -75,13 +80,35 @@ export function providerOf(user: FirebaseUser): string | null {
   return user.providerData[0]?.providerId ?? null;
 }
 
+/**
+ * Provider z tokenu (sign_in_provider) — przy kilku połączonych kontach
+ * `providerData[0]` bywa innym niż to, którym się zalogowano, a reguła
+ * members porównuje z tokenem. Link z maila zapisujemy jako „password”
+ * (to samo konto e-mail), żeby nie przepisywać wpisu przy każdym logowaniu.
+ */
+export async function tokenProviderOf(
+  user: FirebaseUser,
+): Promise<string | null> {
+  if (user.isAnonymous) return "anonymous";
+  try {
+    const provider = (await user.getIdTokenResult()).signInProvider;
+    if (provider === "emailLink") return "password";
+    return provider ?? providerOf(user);
+  } catch {
+    return providerOf(user);
+  }
+}
+
 /** Dane konta w dokumencie członkostwa — odświeżane, gdy się zmienią */
-export function memberAccountFields(user: FirebaseUser) {
+export function memberAccountFields(
+  user: FirebaseUser,
+  provider: string | null = providerOf(user),
+) {
   return {
     anonymous: user.isAnonymous,
     displayName: user.displayName ?? null,
     email: user.email ?? null,
-    provider: providerOf(user),
+    provider,
   };
 }
 
@@ -221,6 +248,10 @@ export async function createHousehold(
     role: "admin",
     joinedAt: nowIso,
   });
+  // Kod zaproszenia od razu — inaczej admin musi go szukać w Ustawieniach
+  await regenerateInvite(householdId, user.uid).catch((err) =>
+    console.error("Invite create failed:", err),
+  );
   return householdId;
 }
 
@@ -268,13 +299,51 @@ export async function joinHousehold(
 }
 
 /**
- * Nowy kod zaproszenia (stary przestaje działać). Kod jest też w dokumencie
- * mieszkania, żeby admin mógł go pokazać ponownie — listować zaproszeń nie wolno.
+ * Kod zaproszenia mieszkania — `households/{id}/admin/invite`, czytają go
+ * tylko administratorzy (goście i urządzenia nie dołączą nim ponownie jako
+ * domownicy). Listować zaproszeń nie wolno, stąd kopia kodu.
  */
+function inviteRef(householdId: string) {
+  return doc(requireDb(), "households", householdId, "admin", "invite");
+}
+
+export function subscribeInvite(
+  householdId: string,
+  onData: (code: string | null) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe | null {
+  const db = getFirestoreDb();
+  if (!db) return null;
+  return onSnapshot(
+    doc(db, "households", householdId, "admin", "invite"),
+    (snap) => {
+      const code = snap.data()?.code;
+      onData(typeof code === "string" ? code : null);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/**
+ * Starsze mieszkania trzymały kod w dokumencie mieszkania (widzieli go
+ * goście) — admin przenosi go raz do admin/invite.
+ */
+export async function moveLegacyInviteCode(householdId: string, code: string) {
+  guardWriteBudget();
+  const db = requireDb();
+  const batch = writeBatch(db);
+  batch.set(inviteRef(householdId), { code });
+  batch.update(doc(db, "households", householdId), {
+    inviteCode: deleteField(),
+  });
+  await batch.commit();
+}
+
+/** Nowy kod zaproszenia (stary przestaje działać) */
 export async function regenerateInvite(
   householdId: string,
   uid: string,
-  previousCode?: string,
+  previousCode?: string | null,
 ): Promise<string> {
   guardWriteBudget();
   const db = requireDb();
@@ -284,7 +353,7 @@ export async function regenerateInvite(
     createdBy: uid,
     createdAt: new Date().toISOString(),
   });
-  await updateDoc(doc(db, "households", householdId), { inviteCode: code });
+  await setDoc(inviteRef(householdId), { code });
   if (previousCode) {
     await deleteDoc(doc(db, "invites", previousCode)).catch(() => undefined);
   }
@@ -299,9 +368,78 @@ export async function deactivateInvite(householdId: string, code: string) {
   guardWriteBudget();
   const db = requireDb();
   await deleteDoc(doc(db, "invites", code));
-  await updateDoc(doc(db, "households", householdId), {
-    inviteCode: deleteField(),
+  await deleteDoc(inviteRef(householdId));
+}
+
+/** Twórca oddaje mieszkanie innemu administratorowi (potem może wyjść) */
+export async function transferOwnership(householdId: string, newOwner: string) {
+  guardWriteBudget();
+  await updateDoc(doc(requireDb(), "households", householdId), {
+    ownerId: newOwner,
   });
+}
+
+/**
+ * Usuwa mieszkanie z całą wspólną zawartością. Robi to twórca: najpierw
+ * elementy (jest jeszcze członkiem), na końcu wpisy domowników i dokument
+ * mieszkania w jednym batchu. Domownicy tracą dostęp, ich wpis w
+ * `memberships` znika przy następnym wczytaniu (permission-denied).
+ * Prywatne elementy i przepisy innych osób zostają niedostępne dla nikogo —
+ * reguły nie pozwalają ich usunąć nikomu poza autorem.
+ */
+export async function deleteHousehold(
+  householdId: string,
+  uid: string,
+  inviteCode: string | null,
+) {
+  const db = requireDb();
+  const base = ["households", householdId] as const;
+  const writes: PlannedWrite[] = [];
+  const addAll = async (name: string, ownOnly = false) => {
+    const ref = collection(db, ...base, name);
+    // Przepisy innych osób są niewidoczne — zapytanie tylko o własne
+    const snap = await getDocs(
+      ownOnly ? query(ref, where("createdBy", "==", uid)) : ref,
+    ).catch(() => null);
+    for (const d of snap?.docs ?? []) {
+      writes.push({ kind: "delete", path: [...base, name, d.id] });
+    }
+  };
+  for (const name of [...ITEM_COLLECTIONS, "profiles", "assets"]) {
+    await addAll(name);
+  }
+  await addAll("recipes", true);
+  for (const name of [
+    "chores",
+    "zadania",
+    "todos",
+    "shopping",
+    "fridge",
+    "guides",
+    "guideEntries",
+    "products",
+    "laundry",
+    "recipePlans",
+  ]) {
+    await addAll(`private/${uid}/${name}`);
+  }
+  writes.push({ kind: "delete", path: [...base, "admin", "invite"] });
+  await commitWrites(db, writes);
+  if (inviteCode) {
+    await deleteDoc(doc(db, "invites", inviteCode)).catch(() => undefined);
+  }
+
+  const members = await getDocs(collection(db, ...base, "members"));
+  const final: PlannedWrite[] = members.docs
+    .filter((d) => d.id !== uid)
+    .map((d) => ({ kind: "delete", path: [...base, "members", d.id] }));
+  await commitWrites(db, final);
+  guardWriteBudget();
+  const batch = writeBatch(db);
+  batch.delete(doc(db, ...base, "members", uid));
+  batch.delete(doc(db, ...base));
+  batch.delete(doc(db, "users", uid, "memberships", householdId));
+  await batch.commit();
 }
 
 /** Administrator ogólny — admin każdego mieszkania (też w firestore.rules) */

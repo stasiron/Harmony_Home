@@ -3,7 +3,10 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { EntryScreen } from "@/components/household/EntryScreen";
 import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
-import { takeInviteCodeFromLocation } from "@/lib/inviteLink";
+import {
+  clearPendingInvite,
+  takeInviteCodeFromLocation,
+} from "@/lib/inviteLink";
 
 /**
  * Strony mieszkania pokazujemy dopiero, gdy użytkownik wybrał mieszkanie na
@@ -12,7 +15,8 @@ import { takeInviteCodeFromLocation } from "@/lib/inviteLink";
  * więc hydracja się zgadza, a nowy użytkownik nie widzi przez chwilę pulpitu).
  */
 export function HouseholdGate({ children }: { children: ReactNode }) {
-  const { status, membershipsLoaded, memberships, entered } = useHousehold();
+  const { status, membershipsLoaded, memberships, entered, loadError } =
+    useHousehold();
   const { configured, error: authError } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -31,7 +35,10 @@ export function HouseholdGate({ children }: { children: ReactNode }) {
       return (
         <EntryScreen
           inviteCode={inviteCode}
-          onInviteDone={() => setInviteCode(null)}
+          onInviteDone={() => {
+            clearPendingInvite();
+            setInviteCode(null);
+          }}
         />
       );
     }
@@ -44,12 +51,22 @@ export function HouseholdGate({ children }: { children: ReactNode }) {
       role="status"
       aria-live="polite"
     >
-      {authError ? (
+      {authError || loadError ? (
         <div className="max-w-md space-y-3 text-center">
-          <p className="text-sm text-alert">{authError}</p>
-          <Link to="/settings" className="text-sm underline">
-            Przejdź do ustawień
-          </Link>
+          <p className="text-sm text-alert">{authError ?? loadError}</p>
+          {loadError && !authError ? (
+            <button
+              type="button"
+              className="text-sm underline"
+              onClick={() => window.location.reload()}
+            >
+              Odśwież
+            </button>
+          ) : (
+            <Link to="/settings" className="text-sm underline">
+              Przejdź do ustawień
+            </Link>
+          )}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">Wczytuję…</p>

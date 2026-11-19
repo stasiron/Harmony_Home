@@ -4,8 +4,18 @@ import { saveOAuthMemberConnection } from "@/lib/calendar-settings.server";
 import {
   exchangeGoogleCode,
   getAppOrigin,
+  OAUTH_NONCE_COOKIE,
   verifyOAuthState,
 } from "@/lib/googleOAuth.server";
+
+function readCookie(request: Request, name: string): string | null {
+  const header = request.headers.get("cookie") ?? "";
+  for (const part of header.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(rest.join("="));
+  }
+  return null;
+}
 
 export async function handleApiRequest(
   request: Request,
@@ -90,7 +100,8 @@ export async function handleApiRequest(
     }
 
     const parsed = verifyOAuthState(state);
-    if (!parsed) {
+    const cookieNonce = readCookie(request, OAUTH_NONCE_COOKIE);
+    if (!parsed || !cookieNonce || cookieNonce !== parsed.nonce) {
       return Response.redirect(`${origin}/settings?error=invalid_state`, 302);
     }
 
@@ -110,7 +121,14 @@ export async function handleApiRequest(
         expiresIn: tokens.expires_in,
       });
 
-      return Response.redirect(`${origin}/settings?connected=1`, 302);
+      // Jednorazowe — ciasteczko kasujemy
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `${origin}/settings?connected=1`,
+          "Set-Cookie": `${OAUTH_NONCE_COOKIE}=; Path=/api/auth/google; Max-Age=0; HttpOnly; SameSite=Lax`,
+        },
+      });
     } catch {
       return Response.redirect(`${origin}/settings?error=connect_failed`, 302);
     }

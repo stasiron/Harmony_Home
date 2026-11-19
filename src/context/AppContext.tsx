@@ -32,7 +32,7 @@ import {
   thresholdStatus,
 } from "@/lib/choreZadaniaStatus";
 import { normalizeAssignedTo } from "@/lib/choreAssignees";
-import { advanceRotationPast } from "@/lib/rotation";
+import { advanceRotationPast, withoutPerson } from "@/lib/rotation";
 import {
   assigneesWithAbsences,
   dayKey,
@@ -632,32 +632,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const completeZadanie = useCallback(
     (id: string, completedBy?: string) => {
-      setZadania((prev) => {
-        const item = prev.find((z) => z.id === id);
-        if (!item) return prev;
-        if (item.recurrence === "once" && item.source === "user") {
-          return prev.filter((z) => z.id !== id);
-        }
-        const current = assigneesOf(item);
-        const doneBy =
-          completedBy ?? (current.length === 1 ? current[0]! : null);
-        logCompletion(item, "zadanie", doneBy);
-        return prev.map((z) =>
+      const item = zadania.find((z) => z.id === id);
+      if (!item) return;
+      const current = assigneesOf(item);
+      const doneBy = completedBy ?? (current.length === 1 ? current[0]! : null);
+      // Najpierw historia — także jednorazowe zadania liczą się do statystyk
+      logCompletion(item, "zadanie", doneBy);
+      if (item.recurrence === "once" && item.source === "user") {
+        setZadania((prev) => prev.filter((z) => z.id !== id));
+        return;
+      }
+      setZadania((prev) =>
+        prev.map((z) =>
           z.id === id
             ? // Na zmianę: tura przechodzi na osobę po tej, która zrobiła
               advanceRotationPast(
                 {
                   ...z,
                   lastCompleted: new Date().toISOString(),
-                  lastCompletedBy: completedBy,
+                  lastCompletedBy: doneBy ?? undefined,
                 },
                 doneBy ?? current[0] ?? null,
               )
             : z,
-        );
-      });
+        ),
+      );
     },
-    [setZadania, assigneesOf, logCompletion],
+    [zadania, setZadania, assigneesOf, logCompletion],
   );
 
   const toggleUserHeavyDay = useCallback(
@@ -962,8 +963,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const removeUser = useCallback(
-    (id: string) => setUsers((prev) => prev.filter((u) => u.id !== id)),
-    [setUsers],
+    (id: string) => {
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      // Bez osoby w kolejkach „na zmianę” i przypisaniach — inaczej obowiązek
+      // wisi na kimś, kogo już nie ma
+      const strip = <T extends Task | Zadanie>(prev: T[]) => {
+        const next = prev.map((item) => withoutPerson(item, id));
+        return next.some((item, i) => item !== prev[i]) ? next : prev;
+      };
+      setTasks(strip);
+      setZadania(strip);
+    },
+    [setUsers, setTasks, setZadania],
   );
 
   const addTask = useCallback(

@@ -19,7 +19,12 @@ import {
   joinHousehold as joinHouseholdDocs,
   migrateLegacyHousehold,
   deactivateInvite as deactivateInviteDoc,
+  deleteHousehold as deleteHouseholdDocs,
+  moveLegacyInviteCode,
   regenerateInvite as regenerateInviteDoc,
+  subscribeInvite,
+  tokenProviderOf,
+  transferOwnership as transferOwnershipDoc,
   removeMember as removeMemberDoc,
   removeMembership,
   subscribeHouseholdMeta,
@@ -134,6 +139,14 @@ type HouseholdContextValue = {
   setLandlord: (contact: LandlordContact | null) => Promise<void>;
   setReminders: (settings: ReminderSettings) => Promise<void>;
   setZones: (zones: HomeZone[]) => Promise<void>;
+  /** Błąd wczytywania mieszkania (np. limit bazy) — zamiast wiecznego „Wczytuję…” */
+  loadError: string | null;
+  /** Aktywny kod zaproszenia — tylko dla administratora */
+  inviteCode: string | null;
+  /** To konto założyło mieszkanie (twórca) */
+  isOwner: boolean;
+  transferOwnership: (uid: string) => Promise<void>;
+  deleteHousehold: () => Promise<void>;
   regenerateInvite: () => Promise<string>;
   deactivateInvite: () => Promise<void>;
   linkProfile: (profileId: string | null) => Promise<void>;
@@ -144,6 +157,17 @@ type HouseholdContextValue = {
   canEditItem: (item: ItemMeta) => boolean;
   canLockItem: (item: ItemMeta) => boolean;
 };
+
+function loadErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case "resource-exhausted":
+      return "Baza danych osiągnęła dzienny limit. Spróbuj ponownie za kilka godzin.";
+    case "unavailable":
+      return "Brak połączenia z bazą danych. Sprawdź internet i odśwież stronę.";
+    default:
+      return "Nie udało się wczytać mieszkania. Odśwież stronę.";
+  }
+}
 
 const HouseholdContext = createContext<HouseholdContextValue | null>(null);
 
@@ -160,6 +184,8 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const [household, setHousehold] = useState<HouseholdMeta | null>(null);
   const [householdLoaded, setHouseholdLoaded] = useState(false);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [inviteDocCode, setInviteDocCode] = useState<string | null>(null);
   const [floorPlan, setFloorPlan] = useState<FloorPlanImage | null>(null);
 
   useEffect(() => {
@@ -207,19 +233,26 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     setHousehold(null);
     setHouseholdLoaded(false);
     setMembers([]);
+    setLoadError(null);
     if (!householdId || !uid) return;
 
     const unsubMeta = subscribeHouseholdMeta(
       householdId,
       (meta) => {
+        // Mieszkanie usunięte — wpis w memberships jest nieaktualny
+        if (!meta) void removeMembership(uid, householdId).catch(() => {});
         setHousehold(meta);
         setHouseholdLoaded(true);
+        setLoadError(null);
       },
       (err) => {
         console.error("Household load failed:", err);
+        const code = (err as { code?: string }).code;
         // Usunięty z mieszkania — wpis w memberships jest nieaktualny
-        if ((err as { code?: string }).code === "permission-denied") {
-          void removeMembership(uid, householdId);
+        if (code === "permission-denied") {
+          void removeMembership(uid, householdId).catch(() => {});
+        } else {
+          setLoadError(loadErrorMessage(code));
         }
         setHouseholdLoaded(true);
       },
@@ -263,6 +296,27 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [members, uid],
   );
   const isAdmin = superAdmin || me?.role === "admin";
+  const isOwner = Boolean(uid && household?.ownerId === uid);
+
+  // Kod zaproszenia czyta tylko administrator (admin/invite)
+  useEffect(() => {
+    setInviteDocCode(null);
+    if (!householdId || !isAdmin) return;
+    const unsubscribe = subscribeInvite(householdId, setInviteDocCode, (err) =>
+      console.error("Invite load failed:", err),
+    );
+    return () => unsubscribe?.();
+  }, [householdId, isAdmin]);
+
+  // Stare mieszkania: kod w dokumencie mieszkania (widzą go goście) — przenieś
+  const legacyInviteCode = household?.inviteCode ?? null;
+  useEffect(() => {
+    if (!householdId || !isAdmin || !legacyInviteCode) return;
+    void moveLegacyInviteCode(householdId, legacyInviteCode).catch((err) =>
+      console.error("Invite move failed:", err),
+    );
+  }, [householdId, isAdmin, legacyInviteCode]);
+  const inviteCode = isAdmin ? (inviteDocCode ?? legacyInviteCode) : null;
   const role: HouseholdRole | null = superAdmin ? "admin" : (me?.role ?? null);
   const canWrite = role !== "guest";
   const stats = statsAccess(household?.statsVisibility, role);
@@ -275,14 +329,22 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     : null;
   useEffect(() => {
     if (!me || !syncUser || !householdId) return;
-    const fields = memberAccountFields(syncUser);
-    const stale = (Object.keys(fields) as (keyof typeof fields)[]).some(
-      (key) => (me[key] ?? null) !== fields[key],
-    );
-    if (!stale) return;
-    void updateMember(householdId, syncUser.uid, fields).catch((err) =>
-      console.error("Member account sync failed:", err),
-    );
+    let cancelled = false;
+    // Provider z tokenu — reguła members porównuje właśnie z nim
+    void tokenProviderOf(syncUser).then((provider) => {
+      if (cancelled) return;
+      const fields = memberAccountFields(syncUser, provider);
+      const stale = (Object.keys(fields) as (keyof typeof fields)[]).some(
+        (key) => (me[key] ?? null) !== fields[key],
+      );
+      if (!stale) return;
+      void updateMember(householdId, syncUser.uid, fields).catch((err) =>
+        console.error("Member account sync failed:", err),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
     // accountKey — zmiana pól tego samego obiektu User
   }, [me, syncUser, householdId, accountKey]);
 
@@ -407,19 +469,29 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
   const regenerateInvite = useCallback(
     () =>
-      regenerateInviteDoc(
-        requireHousehold(),
-        requireUser().uid,
-        household?.inviteCode,
-      ),
-    [requireHousehold, requireUser, household?.inviteCode],
+      regenerateInviteDoc(requireHousehold(), requireUser().uid, inviteCode),
+    [requireHousehold, requireUser, inviteCode],
   );
 
   const deactivateInvite = useCallback(async () => {
-    const code = household?.inviteCode;
-    if (!code) return;
-    await deactivateInviteDoc(requireHousehold(), code);
-  }, [requireHousehold, household?.inviteCode]);
+    if (!inviteCode) return;
+    await deactivateInviteDoc(requireHousehold(), inviteCode);
+  }, [requireHousehold, inviteCode]);
+
+  const transferOwnership = useCallback(
+    async (newOwner: string) => {
+      await transferOwnershipDoc(requireHousehold(), newOwner);
+    },
+    [requireHousehold],
+  );
+
+  const deleteHousehold = useCallback(async () => {
+    await deleteHouseholdDocs(
+      requireHousehold(),
+      requireUser().uid,
+      inviteCode,
+    );
+  }, [requireHousehold, requireUser, inviteCode]);
 
   const linkProfile = useCallback(
     async (profileId: string | null) => {
@@ -444,9 +516,16 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
 
   const removeMember = useCallback(
     async (memberUid: string) => {
-      await removeMemberDoc(requireHousehold(), memberUid);
+      const id = requireHousehold();
+      await removeMemberDoc(id, memberUid);
+      // Usunięty zna kod — nowy, żeby nie wrócił nim sam
+      if (inviteCode) {
+        await regenerateInviteDoc(id, requireUser().uid, inviteCode).catch(
+          (err) => console.error("Invite rotate failed:", err),
+        );
+      }
     },
-    [requireHousehold],
+    [requireHousehold, requireUser, inviteCode],
   );
 
   const leaveHousehold = useCallback(async () => {
@@ -506,6 +585,11 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     setLandlord,
     setReminders,
     setZones,
+    loadError,
+    inviteCode,
+    isOwner,
+    transferOwnership,
+    deleteHousehold,
     regenerateInvite,
     deactivateInvite,
     linkProfile,

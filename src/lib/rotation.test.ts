@@ -6,6 +6,7 @@ import {
   isRotating,
   keepTurnForList,
   turnOrder,
+  withoutPerson,
 } from "@/lib/rotation";
 
 const queue = { rotation: ["ala", "olek", "ola"], rotationTurn: 0 };
@@ -67,5 +68,25 @@ describe("rotacja na zmianę", () => {
     expect(keepTurnForList(ids, 1, ["ola", "olek"])).toBe(1);
     expect(keepTurnForList(ids, 1, ["ala", "ola"])).toBe(0);
     expect(keepTurnForList(ids, 2, [...ids, "kuba"])).toBe(2);
+  });
+});
+
+describe("usunięcie domownika", () => {
+  it("znika z kolejki, tura zostaje u tej samej osoby", () => {
+    const item = { rotation: ["ala", "olek", "ola"], rotationTurn: 2 };
+    const next = withoutPerson(item, "olek");
+    expect(next.rotation).toEqual(["ala", "ola"]);
+    expect(currentTurn(next)).toBe("ola");
+  });
+
+  it("jego tura przechodzi na następną osobę", () => {
+    const item = { rotation: ["ala", "olek", "ola"], rotationTurn: 1 };
+    expect(currentTurn(withoutPerson(item, "olek"))).toBe("ola");
+  });
+
+  it("znika z przypisanych; bez zmian — ten sam obiekt", () => {
+    const item = { assignedTo: ["ala", "olek"] };
+    expect(withoutPerson(item, "olek").assignedTo).toEqual(["ala"]);
+    expect(withoutPerson(item, "nikt")).toBe(item);
   });
 });

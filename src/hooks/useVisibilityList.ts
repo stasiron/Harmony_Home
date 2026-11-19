@@ -24,13 +24,18 @@ export function useVisibilityList<T extends ItemMeta & { id: string }>({
   privateOwner,
   ...options
 }: Options<T>): [T[], (update: ListUpdate<T>) => void, boolean] {
-  const [publicItems, setPublic, ready] = useSyncedList<T>(options);
-  const [privateItems, setPrivate] = useSyncedList<T>({
+  const [publicItems, setPublic, publicReady] = useSyncedList<T>(options);
+  const [privateItems, setPrivate, privateReady] = useSyncedList<T>({
     ...options,
     privateList: true,
     privateOwner,
   });
   const privateEnabled = Boolean(privateOwner);
+  // Obie listy wczytane — inaczej przeniesienie (usuń tu, zapisz tam) mogłoby
+  // wykonać tylko połowę i element by zniknął
+  const ready = publicReady && (!privateEnabled || privateReady);
+  const readyRef = useRef(ready);
+  readyRef.current = ready;
 
   const merged = useMemo(() => {
     const list = [
@@ -64,6 +69,10 @@ export function useVisibilityList<T extends ItemMeta & { id: string }>({
 
   const update = useCallback(
     (next: ListUpdate<T>) => {
+      if (!readyRef.current) {
+        console.warn("List not loaded yet — change skipped");
+        return;
+      }
       const resolved =
         typeof next === "function" ? next(currentRef.current) : next;
       currentRef.current = resolved;

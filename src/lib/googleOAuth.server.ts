@@ -73,10 +73,14 @@ function authSecret(): string {
   return secret;
 }
 
-export function signOAuthState(payload: {
-  memberId: string;
-  nonce: string;
-}): string {
+/** Ciasteczko wiążące zgodę Google z przeglądarką, która ją zaczęła */
+export const OAUTH_NONCE_COOKIE = "hh_gcal_nonce";
+/** Ile czasu na kliknięcie zgody w Google */
+export const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+type OAuthState = { memberId: string; nonce: string; exp: number };
+
+export function signOAuthState(payload: OAuthState): string {
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const sig = createHmac("sha256", authSecret())
     .update(data)
@@ -86,7 +90,8 @@ export function signOAuthState(payload: {
 
 export function verifyOAuthState(
   state: string,
-): { memberId: string; nonce: string } | null {
+  now = Date.now(),
+): OAuthState | null {
   const [data, sig] = state.split(".");
   if (!data || !sig) return null;
   const expected = createHmac("sha256", authSecret())
@@ -96,10 +101,19 @@ export function verifyOAuthState(
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   try {
-    return JSON.parse(Buffer.from(data, "base64url").toString("utf-8")) as {
-      memberId: string;
-      nonce: string;
-    };
+    const parsed = JSON.parse(
+      Buffer.from(data, "base64url").toString("utf-8"),
+    ) as Partial<OAuthState>;
+    // Bez daty ważności (stary format) albo po czasie — nieważny
+    if (
+      typeof parsed.memberId !== "string" ||
+      typeof parsed.nonce !== "string" ||
+      typeof parsed.exp !== "number" ||
+      parsed.exp < now
+    ) {
+      return null;
+    }
+    return parsed as OAuthState;
   } catch {
     return null;
   }
@@ -108,12 +122,17 @@ export function verifyOAuthState(
 export function buildGoogleAuthUrl(
   origin: string,
   memberId: string,
+  nonce: string,
 ): string | null {
   const cfg = getGoogleOAuthConfig();
   if (!cfg) return null;
 
   const redirectUri = `${origin}/api/auth/google/callback`;
-  const state = signOAuthState({ memberId, nonce: crypto.randomUUID() });
+  const state = signOAuthState({
+    memberId,
+    nonce,
+    exp: Date.now() + OAUTH_STATE_TTL_MS,
+  });
   const params = new URLSearchParams({
     client_id: cfg.clientId,
     redirect_uri: redirectUri,

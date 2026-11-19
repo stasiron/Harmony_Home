@@ -83,9 +83,8 @@ export function billParticipants(
   users: readonly User[],
 ): string[] {
   const active = users.filter((u) => u.active !== false).map((u) => u.id);
-  const chosen = config.participants.filter((id) =>
-    users.some((u) => u.id === id),
-  );
+  // Nieaktywni (np. wyprowadzeni) nie dostają udziału w nowych rachunkach
+  const chosen = config.participants.filter((id) => active.includes(id));
   return chosen.length > 0 ? chosen : active;
 }
 
@@ -402,6 +401,24 @@ export function rememberBought(
         ? { lastPrice: item.price, lastAmount: item.amount, unit: item.unit }
         : {}),
     };
+    // Zapas liczony w starej jednostce — przelicz stan i próg na nową
+    // (2 kg + zakup 500 g = 2500 g, nie 502 g). Gdy się nie da (kg ↔ szt.),
+    // zapas zostaje w swojej jednostce.
+    if (updated.supply && updated.unit !== base.unit) {
+      const convert = (value: number | null | undefined) =>
+        value === null || value === undefined
+          ? value
+          : convertAmount(value, base.unit, updated.unit);
+      const stockAmount = convert(base.stockAmount);
+      const lowAt = convert(base.lowAt);
+      if (stockAmount === null && base.stockAmount != null) {
+        updated = { ...updated, unit: base.unit };
+      } else if (lowAt === null && base.lowAt != null) {
+        updated = { ...updated, unit: base.unit };
+      } else {
+        updated = { ...updated, stockAmount, lowAt };
+      }
+    }
     if (updated.supply && item.amount !== null) {
       const added = convertAmount(item.amount, item.unit, updated.unit);
       if (added !== null) {

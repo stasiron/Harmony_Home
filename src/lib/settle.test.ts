@@ -50,6 +50,19 @@ describe("najkrótsza lista przelewów", () => {
     ]);
   });
 
+  it("liczy też długi osoby, której nie ma już na liście", () => {
+    const left: SharedCost[] = [
+      { id: "1", paidBy: "a", shares: { a: 100, b: 100, c: 100 } },
+    ];
+    // c wyprowadził(a) się, ale dalej jest winien(a) a 100
+    expect(simplifyTransfers(left, ["a", "b"])).toEqual(
+      expect.arrayContaining([
+        { from: "b", to: "a", amount: 100 },
+        { from: "c", to: "a", amount: 100 },
+      ]),
+    );
+  });
+
   it("suma przelewów wyrównuje wszystkich", () => {
     const many: SharedCost[] = [
       { id: "1", paidBy: "a", shares: { a: 300, b: 300, c: 300 } },

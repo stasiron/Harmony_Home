@@ -42,3 +42,22 @@ describe("applyScheduleToTask", () => {
     );
   });
 });
+
+describe("kilka dni tygodnia", () => {
+  it("co tydzień: najkrótsza przerwa", () => {
+    expect(
+      deriveThresholds({ type: "weekly", weekdays: [1, 4], everyWeeks: 1 })
+        .tSuggested,
+    ).toBe(3);
+  });
+
+  it("co 2 tygodnie: średnia przerwa — bez „pilnego” w tygodniu przerwy", () => {
+    const t = deriveThresholds({
+      type: "weekly",
+      weekdays: [1, 4],
+      everyWeeks: 2,
+    });
+    expect(t.tSuggested).toBe(7);
+    expect(t.tMax).toBeGreaterThan(7);
+  });
+});

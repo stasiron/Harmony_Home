@@ -26,6 +26,12 @@ export function scheduleToIntervalDays(schedule: RecurrenceSchedule): number {
   const sorted = [...schedule.weekdays].sort((a, b) => a - b);
   if (sorted.length === 0) return schedule.everyWeeks * 7;
   if (sorted.length === 1) return schedule.everyWeeks * 7;
+  // Kilka dni co 2+ tygodnie (np. Pn + Cz co 2 tyg.): najkrótsza przerwa
+  // (3 dni) robiłaby z obowiązku „pilny” w tygodniu przerwy — średnia
+  // przerwa w cyklu (14 / 2 = 7 dni) pasuje do całego harmonogramu
+  if (schedule.everyWeeks > 1) {
+    return Math.max(1, Math.round((schedule.everyWeeks * 7) / sorted.length));
+  }
 
   let minGap = 7;
   for (let i = 0; i < sorted.length; i++) {
@@ -61,7 +67,8 @@ export function formatScheduleLabel(schedule: RecurrenceSchedule): string {
     return schedule.every === 1 ? "Co miesiąc" : `Co ${schedule.every} mies.`;
   }
 
-  const days = schedule.weekdays
+  // Kopia — sort() zmieniałby zapisany obiekt obowiązku
+  const days = [...schedule.weekdays]
     .sort((a, b) => a - b)
     .map((d) => WEEKDAY_LABELS[d])
     .join(", ");

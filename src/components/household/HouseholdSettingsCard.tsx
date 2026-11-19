@@ -57,6 +57,10 @@ export function HouseholdSettingsCard() {
     setMemberProfile,
     removeMember,
     leaveHousehold,
+    inviteCode,
+    isOwner: amOwner,
+    transferOwnership,
+    deleteHousehold,
   } = useHousehold();
   const [name, setName] = useState(household?.name ?? "");
   const [copied, setCopied] = useState(false);
@@ -74,6 +78,78 @@ export function HouseholdSettingsCard() {
   const canManageRoles = isSuperAdmin || me.uid === household.ownerId;
 
   const adminCount = members.filter((m) => m.role === "admin").length;
+  // Komu twórca może oddać mieszkanie — innym administratorom z kontem
+  const otherAdmins = members.filter(
+    (m) => m.role === "admin" && m.uid !== me.uid && !m.anonymous,
+  );
+  // Profile zajęte przez inne konta — swojego nie wybierzesz cudzego
+  const takenProfiles = new Set(
+    members
+      .filter((m) => m.uid !== me.uid && m.profileId)
+      .map((m) => m.profileId as string),
+  );
+
+  const memberLabel = (member: HouseholdMember) =>
+    member.anonymous
+      ? "Urządzenie bez konta"
+      : (member.displayName ?? member.email ?? "Konto");
+
+  const confirmRemove = (member: HouseholdMember) => {
+    if (
+      !window.confirm(
+        `Usunąć „${memberLabel(member)}” z mieszkania? Straci dostęp do wszystkich danych. Kod zaproszenia zmieni się, żeby nie dołączył nim ponownie.`,
+      )
+    ) {
+      return;
+    }
+    void removeMember(member.uid).catch(fail("Nie udało się usunąć."));
+  };
+
+  const confirmLeave = () => {
+    if (
+      !window.confirm(
+        "Opuścić mieszkanie? Stracisz dostęp do jego danych. Wrócić możesz tylko z nowym kodem zaproszenia.",
+      )
+    ) {
+      return;
+    }
+    void leaveHousehold().catch(fail("Nie udało się opuścić."));
+  };
+
+  const handOver = (uid: string) => {
+    const next = members.find((m) => m.uid === uid);
+    if (!next) return;
+    if (
+      !window.confirm(
+        `Przekazać mieszkanie „${memberLabel(next)}”? Ta osoba zostanie twórcą: będzie nadawać role i może usunąć mieszkanie. Ty zostajesz administratorem i możesz potem wyjść.`,
+      )
+    ) {
+      return;
+    }
+    void transferOwnership(uid)
+      .then(() => toast.success("Mieszkanie przekazane"))
+      .catch(fail("Nie udało się przekazać mieszkania."));
+  };
+
+  const removeHousehold = async () => {
+    const typed = window.prompt(
+      `Usunięcie mieszkania jest nieodwracalne: znikną obowiązki, rachunki, zakupy, kuchnia i historia, a wszyscy domownicy stracą dostęp.\n\nWpisz nazwę mieszkania („${household.name}”), żeby potwierdzić.`,
+    );
+    if (typed === null) return;
+    if (typed.trim() !== household.name.trim()) {
+      toast.error("Nazwa się nie zgadza — mieszkanie nie zostało usunięte.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await deleteHousehold();
+      toast.success("Mieszkanie usunięte");
+    } catch (err) {
+      fail("Nie udało się usunąć mieszkania.")(err);
+    } finally {
+      setBusy(false);
+    }
+  };
   const legacyCalendar = Boolean(household.features?.legacyCalendar);
 
   const newInvite = async () => {
@@ -107,9 +183,9 @@ export function HouseholdSettingsCard() {
   };
 
   const copyInvite = async () => {
-    if (!household.inviteCode) return;
+    if (!inviteCode) return;
     try {
-      await navigator.clipboard.writeText(household.inviteCode);
+      await navigator.clipboard.writeText(inviteCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -204,12 +280,12 @@ export function HouseholdSettingsCard() {
             unieważnia poprzedni, a „Dezaktywuj” wyłącza zaproszenia całkiem.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            {household.inviteCode && (
+            {inviteCode && (
               <code className="rounded-xl border border-border bg-muted/40 px-3 py-2 font-mono text-lg tracking-widest">
-                {household.inviteCode}
+                {inviteCode}
               </code>
             )}
-            {household.inviteCode && (
+            {inviteCode && (
               <Button variant="outline" onClick={() => void copyInvite()}>
                 {copied ? (
                   <Check className="size-4" />
@@ -225,9 +301,9 @@ export function HouseholdSettingsCard() {
               onClick={() => void newInvite()}
             >
               <RefreshCw className="size-4" />
-              {household.inviteCode ? "Nowy kod" : "Utwórz kod"}
+              {inviteCode ? "Nowy kod" : "Utwórz kod"}
             </Button>
-            {household.inviteCode && (
+            {inviteCode && (
               <Button
                 variant="ghost"
                 className="text-alert hover:text-alert"
@@ -239,13 +315,13 @@ export function HouseholdSettingsCard() {
               </Button>
             )}
           </div>
-          {!household.inviteCode && (
+          {!inviteCode && (
             <p className="text-xs text-muted-foreground">
               Zaproszenia są wyłączone — nikt nowy nie dołączy, dopóki nie
               utworzysz kodu.
             </p>
           )}
-          {household.inviteCode && <InviteQr code={household.inviteCode} />}
+          {inviteCode && <InviteQr code={inviteCode} />}
         </div>
       )}
 
@@ -266,9 +342,7 @@ export function HouseholdSettingsCard() {
                     {member.anonymous && (
                       <Smartphone className="size-3.5 shrink-0" />
                     )}
-                    {member.anonymous
-                      ? "Urządzenie bez konta"
-                      : (member.displayName ?? member.email ?? "Konto")}
+                    {memberLabel(member)}
                     {own && <span className="text-xs text-primary">(Ty)</span>}
                   </p>
                   {member.email && (
@@ -289,7 +363,19 @@ export function HouseholdSettingsCard() {
                       <SelectContent>
                         <SelectItem value={NO_PROFILE}>— nikt —</SelectItem>
                         {users.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
+                          <SelectItem
+                            key={user.id}
+                            value={user.id}
+                            // Swój profil sam zmieniasz tylko z „nikt”
+                            // (reguły) — przejęcie cudzego robi administrator
+                            disabled={
+                              own &&
+                              !isAdmin &&
+                              ((Boolean(member.profileId) &&
+                                member.profileId !== user.id) ||
+                                takenProfiles.has(user.id))
+                            }
+                          >
                             {user.name}
                           </SelectItem>
                         ))}
@@ -342,11 +428,7 @@ export function HouseholdSettingsCard() {
                       size="icon"
                       variant="ghost"
                       aria-label="Usuń z mieszkania"
-                      onClick={() =>
-                        void removeMember(member.uid).catch(
-                          fail("Nie udało się usunąć."),
-                        )
-                      }
+                      onClick={() => confirmRemove(member)}
                     >
                       <UserMinus className="size-4" />
                     </Button>
@@ -358,17 +440,55 @@ export function HouseholdSettingsCard() {
         </ul>
       </div>
 
-      {!(isAdmin && adminCount <= 1) && (
-        <Button
-          variant="outline"
-          className="text-destructive"
-          onClick={() =>
-            void leaveHousehold().catch(fail("Nie udało się opuścić."))
-          }
-        >
-          Opuść mieszkanie
-        </Button>
+      {amOwner && (
+        <div className="space-y-2">
+          <Label>Przekaż mieszkanie</Label>
+          <p className="text-xs text-muted-foreground">
+            Jako twórca nie możesz wyjść, dopóki nie przekażesz mieszkania
+            innemu administratorowi (najpierw nadaj komuś rolę administratora).
+          </p>
+          {otherAdmins.length > 0 ? (
+            <Select value="" onValueChange={handOver}>
+              <SelectTrigger className="w-full sm:w-[260px]">
+                <SelectValue placeholder="Wybierz administratora" />
+              </SelectTrigger>
+              <SelectContent>
+                {otherAdmins.map((m) => (
+                  <SelectItem key={m.uid} value={m.uid}>
+                    {memberLabel(m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Brak innych administratorów z kontem.
+            </p>
+          )}
+        </div>
       )}
+
+      <div className="flex flex-wrap gap-2">
+        {!amOwner && !(isAdmin && adminCount <= 1) && (
+          <Button
+            variant="outline"
+            className="text-destructive"
+            onClick={confirmLeave}
+          >
+            Opuść mieszkanie
+          </Button>
+        )}
+        {(amOwner || isSuperAdmin) && (
+          <Button
+            variant="outline"
+            className="text-destructive"
+            disabled={busy}
+            onClick={() => void removeHousehold()}
+          >
+            Usuń mieszkanie
+          </Button>
+        )}
+      </div>
     </section>
   );
 }

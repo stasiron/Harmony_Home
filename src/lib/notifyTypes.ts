@@ -21,11 +21,18 @@ export const NOTIFY_CATEGORIES = [
 
 export type NotifyCategory = (typeof NOTIFY_CATEGORIES)[number]["id"];
 
-export type NotifyKind =
-  | "refund"
-  | "bill"
-  | "announcement"
-  | "issue"
-  | "guest"
-  | "absence"
-  | "bugReport";
+export const NOTIFY_KINDS = [
+  "refund",
+  "bill",
+  "announcement",
+  "issue",
+  "guest",
+  "absence",
+  "bugReport",
+] as const;
+
+export type NotifyKind = (typeof NOTIFY_KINDS)[number];
+
+export function isNotifyKind(value: unknown): value is NotifyKind {
+  return (NOTIFY_KINDS as readonly unknown[]).includes(value);
+}

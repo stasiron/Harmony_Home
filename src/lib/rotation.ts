@@ -80,6 +80,37 @@ export function keepTurnForList(
 }
 
 /**
+ * Domownik usunięty z mieszkania znika z kolejki (tura zostaje u tej samej
+ * osoby, a gdy była jego — przechodzi na następną) i z przypisanych.
+ * Zwraca ten sam obiekt, gdy nic się nie zmienia (bez zbędnych zapisów).
+ */
+export function withoutPerson<
+  T extends TurnRotation & { assignedTo?: string[] },
+>(item: T, personId: string): T {
+  const inRotation = (item.rotation ?? []).includes(personId);
+  const inAssigned = (item.assignedTo ?? []).includes(personId);
+  if (!inRotation && !inAssigned) return item;
+  const next = { ...item };
+  if (inRotation) {
+    const before = rotationMembers(item);
+    const after = before.filter((id) => id !== personId);
+    const turn = before.length ? turnIndex(item, before.length) : 0;
+    // Tura usuniętej osoby → następna w kolejce (ten sam indeks po usunięciu)
+    next.rotation = after;
+    next.rotationTurn =
+      before[turn] === personId
+        ? after.length
+          ? turn % after.length
+          : 0
+        : keepTurnForList(before, turn, after);
+  }
+  if (inAssigned) {
+    next.assignedTo = (item.assignedTo ?? []).filter((id) => id !== personId);
+  }
+  return next;
+}
+
+/**
  * Tura po wykonaniu przez konkretną osobę z kolejki: następna po niej.
  * Ważne przy nieobecnościach — zastępca nie dostaje od razu kolejnej tury.
  */

@@ -18,6 +18,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Shell } from "@/components/Shell";
 import { HomeZoneEditor } from "@/components/chores/HomeZoneEditor";
 import { GoogleAccountCard } from "@/components/settings/GoogleAccountCard";
+import { DeleteAccountCard } from "@/components/settings/DeleteAccountCard";
 import { SuperAdminCard } from "@/components/settings/SuperAdminCard";
 import { MyCalendarCard } from "@/components/settings/MyCalendarCard";
 import { BillSettingsCard } from "@/components/settings/BillSettingsCard";
@@ -179,6 +180,7 @@ function SettingsPage() {
             <FeatureFlagsCard scope="global" />
             <GoogleAccountCard />
             <NotificationsCard />
+            <DeleteAccountCard />
           </Group>
         )}
         {current === "calendar" && <MyCalendarCard />}

@@ -125,7 +125,7 @@ export function subscribeCollection<T extends { id: string }>(
   );
 }
 
-type PlannedWrite =
+export type PlannedWrite =
   | { kind: "set"; path: string[]; data: Record<string, unknown> }
   | { kind: "delete"; path: string[] };
 

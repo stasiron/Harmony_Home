@@ -163,7 +163,14 @@ export function simplifyTransfers(
   costs: readonly SharedCost[],
   people: readonly string[],
 ): { from: string; to: string; amount: number }[] {
-  const balances = people
+  // Także osoby spoza listy (np. usunięte z mieszkania) — inaczej ich długi
+  // znikają z sumy i ktoś zostaje bez zwrotu
+  const everyone = new Set(people);
+  for (const cost of costs) {
+    if (cost.paidBy) everyone.add(cost.paidBy);
+    for (const id of Object.keys(cost.shares)) everyone.add(id);
+  }
+  const balances = [...everyone]
     .map((id) => ({ id, net: netFor(costs, id) }))
     .filter((p) => p.net !== 0);
   const debtors = balances

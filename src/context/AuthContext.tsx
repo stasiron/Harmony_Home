@@ -13,6 +13,9 @@ import {
   createUserWithEmailAndPassword,
   isSignInWithEmailLink,
   linkWithCredential,
+  linkWithPopup,
+  linkWithRedirect,
+  signInWithCredential,
   onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -334,15 +337,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setError(null);
     const provider = googleProvider();
+    await auth.authStateReady();
+    const current = auth.currentUser;
+    // Urządzenie bez konta: łączymy z Google (ten sam uid) — mieszkania, do
+    // których dołączyło, zostają (tak samo jak przy koncie z hasłem)
+    const linking = Boolean(current?.isAnonymous);
     try {
-      await signInWithPopup(auth, provider);
+      if (current && linking) {
+        await linkWithPopup(current, provider);
+        await current.getIdToken(true);
+        void syncUserProfile(current);
+        setUserTick((tick) => tick + 1);
+      } else {
+        await signInWithPopup(auth, provider);
+      }
     } catch (err) {
       const code = authErrorCode(err);
+      // To konto Google już istnieje — po prostu się na nie logujemy
+      if (
+        linking &&
+        (code === "auth/credential-already-in-use" ||
+          code === "auth/email-already-in-use")
+      ) {
+        const credential = GoogleAuthProvider.credentialFromError(
+          err as Parameters<typeof GoogleAuthProvider.credentialFromError>[0],
+        );
+        if (credential) {
+          try {
+            await signInWithCredential(auth, credential);
+            return;
+          } catch (inner) {
+            setError(authErrorMessage(inner));
+            return;
+          }
+        }
+      }
       if (
         code === "auth/popup-blocked" ||
         code === "auth/operation-not-supported-in-environment"
       ) {
-        await signInWithRedirect(auth, provider);
+        if (current && linking) await linkWithRedirect(current, provider);
+        else await signInWithRedirect(auth, provider);
         return;
       }
       if (

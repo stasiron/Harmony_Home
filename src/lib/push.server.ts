@@ -19,6 +19,7 @@ import {
 import { SUPER_ADMIN_EMAIL } from "@/lib/householdSetup";
 import {
   NOTIFY_CATEGORIES,
+  isNotifyKind,
   type NotifyCategory,
   type NotifyKind,
 } from "@/lib/notifyTypes";
@@ -167,7 +168,13 @@ export async function notifyImpl(
   const viewer = await verifyFirebaseIdToken(req.idToken);
   if (!viewer) return { ok: false, sent: 0, reason: "unauthenticated" };
   const hid = req.householdId;
-  if (!/^[\w-]{1,128}$/.test(hid) || !/^[\w-]{1,128}$/.test(req.refId)) {
+  if (
+    !isNotifyKind(req.kind) ||
+    typeof hid !== "string" ||
+    typeof req.refId !== "string" ||
+    !/^[\w-]{1,128}$/.test(hid) ||
+    !/^[\w-]{1,128}$/.test(req.refId)
+  ) {
     return { ok: false, sent: 0, reason: "bad-request" };
   }
   // Limit: to samo zdarzenie najwyżej raz na jakiś czas, osoba najwyżej

@@ -10,6 +10,8 @@ import { classifyGoogleCalendar } from "@/lib/calendarRules";
 import { verifyFirebaseIdToken } from "@/lib/firebaseToken.server";
 import {
   buildGoogleAuthUrl,
+  OAUTH_NONCE_COOKIE,
+  OAUTH_STATE_TTL_MS,
   fetchGoogleCalendarList,
   fetchGoogleUserEmail,
   getAppOrigin,
@@ -56,8 +58,19 @@ export async function createGoogleCalendarAuthUrlImpl(data: {
 }) {
   const uid = await requireAccountUid(data.idToken);
   const origin = getAppOrigin(data.origin);
-  const url = buildGoogleAuthUrl(origin, uid);
+  const nonce = crypto.randomUUID();
+  const url = buildGoogleAuthUrl(origin, uid, nonce);
   if (!url) throw new Error("oauth_not_configured");
+  // Powrót z Google przyjmujemy tylko w tej przeglądarce — ktoś, kto
+  // podeśle cudzy link zgody, nie podepnie sobie czyjegoś kalendarza
+  const { setCookie } = await import("@tanstack/react-start/server");
+  setCookie(OAUTH_NONCE_COOKIE, nonce, {
+    httpOnly: true,
+    secure: origin.startsWith("https://"),
+    sameSite: "lax",
+    path: "/api/auth/google",
+    maxAge: Math.floor(OAUTH_STATE_TTL_MS / 1000),
+  });
   return { url };
 }
 

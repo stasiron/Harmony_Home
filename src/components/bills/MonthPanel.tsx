@@ -247,7 +247,18 @@ function BillCard({
     const id = billId(month, bill?.typeId ?? type!.id);
     // Nowy rachunek — powiadom domowników (zmiana kwoty już nie)
     if (!bill) notify(householdId, "bill", id);
+    // Rozliczenie zostaje tylko tam, gdzie udział się nie zmienił — kto oddał
+    // stare 666,67 zł, przy nowej kwocie musi dopłacić różnicę
+    const unchanged = (personId: string) =>
+      bill !== null && bill.shares[personId] === shares[personId];
+    const keep = (map: Record<string, string> | undefined) =>
+      Object.fromEntries(
+        Object.entries(map ?? {}).filter(([personId]) => unchanged(personId)),
+      );
     onSave({
+      // Istniejący rachunek: zostają createdBy, createdAt, locked… (reguły
+      // nie pozwolą zmienić twórcy, a set bez merge by go usunął)
+      ...(bill ?? {}),
       id,
       typeId: bill?.typeId ?? type!.id,
       name,
@@ -256,10 +267,8 @@ function BillCard({
       dueOn,
       paidBy: bill?.paidBy ?? null,
       shares,
-      // Rozliczenia zostają tylko dla osób, które dalej dzielą rachunek
-      settled: Object.fromEntries(
-        Object.entries(bill?.settled ?? {}).filter(([id]) => id in shares),
-      ),
+      settled: keep(bill?.settled),
+      ...(bill?.confirmed ? { confirmed: keep(bill.confirmed) } : {}),
     });
   };
 

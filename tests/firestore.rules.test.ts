@@ -8,6 +8,7 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -119,10 +120,10 @@ describe("okres przejściowy — stary dokument homeharmony", () => {
     });
   });
 
-  it("stara aplikacja (każdy zalogowany) czyta, ale nie zapisuje", async () => {
+  it("po okresie przejściowym nikt obcy go nie czyta ani nie zapisuje", async () => {
     const db = dbAs("tablet", anonymous);
-    await assertSucceeds(getDoc(doc(db, "households", LEGACY)));
-    // Stary sync wysyła cały dokument — zablokowany, żeby nie odbijał zapisów
+    await assertFails(getDoc(doc(db, "households", LEGACY)));
+    await assertFails(getDoc(doc(dbAs("stranger"), "households", LEGACY)));
     await assertFails(
       setDoc(
         doc(db, "households", LEGACY),
@@ -168,6 +169,87 @@ describe("okres przejściowy — stary dokument homeharmony", () => {
         { zones: [], migratedAt: "2026-11-04" },
         { merge: true },
       ),
+    );
+  });
+});
+
+describe("kod zaproszenia i własność", () => {
+  const invite = (db: ReturnType<typeof dbAs>) =>
+    doc(db, "households", HID, "admin", "invite");
+  const makeAliceAdmin = () =>
+    env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(
+        doc(ctx.firestore(), "households", HID, "members", "alice"),
+        { role: "admin" },
+      );
+    });
+
+  it("kod czyta i zapisuje tylko administrator", async () => {
+    await assertSucceeds(setDoc(invite(dbAs("admin")), { code: "CODE1234" }));
+    await assertSucceeds(getDoc(invite(dbAs("admin"))));
+    await assertFails(getDoc(invite(dbAs("alice"))));
+    await assertFails(setDoc(invite(dbAs("alice")), { code: "MINE" }));
+  });
+
+  it("kodu nie da się wpisać do dokumentu mieszkania, stary wolno usunąć", async () => {
+    const admin = dbAs("admin");
+    await assertFails(
+      updateDoc(doc(admin, "households", HID), { inviteCode: "CODE1234" }),
+    );
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "households", HID), {
+        inviteCode: "OLD",
+      });
+    });
+    await assertSucceeds(
+      updateDoc(doc(admin, "households", HID), { name: "X" }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(admin, "households", HID), { inviteCode: deleteField() }),
+    );
+  });
+
+  it("domownik wybiera swój profil, ale nie przejmie kolejnego", async () => {
+    const ref = doc(dbAs("alice"), "households", HID, "members", "alice");
+    await assertSucceeds(updateDoc(ref, { profileId: "p1" }));
+    await assertFails(updateDoc(ref, { profileId: "p2" }));
+    await assertSucceeds(updateDoc(ref, { profileId: null }));
+  });
+
+  it("twórca wychodzi dopiero po przekazaniu mieszkania administratorowi", async () => {
+    const admin = dbAs("admin");
+    const own = doc(admin, "households", HID, "members", "admin");
+    await assertFails(deleteDoc(own));
+    await assertFails(
+      updateDoc(doc(admin, "households", HID), { ownerId: "alice" }),
+    );
+    await makeAliceAdmin();
+    await assertFails(
+      updateDoc(doc(dbAs("alice"), "households", HID), { ownerId: "alice" }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(admin, "households", HID), { ownerId: "alice" }),
+    );
+    await assertSucceeds(deleteDoc(own));
+  });
+
+  it("mieszkanie usuwa tylko twórca — razem ze swoim wpisem", async () => {
+    await makeAliceAdmin();
+    await assertFails(deleteDoc(doc(dbAs("alice"), "households", HID)));
+    const admin = dbAs("admin");
+    const batch = writeBatch(admin);
+    batch.delete(doc(admin, "households", HID, "members", "admin"));
+    batch.delete(doc(admin, "households", HID));
+    await assertSucceeds(batch.commit());
+  });
+
+  it("dokument konta: e-mail tylko zgodny z tokenem", async () => {
+    const db = dbAs("alice");
+    await assertSucceeds(
+      setDoc(doc(db, "users", "alice"), { email: "alice@example.com" }),
+    );
+    await assertFails(
+      setDoc(doc(db, "users", "alice"), { email: "boss@example.com" }),
     );
   });
 });

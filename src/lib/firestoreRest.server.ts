@@ -135,8 +135,23 @@ function toDoc(raw: {
   };
 }
 
+/**
+ * Każdy segment ścieżki escapowany — dane od klienta (id, rodzaj zdarzenia)
+ * nie wyjdą poza zamierzony dokument (`..`, `/`, `?`). Konto serwisowe
+ * omija reguły, więc to jedyna ochrona.
+ */
+function safePath(path: string): string {
+  const [rawPath, query] = path.split("?", 2) as [string, string | undefined];
+  const segments = rawPath.split("/");
+  if (segments.some((s) => !s || s === "." || s === "..")) {
+    throw new Error(`Firestore: niedozwolona ścieżka ${rawPath}`);
+  }
+  const encoded = segments.map(encodeURIComponent).join("/");
+  return query === undefined ? encoded : `${encoded}?${query}`;
+}
+
 async function call(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(`${baseUrl()}/${path}`, {
+  return fetch(`${baseUrl()}/${safePath(path)}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${await accessToken()}`,
