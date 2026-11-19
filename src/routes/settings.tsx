@@ -1,3 +1,4 @@
+import { StatsVisibilityCard } from "@/components/settings/StatsVisibilityCard";
 import { TabFlag } from "@/components/FeatureGate";
 import { FeatureFlagsCard } from "@/components/settings/FeatureFlagsCard";
 import { useGatedTabs } from "@/hooks/useFeature";
@@ -194,7 +195,12 @@ function SettingsPage() {
             <HomeZoneEditor />
           </Group>
         )}
-        {household && current === "chores" && <ChoreWeightSettingsCard />}
+        {household && current === "chores" && (
+          <Group>
+            <StatsVisibilityCard />
+            <ChoreWeightSettingsCard />
+          </Group>
+        )}
         {household && current === "bills" && <BillSettingsCard />}
         {superAdmin && current === "reports" && <BugReportsCard />}
       </div>

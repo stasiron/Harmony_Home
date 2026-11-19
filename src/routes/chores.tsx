@@ -51,6 +51,8 @@ const STATUS_LABELS: Record<StatusKey, string> = {
 };
 
 function ChoresPage() {
+  // „Ostatnio zrobione” znika, gdy statystyki są tylko swoje / dla adminów
+  const statsVisible = useHousehold().stats === "all";
   const {
     visibleTasks,
     visibleZadania,
@@ -227,7 +229,9 @@ function ChoresPage() {
           {summary && (
             <div className="order-first shrink-0 lg:order-none">{summary}</div>
           )}
-          <ActivityPanel className="hidden min-h-0 flex-1 lg:flex" />
+          {statsVisible && (
+            <ActivityPanel className="hidden min-h-0 flex-1 lg:flex" />
+          )}
         </aside>
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">{lists}</div>
       </div>

@@ -59,7 +59,8 @@ const COLORS = [
 
 function StatsPage() {
   const { users, absences } = useApp();
-  const { householdId } = useHousehold();
+  const { householdId, stats: access, myProfileId } = useHousehold();
+  const onlyBy = access === "own" ? myProfileId : undefined;
   const [period, setPeriod] = useState<Period>("month");
   const [completions, setCompletions] = useState<Completion[] | null>(null);
   useReportTab(`Statystyki: ${period}`);
@@ -75,7 +76,11 @@ function StatsPage() {
   // Czytamy tylko wybrany okres — historia rośnie z każdym odhaczeniem
   useEffect(() => {
     setCompletions(null);
-    if (!householdId) return;
+    if (!householdId || access === "none") return;
+    if (access === "own" && !onlyBy) {
+      setCompletions([]);
+      return;
+    }
     const unsubscribe = subscribeCompletions(
       householdId,
       range.from.toISOString(),
@@ -84,15 +89,24 @@ function StatsPage() {
         console.error("Completions sync failed:", err);
         setCompletions([]);
       },
+      onlyBy ?? undefined,
     );
     return () => unsubscribe?.();
-  }, [householdId, range.from]);
+  }, [householdId, range.from, access, onlyBy]);
 
-  const stats = useMemo(
-    () =>
-      statsByPerson(completions ?? [], users, absences, range.from, range.to),
-    [completions, users, absences, range],
-  );
+  const stats = useMemo(() => {
+    const all = statsByPerson(
+      completions ?? [],
+      users,
+      absences,
+      range.from,
+      range.to,
+    );
+    // „Każdy swoje” — tylko własna karta
+    return access === "own"
+      ? { ...all, people: all.people.filter((p) => p.id === myProfileId) }
+      : all;
+  }, [completions, users, absences, range, access, myProfileId]);
   const recent = (completions ?? []).slice(0, 12);
   const nameOf = (id: string | null) =>
     users.find((u) => u.id === id)?.name ?? "nie wiadomo kto";
@@ -121,6 +135,14 @@ function StatsPage() {
           </FilterChip>
         ))}
       </div>
+
+      {access === "own" && (
+        <p className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-muted-foreground">
+          {myProfileId
+            ? "W tym mieszkaniu każdy widzi tylko swoje statystyki."
+            : "Widzisz tylko swoje statystyki — wybierz, kim jesteś, w Ustawieniach → Konto („Kim jesteś”)."}
+        </p>
+      )}
 
       {completions === null ? (
         <p className="text-sm text-muted-foreground">Wczytuję…</p>

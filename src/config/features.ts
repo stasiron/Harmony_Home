@@ -93,6 +93,8 @@ export type FeatureView = {
   state: FeatureState;
   /** Co widzą inni — gdy różni się od `state`, pokazujemy znaczek */
   forOthers: FeatureState;
+  /** Niedostępne przez rolę albo widoczność statystyk (nie blokada admina) */
+  byRole?: boolean;
 };
 
 /**

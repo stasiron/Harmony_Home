@@ -37,15 +37,21 @@ export function subscribeCompletions(
   sinceIso: string,
   onData: (items: Completion[]) => void,
   onError?: (err: Error) => void,
+  /** Tryb „każdy swoje” — reguły wpuszczają tylko zapytanie po profilu */
+  onlyBy?: string,
 ): Unsubscribe | null {
   const db = getFirestoreDb();
   if (!db) return null;
+  const col = collection(db, "households", householdId, "completions");
   return onSnapshot(
-    query(
-      collection(db, "households", householdId, "completions"),
-      where("at", ">=", sinceIso),
-      orderBy("at", "desc"),
-    ),
+    onlyBy
+      ? query(
+          col,
+          where("by", "==", onlyBy),
+          where("at", ">=", sinceIso),
+          orderBy("at", "desc"),
+        )
+      : query(col, where("at", ">=", sinceIso), orderBy("at", "desc")),
     (snap) =>
       onData(snap.docs.map((d) => ({ ...(d.data() as Completion), id: d.id }))),
     (err) => onError?.(err),

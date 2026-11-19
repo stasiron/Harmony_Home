@@ -29,7 +29,7 @@ import { guessMemberId } from "@/lib/memberLink";
 import { resolveChoreWeights } from "@/config/choreWeight";
 import type {
   BillSettings,
-  ReminderSettings,
+  ChoreWeightSettings,
   FloorPlanRef,
   HomeZone,
   HouseholdMember,
@@ -38,9 +38,10 @@ import type {
   HouseholdRole,
   ItemMeta,
   Membership,
-  ChoreWeightSettings,
   PanicState,
+  ReminderSettings,
   SharedCalendarSettings,
+  StatsVisibility,
   User,
   WeatherLocation,
 } from "@/types";
@@ -249,8 +250,10 @@ export async function joinHousehold(
   const nowIso = new Date().toISOString();
   const memberRef = doc(db, "households", householdId, "members", user.uid);
   const existing = await getDoc(memberRef).catch(() => null);
+  // Konto dołącza jako domownik, urządzenie bez konta jako „urządzenie”
+  const joinRole: HouseholdRole = user.isAnonymous ? "device" : "member";
   if (!existing?.exists()) {
-    await setDoc(memberRef, memberFor(user, "member", null, nowIso, code));
+    await setDoc(memberRef, memberFor(user, joinRole, null, nowIso, code));
   }
   const meta = await getDoc(doc(db, "households", householdId));
   await writeMembership(user.uid, {
@@ -258,7 +261,7 @@ export async function joinHousehold(
     name: String(meta.data()?.name ?? "Mieszkanie"),
     role: existing?.exists()
       ? ((existing.data().role as HouseholdRole) ?? "member")
-      : "member",
+      : joinRole,
     joinedAt: nowIso,
   });
   return householdId;
@@ -461,6 +464,9 @@ export function subscribeHouseholdMeta(
         zones: Array.isArray(data.zones) ? (data.zones as HomeZone[]) : [],
         floorPlan: (data.floorPlan as FloorPlanRef) ?? { kind: "none" },
         features: data.features as HouseholdMeta["features"],
+        ...(data.statsVisibility === "own" || data.statsVisibility === "admins"
+          ? { statsVisibility: data.statsVisibility as StatsVisibility }
+          : {}),
         ...(isWeatherLocation(data.weatherLocation)
           ? { weatherLocation: data.weatherLocation }
           : {}),
@@ -541,6 +547,7 @@ export async function updateHouseholdMeta(
       | "weatherLocation"
       | "sharedCalendar"
       | "choreWeights"
+      | "statsVisibility"
       | "billSettings"
       | "landlord"
       | "reminders"

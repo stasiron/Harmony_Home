@@ -1,3 +1,5 @@
+import { canReadCollection } from "@/config/roles";
+import { useHouseholdRole } from "@/context/HouseholdContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -68,7 +70,10 @@ export function useSyncedList<T extends ItemMeta & { id: string }>({
   privateList = false,
 }: Options<T>): [T[], (update: ListUpdate<T>) => void, boolean] {
   const owner = privateList ? privateOwner : null;
-  const disabled = privateList && !privateOwner;
+  // Gość nie czyta np. rachunków — nie subskrybujemy (reguły i tak odmówią)
+  const role = useHouseholdRole();
+  const disabled =
+    (privateList && !privateOwner) || !canReadCollection(role, name);
   const [items, setItems] = useState<T[]>([]);
   const [ready, setReady] = useState(false);
   const itemsRef = useRef<T[]>([]);

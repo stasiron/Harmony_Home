@@ -1,3 +1,4 @@
+import { ROLE_INFO, ROLE_ORDER } from "@/config/roles";
 import { useEffect, useState } from "react";
 import { HouseholdCoverField } from "@/components/household/HouseholdCoverField";
 import { InviteQr } from "@/components/household/InviteQr";
@@ -299,7 +300,7 @@ export function HouseholdSettingsCard() {
                       {profileName(member.profileId) ?? "—"}
                     </span>
                   )}
-                  {canManageRoles && !member.anonymous && !isOwner(member) ? (
+                  {canManageRoles && !isOwner(member) ? (
                     <Select
                       value={member.role}
                       disabled={lastAdmin}
@@ -310,21 +311,30 @@ export function HouseholdSettingsCard() {
                         ).catch(fail("Nie udało się zmienić roli."))
                       }
                     >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
+                      <SelectTrigger className="w-[150px]">
+                        <SelectValue>
+                          {ROLE_INFO[member.role]?.label}
+                        </SelectValue>
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Administrator</SelectItem>
-                        <SelectItem value="member">Domownik</SelectItem>
+                      <SelectContent className="max-w-xs">
+                        {ROLE_ORDER.filter(
+                          // Administrator musi mieć konto
+                          (r) => r !== "admin" || !member.anonymous,
+                        ).map((r) => (
+                          <SelectItem key={r} value={r}>
+                            <span className="block">{ROLE_INFO[r].label}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {ROLE_INFO[r].description}
+                            </span>
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   ) : (
                     <span className="text-xs text-muted-foreground">
                       {isOwner(member)
                         ? "Twórca · administrator"
-                        : member.role === "admin"
-                          ? "Administrator"
-                          : "Domownik"}
+                        : (ROLE_INFO[member.role]?.label ?? "Domownik")}
                     </span>
                   )}
                   {isAdmin && !own && (!isOwner(member) || isSuperAdmin) && (

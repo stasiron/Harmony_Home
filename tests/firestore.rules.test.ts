@@ -11,8 +11,10 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
@@ -250,14 +252,24 @@ describe("tworzenie i dołączanie", () => {
     );
   });
 
-  it("dołączenie kodem — także urządzenie bez konta", async () => {
-    const db = dbAs("kiosk", anonymous);
-    await assertSucceeds(
-      setDoc(doc(db, "households", HID, "members", "kiosk"), {
-        role: "member",
-        inviteCode: "CODE1234",
-      }),
+  it("dołączenie kodem — urządzenie bez konta tylko jako „urządzenie”", async () => {
+    const ref = doc(
+      dbAs("kiosk", anonymous),
+      "households",
+      HID,
+      "members",
+      "kiosk",
     );
+    await assertFails(setDoc(ref, { role: "member", inviteCode: "CODE1234" }));
+    await assertSucceeds(
+      setDoc(ref, { role: "device", inviteCode: "CODE1234" }),
+    );
+  });
+
+  it("konto nie dołącza jako urządzenie ani gość", async () => {
+    const ref = doc(dbAs("bob"), "households", HID, "members", "bob");
+    await assertFails(setDoc(ref, { role: "device", inviteCode: "CODE1234" }));
+    await assertFails(setDoc(ref, { role: "guest", inviteCode: "CODE1234" }));
   });
 
   it("konto dołącza kodem dopiero z potwierdzonym e-mailem", async () => {
@@ -320,7 +332,7 @@ describe("tworzenie i dołączanie", () => {
       setDoc(
         doc(dbAs("kiosk", anonymous), "households", HID, "members", "kiosk"),
         {
-          role: "member",
+          role: "device",
           inviteCode: "CODE1234",
         },
       ),
@@ -1222,5 +1234,131 @@ describe("plany przepisów", () => {
       setDoc(doc(dbAs("alice"), privatePath), { ...plan, createdBy: "alice" }),
     );
     await assertFails(getDoc(doc(dbAs("admin"), privatePath)));
+  });
+});
+
+describe("role: gość i urządzenie", () => {
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "households", HID, "members", "guest"), {
+        role: "guest",
+      });
+      await setDoc(doc(db, "households", HID, "members", "kiosk"), {
+        role: "device",
+      });
+      await setDoc(doc(db, "households", HID, "bills", "b1"), {
+        name: "Prąd",
+        amount: 100,
+        createdBy: "admin",
+      });
+      await setDoc(doc(db, "households", HID, "shopping", "s1"), {
+        name: "Mleko",
+        checked: false,
+        createdBy: "alice",
+      });
+    });
+  });
+
+  const at = (uid: string, path: string, token?: object) =>
+    doc(dbAs(uid, token), `households/${HID}/${path}`);
+
+  it("gość tylko ogląda zakupy, nie widzi rachunków i nic nie zapisuje", async () => {
+    await assertSucceeds(getDoc(at("guest", "shopping/s1")));
+    await assertFails(getDoc(at("guest", "bills/b1")));
+    await assertFails(getDoc(at("guest", "chores/open")));
+    await assertFails(updateDoc(at("guest", "shopping/s1"), { checked: true }));
+    await assertFails(
+      setDoc(at("guest", "shopping/s2"), { name: "X", createdBy: "guest" }),
+    );
+    await assertFails(
+      updateDoc(doc(dbAs("guest"), "households", HID), { panic: null }),
+    );
+  });
+
+  it("urządzenie odhacza i używa kuchni, ale nie edytuje reszty", async () => {
+    const kiosk = (path: string) => at("kiosk", path, anonymous);
+    await assertSucceeds(
+      updateDoc(kiosk("chores/open"), { lastCompleted: "x" }),
+    );
+    await assertFails(updateDoc(kiosk("chores/open"), { name: "Nowa nazwa" }));
+    await assertSucceeds(updateDoc(kiosk("shopping/s1"), { name: "Mleko 2%" }));
+    await assertSucceeds(
+      setDoc(kiosk("fridge/f1"), { name: "Ser", createdBy: "kiosk" }),
+    );
+    await assertSucceeds(deleteDoc(kiosk("shopping/s1")));
+    await assertSucceeds(getDoc(kiosk("bills/b1")));
+    await assertFails(updateDoc(kiosk("bills/b1"), { amount: 1 }));
+    await assertFails(
+      setDoc(kiosk("todos/t1"), { text: "X", createdBy: "kiosk" }),
+    );
+  });
+
+  it("rolę zmienia twórca — tylko na znaną", async () => {
+    const ref = (uid: string) =>
+      doc(dbAs(uid), "households", HID, "members", "alice");
+    await assertSucceeds(updateDoc(ref("admin"), { role: "guest" }));
+    await assertFails(updateDoc(ref("admin"), { role: "boss" }));
+  });
+});
+
+describe("widoczność statystyk", () => {
+  const entry = (by: string) => ({
+    itemId: "open",
+    kind: "chore",
+    name: "Open",
+    by,
+    at: "2026-11-19T10:00:00Z",
+    minutes: 10,
+    weight: 12,
+    createdBy: "admin",
+  });
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await updateDoc(doc(db, "households", HID, "members", "alice"), {
+        profileId: "p1",
+      });
+      await setDoc(doc(db, "households", HID, "members", "kiosk"), {
+        role: "device",
+      });
+      await setDoc(
+        doc(db, "households", HID, "completions", "mine"),
+        entry("p1"),
+      );
+      await setDoc(
+        doc(db, "households", HID, "completions", "theirs"),
+        entry("p2"),
+      );
+    });
+  });
+
+  const setMode = (statsVisibility: string) =>
+    env.withSecurityRulesDisabled((ctx) =>
+      updateDoc(doc(ctx.firestore(), "households", HID), { statsVisibility }),
+    );
+  const read = (uid: string, id: string, token?: object) =>
+    getDoc(doc(dbAs(uid, token), "households", HID, "completions", id));
+
+  it("domyślnie (all) widzą domownicy, urządzenie nie", async () => {
+    await assertSucceeds(read("alice", "theirs"));
+    await assertFails(read("kiosk", "mine", anonymous));
+  });
+
+  it("own — tylko własne wpisy, zapytaniem po profilu", async () => {
+    await setMode("own");
+    await assertSucceeds(read("alice", "mine"));
+    await assertFails(read("alice", "theirs"));
+    const col = collection(dbAs("alice"), "households", HID, "completions");
+    await assertSucceeds(getDocs(query(col, where("by", "==", "p1"))));
+    await assertFails(getDocs(col));
+    await assertSucceeds(read("admin", "theirs"));
+  });
+
+  it("admins — tylko administrator", async () => {
+    await setMode("admins");
+    await assertFails(read("alice", "mine"));
+    await assertSucceeds(read("admin", "theirs"));
   });
 });

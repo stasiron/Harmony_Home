@@ -1,3 +1,4 @@
+import { useFeature } from "@/hooks/useFeature";
 import { createFileRoute } from "@tanstack/react-router";
 import { Shell } from "@/components/Shell";
 import { MainNav } from "@/components/MainNav";
@@ -46,6 +47,7 @@ function useRefundBadge(): number {
 function Dashboard() {
   const { seeAsMemberId } = useAuth();
   const refunds = useRefundBadge();
+  const panicAction = useFeature("btn:panic");
 
   return (
     <div className="space-y-8">
@@ -64,12 +66,14 @@ function Dashboard() {
         <MainNav badges={{ "/bills": refunds }} />
       </section>
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Szybkie akcje
-        </h2>
-        <QuickActions />
-      </section>
+      {panicAction.state !== "hidden" && (
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Szybkie akcje
+          </h2>
+          <QuickActions />
+        </section>
+      )}
     </div>
   );
 }

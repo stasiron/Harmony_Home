@@ -607,7 +607,11 @@ export interface PanicState {
   startedBy?: string;
 }
 
-export type HouseholdRole = "admin" | "member";
+/** Opisy i uprawnienia: src/config/roles.ts i firestore.rules */
+export type HouseholdRole = "admin" | "member" | "guest" | "device";
+
+/** Kto widzi statystyki: wszyscy / każdy swoje / tylko administratorzy */
+export type StatsVisibility = "all" | "own" | "admins";
 
 export type HouseholdPresetId = "family" | "student" | "couple" | "single";
 
@@ -668,6 +672,7 @@ export interface HouseholdMeta {
   sharedCalendar?: SharedCalendarSettings | null;
   /** Brak = domyślne (CHORE_WEIGHT_DEFAULTS) */
   choreWeights?: ChoreWeightSettings;
+  statsVisibility?: StatsVisibility;
   /** Rachunki mieszkania (włączone rodzaje, terminy, podział) */
   billSettings?: BillSettings;
   /** Kontakt do właściciela — Ogłoszenia i folder Usterki w TODO */

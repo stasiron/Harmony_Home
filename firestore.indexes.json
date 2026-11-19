@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "completions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "by", "order": "ASCENDING" },
+        { "fieldPath": "at", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

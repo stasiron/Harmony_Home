@@ -1,3 +1,5 @@
+import { statsAccess } from "@/config/roles";
+import type { StatsVisibility } from "@/types";
 import {
   createContext,
   useCallback,
@@ -102,7 +104,14 @@ type HouseholdContextValue = {
   household: HouseholdMeta | null;
   members: HouseholdMember[];
   me: HouseholdMember | null;
+  /** Rola w tym mieszkaniu (administrator ogólny = admin) */
+  role: HouseholdRole | null;
   isAdmin: boolean;
+  /** Każdy poza gościem */
+  canWrite: boolean;
+  /** Co pokazują statystyki tej osobie (statsVisibility + rola) */
+  stats: "all" | "own" | "none";
+  setStatsVisibility: (mode: StatsVisibility) => Promise<void>;
   /** Administrator ogólny — admin każdego mieszkania */
   isSuperAdmin: boolean;
   /** Konto Google — prywatne miejsca i blokowanie elementów (decyzja 1) */
@@ -254,6 +263,9 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [members, uid],
   );
   const isAdmin = superAdmin || me?.role === "admin";
+  const role: HouseholdRole | null = superAdmin ? "admin" : (me?.role ?? null);
+  const canWrite = role !== "guest";
+  const stats = statsAccess(household?.statsVisibility, role);
 
   // Własny wpis członkostwa pokazuje aktualne konto (np. po zalogowaniu
   // linkiem urządzenie przestaje być „bez konta”) — zapis tylko przy zmianie.
@@ -358,6 +370,13 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [requireHousehold],
   );
 
+  const setStatsVisibility = useCallback(
+    async (mode: StatsVisibility) => {
+      await updateHouseholdMeta(requireHousehold(), { statsVisibility: mode });
+    },
+    [requireHousehold],
+  );
+
   const setBillSettings = useCallback(
     async (settings: BillSettings) => {
       await updateHouseholdMeta(requireHousehold(), { billSettings: settings });
@@ -438,14 +457,20 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   }, [requireHousehold, requireUser]);
 
   const canEditItem = useCallback(
-    (item: ItemMeta) => !item.locked || item.createdBy === uid || isAdmin,
-    [uid, isAdmin],
+    (item: ItemMeta) =>
+      // Gość nic nie zmienia, urządzenie tylko odhacza (reguły pilnują reszty)
+      role !== "guest" &&
+      role !== "device" &&
+      (!item.locked || item.createdBy === uid || isAdmin),
+    [uid, isAdmin, role],
   );
 
   const canLockItem = useCallback(
     (item: ItemMeta) =>
-      hasAccount && (!item.createdBy || item.createdBy === uid || isAdmin),
-    [hasAccount, uid, isAdmin],
+      hasAccount &&
+      role !== "guest" &&
+      (!item.createdBy || item.createdBy === uid || isAdmin),
+    [hasAccount, uid, isAdmin, role],
   );
 
   const value: HouseholdContextValue = {
@@ -458,7 +483,11 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     household,
     members,
     me,
+    role,
     isAdmin,
+    canWrite,
+    stats,
+    setStatsVisibility,
     isSuperAdmin: superAdmin,
     hasAccount,
     myProfileId: me?.profileId ?? null,
@@ -493,6 +522,11 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       {children}
     </HouseholdContext.Provider>
   );
+}
+
+/** Rola bez wymogu providera — dla hooków list (null poza mieszkaniem) */
+export function useHouseholdRole(): HouseholdRole | null {
+  return useContext(HouseholdContext)?.role ?? null;
 }
 
 export function useHousehold() {

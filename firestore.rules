@@ -46,6 +46,34 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
 
+    // Role (src/config/roles.ts): admin, member, guest (tylko podgląd części
+    // aplikacji), device (wspólny tablet: odhacza, dopisuje do kuchni).
+    // Wołać po isMember(hid) — get() własnego wpisu.
+    function roleOf(hid) {
+      return isSuperAdmin() ? 'admin' : get(memberPath(hid)).data.get('role', 'member');
+    }
+
+    // Każdy poza gościem
+    function canWrite(hid) {
+      return isMember(hid) && roleOf(hid) != 'guest';
+    }
+
+    function isDevice(hid) {
+      return roleOf(hid) == 'device';
+    }
+
+    // Gość czyta tylko kuchnię, ogłoszenia i Poradnik
+    function guestReadable(collection) {
+      return collection in [
+        'shopping', 'fridge', 'products', 'announcements', 'guides',
+        'guideTabs', 'guideEntries', 'laundry', 'recipePlans'
+      ];
+    }
+
+    function canRead(hid, collection) {
+      return isMember(hid) && (roleOf(hid) != 'guest' || guestReadable(collection));
+    }
+
     // OKRES PRZEJŚCIOWY — usuń po dołączeniu całej rodziny kodem.
     // Stara wersja aplikacji (main sprzed multi-mieszkań) czyta cały stan domu
     // z households/homeharmony — do czasu przesiadki rodziny każdy zalogowany
@@ -116,7 +144,7 @@ service cloud.firestore {
       allow update: if (isAdmin(hid)
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId'])
             || isSuperAdmin()))
-        || (isMember(hid) && changedOnly(['panic']));
+        || (canWrite(hid) && changedOnly(['panic']));
       allow delete: if isAdmin(hid);
 
       match /members/{uid} {
@@ -149,8 +177,10 @@ service cloud.firestore {
             && getAfter(householdPath(hid)).data.ownerId == request.auth.uid)
           // Administrator ogólny dopisuje się do dowolnego mieszkania
           || (request.resource.data.role == 'admin' && isSuperAdmin())
-          // Dołączenie kodem zaproszenia
-          || (request.resource.data.role == 'member'
+          // Dołączenie kodem zaproszenia: konto jako domownik, bez konta
+          // jako urządzenie (wspólny tablet)
+          || (((request.resource.data.role == 'member' && hasAccount())
+              || (request.resource.data.role == 'device' && !hasAccount()))
             && verifiedOrDevice()
             && request.resource.data.inviteCode is string
             && exists(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode))
@@ -203,7 +233,9 @@ service cloud.firestore {
         }
 
         allow update: if (isAdmin(hid)
-            && (!memberChanged().hasAny(['role']) || canManageRoles())
+            && (!memberChanged().hasAny(['role'])
+              || (canManageRoles()
+                && request.resource.data.role in ['admin', 'member', 'guest', 'device']))
             && !touchesOwner())
           || (signedIn() && request.auth.uid == uid && selfUpdateOk());
 
@@ -217,7 +249,7 @@ service cloud.firestore {
         allow read: if isMember(hid);
         allow create, delete: if isAdmin(hid);
         allow update: if isAdmin(hid)
-          || (isMember(hid) && changedOnly(['heavyDay']));
+          || (canWrite(hid) && changedOnly(['heavyDay']));
       }
 
       match /assets/{assetId} {
@@ -226,10 +258,24 @@ service cloud.firestore {
       }
 
       // Historia wykonań (statystyki) — tylko dopisywana: wpis dodaje każdy
-      // domownik (także tablet), zmienić się go nie da, usuwa administrator
+      // domownik (także tablet), zmienić się go nie da, usuwa administrator.
+      // Czytanie wg statsVisibility mieszkania: all — domownicy, own — tylko
+      // wpisy własnego profilu (zapytanie po `by`), admins — tylko admin.
+      // Gość i urządzenie statystyk nie widzą.
       match /completions/{completionId} {
-        allow read: if isMember(hid);
-        allow create: if isMember(hid)
+        function statsMode() {
+          return get(householdPath(hid)).data.get('statsVisibility', 'all');
+        }
+
+        function ownCompletion() {
+          return resource.data.by != null
+            && resource.data.by == get(memberPath(hid)).data.get('profileId', null);
+        }
+
+        allow read: if isAdmin(hid)
+          || (isMember(hid) && roleOf(hid) == 'member'
+            && (statsMode() == 'all' || (statsMode() == 'own' && ownCompletion())));
+        allow create: if canWrite(hid)
           && request.resource.data.createdBy == request.auth.uid;
         allow delete: if isAdmin(hid);
       }
@@ -267,11 +313,11 @@ service cloud.firestore {
             && resource.data.sharedWith.get(request.auth.uid, false) == true)
         );
 
-        allow create: if hasAccount() && exists(memberPath(hid))
+        allow create: if hasAccount() && exists(memberPath(hid)) && canWrite(hid)
           && request.resource.data.createdBy == request.auth.uid
           && validShare();
 
-        allow update: if recipeOwner() && exists(memberPath(hid))
+        allow update: if recipeOwner() && exists(memberPath(hid)) && canWrite(hid)
           && request.resource.data.createdBy == request.auth.uid
           && validShare();
 
@@ -315,7 +361,10 @@ service cloud.firestore {
             'lastCompleted', 'lastCompletedBy', 'done', 'completedBy', 'checked',
             'rotationTurn', 'amount', 'settled', 'stock', 'stockAmount',
             'lastBoughtAt', 'refundRequestedAt', 'issueStatus', 'confirmed'
-          ]);
+          ])
+            // amount = zużycie w kuchni; kwoty rachunku tak nie zmienisz
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['amount'])
+              || collection in ['fridge', 'shopping', 'products']);
         }
 
         function lockChangeAllowed() {
@@ -323,18 +372,26 @@ service cloud.firestore {
             || (hasAccount() && (isCreator() || isAdmin(hid)));
         }
 
-        allow read: if lockable() && isMember(hid);
+        // Urządzenie (tablet) dopisuje i zdejmuje tylko pozycje kuchni
+        function deviceKitchen() {
+          return collection in ['shopping', 'fridge', 'products', 'recipePlans'];
+        }
 
-        allow create: if lockable() && isMember(hid)
+        allow read: if lockable() && canRead(hid, collection);
+
+        allow create: if lockable() && canWrite(hid)
+          && (!isDevice(hid) || deviceKitchen())
           && request.resource.data.createdBy == request.auth.uid
           && (!willBeLocked() || hasAccount());
 
-        allow update: if lockable() && isMember(hid)
+        // Urządzenie poza kuchnią zmienia tylko pola odhaczania i zużycia
+        allow update: if lockable() && canWrite(hid)
           && request.resource.data.get('createdBy', null) == resource.data.get('createdBy', null)
           && lockChangeAllowed()
-          && (canEdit() || progressOnly());
+          && ((canEdit() && (!isDevice(hid) || deviceKitchen())) || progressOnly());
 
-        allow delete: if lockable() && isMember(hid) && canEdit();
+        allow delete: if lockable() && canWrite(hid) && canEdit()
+          && (!isDevice(hid) || (deviceKitchen() && collection != 'products'));
       }
     }
   }

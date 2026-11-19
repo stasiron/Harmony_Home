@@ -4,21 +4,36 @@ import { useHousehold } from "@/context/HouseholdContext";
 import {
   parseFeatureFlags,
   resolveFeature,
+  stricter,
+  type FeatureState,
   type FeatureView,
 } from "@/config/features";
+import { roleFlags } from "@/config/roles";
 
 /** Funkcja „jak widzę tę funkcję” — do filtrowania list zakładek i kafelków */
 export function useFeatures(): (key: string) => FeatureView {
   const { features: global } = useGlobalConfig();
-  const { household, isAdmin, isSuperAdmin } = useHousehold();
+  const { household, isAdmin, isSuperAdmin, role, stats } = useHousehold();
   const flags = household?.features?.flags;
   return useCallback(
-    (key: string) =>
-      resolveFeature(key, global, parseFeatureFlags(flags), {
+    (key: string) => {
+      const view = resolveFeature(key, global, parseFeatureFlags(flags), {
         superAdmin: isSuperAdmin,
         admin: isAdmin,
-      }),
-    [global, flags, isAdmin, isSuperAdmin],
+      });
+      // Rola i widoczność statystyk działają też na administratora mieszkania
+      // (on i tak ma pełną rolę) — to nie blokada „do testów”, tylko uprawnienia
+      const own: FeatureState =
+        key === "page:/stats" && stats === "none"
+          ? "hidden"
+          : (roleFlags(role)[key] ?? "on");
+      return {
+        ...view,
+        state: stricter(view.state, own),
+        byRole: own !== "on",
+      };
+    },
+    [global, flags, isAdmin, isSuperAdmin, role, stats],
   );
 }
 

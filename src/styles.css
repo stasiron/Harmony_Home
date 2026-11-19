@@ -239,3 +239,18 @@
 .hh-scroll::-webkit-scrollbar-thumb:hover {
   background-color: color-mix(in oklab, var(--primary) 75%, transparent);
 }
+
+/* Tylko podgląd (gość; urządzenie w Rachunkach) — pola i przełączniki nie
+   reagują, nawigacja, filtry i zakładki działają. Zapisów pilnują reguły. */
+.hh-readonly
+  :is(
+    input,
+    textarea,
+    select,
+    [role="combobox"],
+    [role="checkbox"],
+    [role="switch"]
+  ) {
+  pointer-events: none;
+  opacity: 0.6;
+}
