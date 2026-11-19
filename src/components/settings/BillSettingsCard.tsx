@@ -2,12 +2,27 @@ import { Plus, Receipt, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { BillLookPicker } from "@/components/bills/BillLook";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { BILL_PERIODS } from "@/config/billIcons";
 import { useHousehold } from "@/context/HouseholdContext";
 import { usePeople } from "@/hooks/usePeople";
-import { newCustomBillType, resolveBillSettings } from "@/lib/bills";
+import {
+  monthKey,
+  monthLabel,
+  newCustomBillType,
+  resolveBillSettings,
+  shiftMonth,
+} from "@/lib/bills";
 import { parsePLN, toInputPLN } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { BillTypeConfig } from "@/types";
@@ -57,8 +72,9 @@ export function BillSettingsCard() {
         <div>
           <h2 className="text-lg font-semibold">Rachunki</h2>
           <p className="text-sm text-muted-foreground">
-            Włącz te, które macie w mieszkaniu. Stała kwota (np. czynsz) wpisze
-            się jednym kliknięciem co miesiąc.
+            Włącz te, które macie w mieszkaniu. Ikonę i kolor zmienisz, klikając
+            ikonę. Stała kwota (np. czynsz) wpisze się jednym kliknięciem w
+            każdym miesiącu płatności.
             {!isAdmin && " Zmienia je administrator mieszkania."}
           </p>
         </div>
@@ -79,6 +95,13 @@ export function BillSettingsCard() {
                 disabled={!isAdmin}
                 onCheckedChange={(enabled) => patch(type.id, { enabled })}
                 aria-label={`Włącz: ${type.name}`}
+              />
+              <BillLookPicker
+                icon={type.icon}
+                color={type.color}
+                name={type.name}
+                disabled={!isAdmin}
+                onChange={(change) => patch(type.id, change)}
               />
               {type.kind === "custom" ? (
                 <Input
@@ -127,6 +150,11 @@ export function BillSettingsCard() {
                       className="h-8 w-16"
                     />
                   </label>
+                  <PeriodPicker
+                    type={type}
+                    disabled={!isAdmin}
+                    onChange={(period) => patch(type.id, { period })}
+                  />
                   <label className="flex items-center gap-2 text-muted-foreground">
                     Stała kwota
                     <AmountInput
@@ -273,6 +301,76 @@ export function BillSettingsCard() {
         </div>
       )}
     </section>
+  );
+}
+
+const START_MONTHS = 12;
+
+/** „Co ile” i od którego miesiąca — np. co kwartał od stycznia */
+function PeriodPicker({
+  type,
+  disabled,
+  onChange,
+}: {
+  type: BillTypeConfig;
+  disabled: boolean;
+  onChange: (period: BillTypeConfig["period"]) => void;
+}) {
+  const every = type.period?.everyMonths ?? 1;
+  const thisMonth = monthKey();
+  const start = type.period?.startMonth ?? thisMonth;
+  const starts = Array.from({ length: START_MONTHS }, (_, i) =>
+    shiftMonth(thisMonth, i - 6),
+  );
+  if (!starts.includes(start)) starts.unshift(start);
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+      Płatny
+      <Select
+        value={String(every)}
+        disabled={disabled}
+        onValueChange={(v) => {
+          const months = Number(v) as 1 | 2 | 3 | 6 | 12;
+          onChange(
+            months === 1 ? null : { everyMonths: months, startMonth: start },
+          );
+        }}
+      >
+        <SelectTrigger className="h-8 w-36" aria-label="Jak często">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {BILL_PERIODS.map((p) => (
+            <SelectItem key={p.months} value={String(p.months)}>
+              {p.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {every > 1 && (
+        <>
+          od
+          <Select
+            value={start}
+            disabled={disabled}
+            onValueChange={(startMonth) =>
+              onChange({ everyMonths: every, startMonth })
+            }
+          >
+            <SelectTrigger className="h-8 w-40" aria-label="Pierwszy miesiąc">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {starts.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {monthLabel(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </>
+      )}
+    </div>
   );
 }
 

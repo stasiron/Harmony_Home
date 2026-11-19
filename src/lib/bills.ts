@@ -1,3 +1,4 @@
+import { BILL_PERIODS } from "@/config/billIcons";
 import { convertAmount, foodKey, productKey } from "@/lib/kitchen";
 import { splitByWeights, splitEqual } from "@/lib/money";
 import type {
@@ -17,10 +18,10 @@ import type {
 // ─── Rodzaje rachunków ─────────────────────────────────────────────────────
 
 const BUILTIN_TYPES: BillTypeConfig[] = [
-  builtin("rent", "Czynsz", true, 10),
-  builtin("electricity", "Prąd", true, 15),
-  builtin("gas", "Gaz", false, 15),
-  builtin("internet", "Internet", true, 20),
+  builtin("rent", "Czynsz", true, 10, "home", "tag-1"),
+  builtin("electricity", "Prąd", true, 15, "zap", "tag-2"),
+  builtin("gas", "Gaz", false, 15, "flame", "tag-3"),
+  builtin("internet", "Internet", true, 20, "wifi", "tag-6"),
 ];
 
 function builtin(
@@ -28,6 +29,8 @@ function builtin(
   name: string,
   enabled: boolean,
   dueDay: number,
+  icon: string,
+  color: string,
 ): BillTypeConfig {
   return {
     id: kind,
@@ -35,6 +38,8 @@ function builtin(
     name,
     enabled,
     dueDay,
+    icon,
+    color,
     defaultAmount: null,
     participants: [],
     splitMode: "equal",
@@ -61,6 +66,8 @@ export function newCustomBillType(name: string): BillTypeConfig {
     id: `custom-${crypto.randomUUID().slice(0, 8)}`,
     kind: "custom",
     name: name.trim() || "Inny rachunek",
+    icon: "receipt",
+    color: "tag-5",
     enabled: true,
     dueDay: null,
     defaultAmount: null,
@@ -141,6 +148,50 @@ export function dueDateFor(
   const last = new Date(y, m, 0).getDate();
   const day = Math.min(Math.max(1, Math.round(dueDay)), last);
   return `${month}-${String(day).padStart(2, "0")}`;
+}
+
+/** Ile miesięcy między dwoma YYYY-MM (b − a) */
+function monthsBetween(a: string, b: string): number {
+  const [ya, ma] = a.split("-").map(Number) as [number, number];
+  const [yb, mb] = b.split("-").map(Number) as [number, number];
+  return (yb - ya) * 12 + (mb - ma);
+}
+
+/**
+ * Czy rachunek wypada w tym miesiącu. Co miesiąc — zawsze; dłuższe okresy
+ * liczone od miesiąca startu (np. co kwartał od stycznia: I, IV, VII, X).
+ */
+export function isDueInMonth(type: BillTypeConfig, month: string): boolean {
+  const every = type.period?.everyMonths ?? 1;
+  if (every <= 1) return true;
+  const start = type.period?.startMonth ?? month;
+  const diff = monthsBetween(start, month);
+  return ((diff % every) + every) % every === 0;
+}
+
+/** Najbliższy miesiąc płatności od `from` włącznie */
+export function nextDueMonth(type: BillTypeConfig, from: string): string {
+  let month = from;
+  for (let i = 0; i < 12; i++) {
+    if (isDueInMonth(type, month)) return month;
+    month = shiftMonth(month, 1);
+  }
+  return from;
+}
+
+/** „co kwartał”, „co rok”… */
+export function periodLabel(type: BillTypeConfig): string {
+  const every = type.period?.everyMonths ?? 1;
+  return BILL_PERIODS.find((p) => p.months === every)?.label ?? "co miesiąc";
+}
+
+/** „≈ 120 zł/mies.” przy rachunku co kilka miesięcy */
+export function monthlyEquivalent(
+  type: BillTypeConfig,
+  amount: number,
+): number | null {
+  const every = type.period?.everyMonths ?? 1;
+  return every > 1 ? Math.round(amount / every) : null;
 }
 
 export function billId(month: string, typeId: string): string {

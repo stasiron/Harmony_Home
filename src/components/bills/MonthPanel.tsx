@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Receipt, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { BillIcon } from "@/components/bills/BillLook";
 import { ShareList } from "@/components/bills/ShareList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +20,12 @@ import {
   billId,
   billShares,
   dueDateFor,
+  isDueInMonth,
   monthKey,
   monthLabel,
+  monthlyEquivalent,
+  nextDueMonth,
+  periodLabel,
   shiftMonth,
   markShare,
 } from "@/lib/bills";
@@ -43,11 +48,17 @@ export function MonthPanel({ data }: { data: BillsData }) {
   const { active, nameOf } = usePeople();
   const [month, setMonth] = useState(() => monthKey());
 
-  const types = settings.types.filter((t) => t.enabled);
+  const enabled = settings.types.filter((t) => t.enabled);
   const monthBills = bills.filter((b) => b.month === month);
+  // Rachunek co kilka miesięcy — tylko w miesiącach płatności, chyba że
+  // ktoś już go wpisał w tym miesiącu
+  const types = enabled.filter(
+    (t) => isDueInMonth(t, month) || monthBills.some((b) => b.typeId === t.id),
+  );
+  const notThisMonth = enabled.filter((t) => !types.includes(t));
   // Rachunki z wyłączonych już rodzajów nadal widać, jeśli są wpisane
   const orphans = monthBills.filter(
-    (b) => !types.some((t) => t.id === b.typeId),
+    (b) => !enabled.some((t) => t.id === b.typeId),
   );
 
   const perPerson = useMemo(() => {
@@ -97,7 +108,7 @@ export function MonthPanel({ data }: { data: BillsData }) {
         </Button>
       </div>
 
-      {types.length === 0 && orphans.length === 0 ? (
+      {enabled.length === 0 && orphans.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-14 text-center">
           <Receipt className="mx-auto size-7 text-muted-foreground" />
           <h2 className="mt-3 text-lg font-semibold">
@@ -131,12 +142,25 @@ export function MonthPanel({ data }: { data: BillsData }) {
             <BillCard
               key={bill.id}
               type={null}
+              look={settings.types.find((t) => t.id === bill.typeId)}
               month={month}
               bill={bill}
               onSave={(next) => saveBill(next, bill.id)}
             />
           ))}
         </div>
+      )}
+
+      {notThisMonth.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          W tym miesiącu bez:{" "}
+          {notThisMonth
+            .map(
+              (t) =>
+                `${t.name} (${periodLabel(t)}, następny: ${monthLabel(nextDueMonth(t, month)).toLowerCase()})`,
+            )
+            .join(", ")}
+        </p>
       )}
 
       {perPerson.length > 0 && (
@@ -175,11 +199,14 @@ export function MonthPanel({ data }: { data: BillsData }) {
 
 function BillCard({
   type,
+  look,
   month,
   bill,
   onSave,
 }: {
   type: BillTypeConfig | null;
+  /** Wygląd (ikona, kolor) wyłączonego już rodzaju */
+  look?: BillTypeConfig;
   month: string;
   bill: Bill | null;
   onSave: (bill: Bill | null) => void;
@@ -191,6 +218,10 @@ function BillCard({
   useEffect(() => setDraft(toInputPLN(bill?.amount ?? null)), [bill?.amount]);
 
   const name = bill?.name ?? type?.name ?? "Rachunek";
+  const style = type ?? look;
+  const perMonth = type
+    ? monthlyEquivalent(type, bill?.amount ?? fallbackAmount ?? 0)
+    : null;
   const dueOn = bill?.dueOn ?? (type ? dueDateFor(month, type.dueDay) : null);
   const overdue = Boolean(bill && !bill.paidBy && dueOn && dueOn < today());
   const allSettled =
@@ -240,13 +271,23 @@ function BillCard({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <h3 className="font-semibold">{name}</h3>
-          <p className="text-xs text-muted-foreground">
-            {dueOn ? `termin ${formatDay(dueOn)}` : "bez terminu"}
-            {overdue && <span className="ml-1 text-alert">· po terminie</span>}
-            {allSettled && <span className="ml-1 text-safe">· rozliczone</span>}
-          </p>
+        <div className="flex min-w-0 items-start gap-3">
+          <BillIcon icon={style?.icon} color={style?.color} />
+          <div className="min-w-0">
+            <h3 className="font-semibold">{name}</h3>
+            <p className="text-xs text-muted-foreground">
+              {type && (type.period?.everyMonths ?? 1) > 1 && (
+                <span>{periodLabel(type)} · </span>
+              )}
+              {dueOn ? `termin ${formatDay(dueOn)}` : "bez terminu"}
+              {overdue && (
+                <span className="ml-1 text-alert">· po terminie</span>
+              )}
+              {allSettled && (
+                <span className="ml-1 text-safe">· rozliczone</span>
+              )}
+            </p>
+          </div>
         </div>
         {bill && canEditItem(bill) && (
           <Button
@@ -275,6 +316,11 @@ function BillCard({
           aria-label={`Kwota: ${name}`}
         />
         <span className="text-sm text-muted-foreground">zł</span>
+        {perMonth !== null && perMonth > 0 && (
+          <span className="text-xs text-muted-foreground">
+            ≈ {formatPLN(perMonth)}/mies.
+          </span>
+        )}
         {!bill && fallbackAmount !== null && (
           <Button
             size="sm"

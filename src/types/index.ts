@@ -299,6 +299,17 @@ export interface BillTypeConfig {
   splitMode: BillSplitMode;
   /** Udziały przy `weights` — np. większy pokój = większa część czynszu */
   weights: Record<string, number>;
+  /** Klucz ikony (src/config/billIcons.ts) */
+  icon?: string;
+  /** Token koloru, np. "tag-2" */
+  color?: string | null;
+  /** Co ile miesięcy i od którego (YYYY-MM); brak = co miesiąc */
+  period?: BillPeriod | null;
+}
+
+export interface BillPeriod {
+  everyMonths: 1 | 2 | 3 | 6 | 12;
+  startMonth: string;
 }
 
 export interface BillSettings {
