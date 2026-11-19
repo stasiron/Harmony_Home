@@ -7,6 +7,12 @@
       "VERCEL": "1"
     }
   },
+  "crons": [
+    {
+      "path": "/api/cron/reminders?mode=daily",
+      "schedule": "0 6 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/((?!assets/).*)",

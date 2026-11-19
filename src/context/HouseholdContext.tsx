@@ -37,6 +37,7 @@ import type {
   Membership,
   BillSettings,
   LandlordContact,
+  ReminderSettings,
   ChoreWeightSettings,
   SharedCalendarSettings,
   WeatherLocation,
@@ -122,6 +123,7 @@ type HouseholdContextValue = {
   setChoreWeights: (settings: ChoreWeightSettings) => Promise<void>;
   setBillSettings: (settings: BillSettings) => Promise<void>;
   setLandlord: (contact: LandlordContact | null) => Promise<void>;
+  setReminders: (settings: ReminderSettings) => Promise<void>;
   setZones: (zones: HomeZone[]) => Promise<void>;
   regenerateInvite: () => Promise<string>;
   deactivateInvite: () => Promise<void>;
@@ -370,6 +372,13 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     [requireHousehold],
   );
 
+  const setReminders = useCallback(
+    async (settings: ReminderSettings) => {
+      await updateHouseholdMeta(requireHousehold(), { reminders: settings });
+    },
+    [requireHousehold],
+  );
+
   const setZones = useCallback(
     async (zones: HomeZone[]) => {
       await updateHouseholdMeta(requireHousehold(), { zones });
@@ -466,6 +475,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     setChoreWeights,
     setBillSettings,
     setLandlord,
+    setReminders,
     setZones,
     regenerateInvite,
     deactivateInvite,

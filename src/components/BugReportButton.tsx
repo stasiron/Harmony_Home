@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
 import { describeSpot, sendBugReport, type PickedSpot } from "@/lib/bugReports";
+import { notify } from "@/lib/push";
 import { getReportTab } from "@/lib/reportContext";
 import { APP_COMMIT, APP_VERSION } from "@/version";
 
@@ -55,7 +56,7 @@ export function BugReportButton() {
   const send = async () => {
     setBusy(true);
     try {
-      await sendBugReport({
+      const reportId = await sendBugReport({
         description: description.trim(),
         uid: syncUser.uid,
         email: syncUser.email ?? null,
@@ -77,6 +78,7 @@ export function BugReportButton() {
         appCommit: APP_COMMIT,
         userAgent: navigator.userAgent.slice(0, 300),
       });
+      notify(householdId ?? "none", "bugReport", reportId);
       toast.success("Dzięki! Zgłoszenie wysłane.");
       setMode("idle");
       setDescription("");

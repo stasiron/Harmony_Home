@@ -426,6 +426,22 @@ export interface TodoItem extends ItemMeta {
 
 export type IssueStatus = "new" | "reported" | "fixed";
 
+/** Dodatkowe przypomnienie ustawione przez administratora mieszkania */
+export interface ExtraReminder {
+  id: string;
+  /** HH:MM (czas polski; liczy się pełna godzina) */
+  time: string;
+  /** 0 = niedziela … 6 = sobota; puste = codziennie */
+  days: number[];
+  text: string;
+}
+
+export interface ReminderSettings {
+  /** Godzina porannego podsumowania (0–23) */
+  dailyHour: number;
+  extra: ExtraReminder[];
+}
+
 /** Kontakt do właściciela / administracji budynku */
 export interface LandlordContact {
   name: string;
@@ -577,6 +593,8 @@ export interface HouseholdMeta {
   billSettings?: BillSettings;
   /** Kontakt do właściciela — Ogłoszenia i folder Usterki w TODO */
   landlord?: LandlordContact | null;
+  /** Powiadomienia: godzina porannego podsumowania + dodatkowe przypomnienia */
+  reminders?: ReminderSettings;
   features?: {
     /** Kalendarze Google z src/config/calendars — tylko pierwsze mieszkanie */
     legacyCalendar?: boolean;

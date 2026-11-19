@@ -25,6 +25,7 @@ import {
   withSettled,
 } from "@/lib/bills";
 import { formatPLN, openShare, parsePLN, toInputPLN } from "@/lib/money";
+import { notify } from "@/lib/push";
 import { cn } from "@/lib/utils";
 import type { Bill, BillTypeConfig } from "@/types";
 
@@ -184,7 +185,7 @@ function BillCard({
   onSave: (bill: Bill | null) => void;
 }) {
   const { users, active } = usePeople();
-  const { canEditItem } = useHousehold();
+  const { canEditItem, householdId } = useHousehold();
   const fallbackAmount = type?.defaultAmount ?? null;
   const [draft, setDraft] = useState(toInputPLN(bill?.amount ?? null));
   useEffect(() => setDraft(toInputPLN(bill?.amount ?? null)), [bill?.amount]);
@@ -212,8 +213,11 @@ function BillCard({
     const shares = type
       ? billShares(type, amount, users)
       : rescale(bill!.shares, amount);
+    const id = billId(month, bill?.typeId ?? type!.id);
+    // Nowy rachunek — powiadom domowników (zmiana kwoty już nie)
+    if (!bill) notify(householdId, "bill", id);
     onSave({
-      id: billId(month, bill?.typeId ?? type!.id),
+      id,
       typeId: bill?.typeId ?? type!.id,
       name,
       month,

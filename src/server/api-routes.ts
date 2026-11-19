@@ -17,6 +17,25 @@ export async function handleApiRequest(
     return new Response("Method not allowed", { status: 405 });
   }
 
+  // Przypomnienia: Vercel Cron raz dziennie (?mode=daily) albo zewnętrzny
+  // wyzwalacz co godzinę (?mode=hourly). Nagłówek Authorization: Bearer
+  // CRON_SECRET — Vercel dokleja go sam, gdy zmienna jest ustawiona.
+  if (pathname === "/api/cron/reminders") {
+    const secret = process.env.CRON_SECRET?.trim();
+    if (
+      !secret ||
+      request.headers.get("authorization") !== `Bearer ${secret}`
+    ) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    const mode =
+      new URL(request.url).searchParams.get("mode") === "hourly"
+        ? "hourly"
+        : "daily";
+    const { runReminders } = await import("@/lib/push.server");
+    return Response.json(await runReminders(mode));
+  }
+
   if (pathname === "/api/health") {
     const report = await runDiagnostics();
     return Response.json(

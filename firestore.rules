@@ -64,6 +64,12 @@ service cloud.firestore {
         allow read, write: if signedIn() && request.auth.uid == userId;
       }
 
+      // Urządzenia z włączonymi powiadomieniami (Web Push) — tylko właściciel;
+      // serwer czyta je kontem serwisowym
+      match /pushSubscriptions/{subId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
       // Prywatna lodówka, instrukcje… — tylko z kontem (decyzja 1)
       match /private/{document=**} {
         allow read, write: if hasAccount() && request.auth.uid == userId;

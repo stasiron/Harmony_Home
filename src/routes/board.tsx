@@ -27,6 +27,7 @@ import {
   subscribeHouseRules,
   type HouseRules,
 } from "@/lib/houseRules";
+import { notify } from "@/lib/push";
 import { cn } from "@/lib/utils";
 import type { Announcement } from "@/types";
 
@@ -101,7 +102,12 @@ function BoardPage() {
           <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Tablica
           </h2>
-          <PostForm onAdd={(post) => setPosts((prev) => [...prev, post])} />
+          <PostForm
+            onAdd={(post) => {
+              setPosts((prev) => [...prev, post]);
+              notify(householdId, "announcement", post.id);
+            }}
+          />
           {active.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-surface/50 px-6 py-12 text-center">
               <Megaphone className="mx-auto size-7 text-muted-foreground" />

@@ -55,6 +55,7 @@ import {
   ISSUES_FOLDER_ID,
   todoInFolder,
 } from "@/lib/todoHelpers";
+import { notify } from "@/lib/push";
 import { cn } from "@/lib/utils";
 import type {
   IssueStatus,
@@ -98,7 +99,7 @@ function TodoPage() {
     removeTodoFolder,
   } = useApp();
   const { seeAsMemberId } = useAuth();
-  const { myProfileId } = useHousehold();
+  const { myProfileId, householdId } = useHousehold();
   const actorId = seeAsMemberId ?? myProfileId;
 
   const [draft, setDraft] = useState("");
@@ -182,7 +183,7 @@ function TodoPage() {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    addTodo({
+    const id = addTodo({
       text: draft,
       scope,
       householdMode: scope === "household" ? householdMode : undefined,
@@ -191,6 +192,9 @@ function TodoPage() {
       folderId: activeFolderId,
       visibility: kind === "private" ? "private" : "public",
     });
+    if (id && activeFolderId === ISSUES_FOLDER_ID && kind !== "private") {
+      notify(householdId, "issue", id);
+    }
     setDraft("");
   };
 

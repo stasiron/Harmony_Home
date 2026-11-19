@@ -105,7 +105,8 @@ interface AppState {
   addGuestPlan: (plan: Omit<GuestPlan, "id">) => void;
   startPanic: () => void;
   endPanic: () => void;
-  addTodo: (input: TodoAddInput) => void;
+  /** Zwraca id nowej sprawy (np. do powiadomienia o usterce) */
+  addTodo: (input: TodoAddInput) => string | null;
   toggleTodo: (id: string, memberId?: string | null) => void;
   setTodoAssignee: (id: string, memberId: string | null) => void;
   /** Prywatne ↔ publiczne — przenosi sprawę między ścieżkami */
@@ -607,8 +608,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addTodo = useCallback(
     (input: TodoAddInput) => {
       const item = buildTodoItem(input);
-      if (!item) return;
+      if (!item) return null;
       setTodos((prev) => [item, ...prev]);
+      return item.id;
     },
     [setTodos],
   );

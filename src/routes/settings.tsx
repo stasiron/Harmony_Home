@@ -18,6 +18,8 @@ import { SuperAdminCard } from "@/components/settings/SuperAdminCard";
 import { MyCalendarCard } from "@/components/settings/MyCalendarCard";
 import { BillSettingsCard } from "@/components/settings/BillSettingsCard";
 import { BugReportsCard } from "@/components/settings/BugReportsCard";
+import { NotificationsCard } from "@/components/settings/NotificationsCard";
+import { RemindersCard } from "@/components/settings/RemindersCard";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdmin } from "@/lib/householdSetup";
 import { useReportTab } from "@/lib/reportContext";
@@ -166,10 +168,16 @@ function SettingsPage() {
           <Group>
             <SuperAdminCard />
             <GoogleAccountCard />
+            <NotificationsCard />
           </Group>
         )}
         {current === "calendar" && <MyCalendarCard />}
-        {household && current === "household" && <HouseholdSettingsCard />}
+        {household && current === "household" && (
+          <Group>
+            <HouseholdSettingsCard />
+            <RemindersCard />
+          </Group>
+        )}
         {household && current === "plan" && (
           <Group>
             <FloorPlanCard />

@@ -10,6 +10,7 @@ import { usePeople } from "@/hooks/usePeople";
 import { daysAgoLabel, newPurchase, withSettled } from "@/lib/bills";
 import { formatAmount } from "@/lib/kitchen";
 import { formatPLN, openShare } from "@/lib/money";
+import { notify } from "@/lib/push";
 import { cn } from "@/lib/utils";
 import type { Purchase } from "@/types";
 
@@ -85,7 +86,7 @@ function PurchaseCard({
   onChange: (purchase: Purchase) => void;
   onDelete: () => void;
 }) {
-  const { canEditItem } = useHousehold();
+  const { canEditItem, householdId } = useHousehold();
   const { nameOf, actorId } = usePeople();
   const open = Object.keys(purchase.shares).reduce(
     (sum, id) => sum + openShare(purchase, id),
@@ -178,6 +179,7 @@ function PurchaseCard({
                   ...purchase,
                   refundRequestedAt: new Date().toISOString(),
                 });
+                notify(householdId, "refund", purchase.id);
                 toast.success(
                   `Poproszono o zwrot ${formatPLN(open)} — domownicy zobaczą to w Rachunkach`,
                 );

@@ -1050,3 +1050,19 @@ describe("ogłoszenia i usterki", () => {
     await assertSucceeds(getDoc(ref("alice")));
   });
 });
+
+describe("powiadomienia", () => {
+  it("urządzenia zapisuje i czyta tylko właściciel konta", async () => {
+    const path = "users/alice/pushSubscriptions/s1";
+    await assertSucceeds(
+      setDoc(doc(dbAs("alice"), path), {
+        endpoint: "https://push.example/abc",
+        keys: { p256dh: "x", auth: "y" },
+      }),
+    );
+    await assertFails(getDoc(doc(dbAs("admin"), path)));
+    await assertFails(
+      setDoc(doc(dbAs("bob"), path), { endpoint: "https://evil.example" }),
+    );
+  });
+});

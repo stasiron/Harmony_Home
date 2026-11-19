@@ -96,16 +96,18 @@ export function describeSpot(
 
 export async function sendBugReport(
   report: Omit<BugReport, "id" | "status" | "createdAt">,
-): Promise<void> {
+): Promise<string> {
   const db = getFirestoreDb();
   if (!db) throw new Error("Firestore niedostępny");
   guardWriteBudget();
-  await setDoc(doc(collection(db, "bugReports")), {
+  const ref = doc(collection(db, "bugReports"));
+  await setDoc(ref, {
     ...report,
     description: report.description.slice(0, 4000),
     status: "new",
     createdAt: new Date().toISOString(),
   });
+  return ref.id;
 }
 
 /** Lista zgłoszeń — tylko administrator ogólny (reguły) */

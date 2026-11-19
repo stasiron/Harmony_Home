@@ -29,6 +29,7 @@ import { guessMemberId } from "@/lib/memberLink";
 import { resolveChoreWeights } from "@/config/choreWeight";
 import type {
   BillSettings,
+  ReminderSettings,
   FloorPlanRef,
   HomeZone,
   HouseholdMember,
@@ -484,6 +485,9 @@ export function subscribeHouseholdMeta(
         Array.isArray((data.billSettings as BillSettings).types)
           ? { billSettings: data.billSettings as BillSettings }
           : {}),
+        ...(data.reminders && typeof data.reminders === "object"
+          ? { reminders: data.reminders as ReminderSettings }
+          : {}),
         landlord:
           data.landlord && typeof data.landlord === "object"
             ? {
@@ -534,6 +538,7 @@ export async function updateHouseholdMeta(
       | "choreWeights"
       | "billSettings"
       | "landlord"
+      | "reminders"
     >
   >,
 ) {

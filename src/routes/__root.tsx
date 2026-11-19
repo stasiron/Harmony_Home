@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { AppProvider } from "@/context/AppContext";
@@ -20,6 +20,7 @@ import { AppVersionFooter } from "@/components/AppVersionFooter";
 import { Toaster } from "@/components/ui/sonner";
 import { CHUNK_RELOAD_GUARD_SCRIPT } from "@/lib/chunk-reload-guard";
 import { NO_ZOOM_SCRIPT } from "@/lib/noZoom";
+import { registerServiceWorker } from "@/lib/push";
 
 function NotFoundComponent() {
   return (
@@ -141,6 +142,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           rel: "stylesheet",
           href: appCss,
         },
+        // Instalowalna aplikacja (ekran główny) — public/manifest.webmanifest
+        { rel: "manifest", href: "/manifest.webmanifest" },
+        { rel: "icon", type: "image/png", href: "/icons/favicon-32.png" },
+        { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
       ],
     }),
     shellComponent: RootShell,
@@ -170,6 +175,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Service worker tylko do powiadomień (public/sw.js) — bez cache plików
+  useEffect(() => {
+    void registerServiceWorker();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
