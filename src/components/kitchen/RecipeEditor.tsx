@@ -32,6 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { DIFFICULTY_LABELS, RECIPE_CATEGORIES, UNITS } from "@/lib/kitchen";
 import { saveRecipe } from "@/lib/recipes";
+import { useScope } from "@/context/ScopeContext";
 import { cn } from "@/lib/utils";
 import type { Recipe } from "@/types";
 
@@ -105,8 +106,9 @@ export function RecipeEditor({
     recipe && recipe.steps.length > 0 ? recipe.steps : [""],
   );
   const [notes, setNotes] = useState(recipe?.notes ?? "");
+  const { scope } = useScope();
   const [share, setShare] = useState<Recipe["share"]>(
-    recipe?.share ?? "private",
+    recipe?.share ?? (scope === "private" ? "private" : "all"),
   );
   const [sharedWith, setSharedWith] = useState<string[]>(
     recipe?.sharedWith ?? [],

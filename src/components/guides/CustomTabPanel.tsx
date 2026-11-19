@@ -1,4 +1,5 @@
 import { Pencil, Plus, Search, Settings2, Trash2 } from "lucide-react";
+import { useScope } from "@/context/ScopeContext";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FieldInput } from "@/components/guides/FieldInput";
@@ -229,8 +230,9 @@ function EntryEditor({
   const [values, setValues] = useState<Record<string, GuideFieldValue>>(
     entry?.values ?? {},
   );
+  const { scope } = useScope();
   const [visibility, setVisibility] = useState<ItemVisibility>(
-    entry?.visibility ?? "public",
+    entry?.visibility ?? scope,
   );
   const [tried, setTried] = useState(false);
   const missing = missingRequired(tab.fields, values);

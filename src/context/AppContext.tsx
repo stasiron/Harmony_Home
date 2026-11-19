@@ -437,13 +437,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     normalize: normalizeTodoFolder,
     sort: byCreatedAt("asc"),
   });
-  const [laundryPrograms, setLaundryPrograms] = useSyncedList<LaundryProgram>({
-    householdId,
-    name: "laundry",
-    uid,
-    normalize: normalizeLaundryProgram,
-    sort: byCreatedAt("desc"),
-  });
+  // Pranie: wspólne + prywatne tej osoby (prywatne tylko z kontem)
+  const [laundryPrograms, setLaundryPrograms] =
+    useVisibilityList<LaundryProgram>({
+      householdId,
+      name: "laundry",
+      uid,
+      privateOwner,
+      normalize: normalizeLaundryProgram,
+      sort: byCreatedAt("desc"),
+    });
   const [guestPlans, setGuestPlans] = useSyncedList<GuestPlan>({
     householdId,
     name: "guestPlans",
@@ -857,7 +860,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (input: LaundryAddInput) => {
       const item = buildLaundryProgram(input);
       if (!item) return;
-      setLaundryPrograms((prev) => [item, ...prev]);
+      setLaundryPrograms((prev) => [
+        input.visibility === "private"
+          ? { ...item, visibility: "private" as const }
+          : item,
+        ...prev,
+      ]);
     },
     [setLaundryPrograms],
   );

@@ -118,7 +118,6 @@ export function ShoppingPanel({ kitchen }: { kitchen: KitchenData }) {
   return (
     <div className="space-y-5">
       <FoodForm
-        storageKey="kitchen-shopping-visibility"
         placeholder="Czego brakuje? np. chleb"
         withPrice
         products={products}

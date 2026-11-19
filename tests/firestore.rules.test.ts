@@ -686,8 +686,14 @@ describe("prywatne obowiązki, zadania i todo", () => {
     );
   });
 
-  it("prywatne zakupy, lodówka i poradnik — tak; inne listy — nie", async () => {
-    for (const name of ["shopping", "fridge", "guides", "guideEntries"]) {
+  it("prywatne zakupy, lodówka, poradnik i pranie — tak; inne listy — nie", async () => {
+    for (const name of [
+      "shopping",
+      "fridge",
+      "guides",
+      "guideEntries",
+      "laundry",
+    ]) {
       await assertSucceeds(
         setDoc(
           doc(dbAs("alice"), "households", HID, "private", "alice", name, "s"),
@@ -703,7 +709,8 @@ describe("prywatne obowiązki, zadania i todo", () => {
           HID,
           "private",
           "alice",
-          "laundry",
+          // Rachunki są zawsze wspólne
+          "bills",
           "s",
         ),
         { name: "x" },
@@ -1163,6 +1170,26 @@ describe("domknięcia: potwierdzenia, ogłoszenia, dziennik powiadomień", () =>
     await assertFails(getDoc(doc(dbAs("admin"), "notifyLog", "u_admin")));
     await assertFails(
       setDoc(doc(dbAs("admin"), "notifyLog", "u_admin"), { calls: 0 }),
+    );
+  });
+});
+
+describe("prywatne pranie", () => {
+  it("program prania tylko dla mnie widzi tylko autor", async () => {
+    const path = `households/${HID}/private/alice/laundry/l1`;
+    await assertSucceeds(
+      setDoc(doc(dbAs("alice"), path), {
+        name: "Wełna",
+        mode: "Delikatne",
+        temperature: 30,
+        rinses: 2,
+        spin: 600,
+        createdBy: "alice",
+      }),
+    );
+    await assertFails(getDoc(doc(dbAs("admin"), path)));
+    await assertFails(
+      setDoc(doc(dbAs("tablet", anonymous), path), { name: "X" }),
     );
   });
 });

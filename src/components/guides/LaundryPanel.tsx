@@ -5,12 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useApp } from "@/context/AppContext";
 import { useHousehold } from "@/context/HouseholdContext";
+import { useScope } from "@/context/ScopeContext";
+import { PrivateBadge } from "@/components/VisibilityPicker";
 import { ItemLockButton } from "@/components/household/ItemLock";
 import type { LaundryProgram } from "@/types";
 
 /** Poradnik → Pranie: programy prania zapisane dla całego domu */
 export function LaundryPanel() {
   const { laundryPrograms, addLaundryProgram, removeLaundryProgram } = useApp();
+  const { scope } = useScope();
 
   const [name, setName] = useState("");
   const [mode, setMode] = useState("");
@@ -21,6 +24,7 @@ export function LaundryPanel() {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     addLaundryProgram({
+      visibility: scope,
       name,
       mode,
       temperature: Number(temperature),
@@ -144,7 +148,8 @@ function LaundryCard({
         <Shirt className="size-5 text-primary" strokeWidth={1.6} />
       </div>
       <div className="min-w-0 flex-1 space-y-2">
-        <h2 className="truncate text-lg font-semibold tracking-tight">
+        <h2 className="flex items-center gap-2 truncate text-lg font-semibold tracking-tight">
+          {program.visibility === "private" && <PrivateBadge />}
           {program.name}
         </h2>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">

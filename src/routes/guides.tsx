@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ScopeProvider } from "@/context/ScopeContext";
+import { ScopeSwitch } from "@/components/ScopeSwitch";
 import { useReportTab } from "@/lib/reportContext";
 import {
   BookOpen,
@@ -37,6 +39,7 @@ import { useApp } from "@/context/AppContext";
 import { useHousehold } from "@/context/HouseholdContext";
 import { useVisibilityList } from "@/hooks/useVisibilityList";
 import { FilterChip } from "@/components/FilterChip";
+import { useScope } from "@/context/ScopeContext";
 import { cn } from "@/lib/utils";
 import type {
   GuideCategory,
@@ -67,7 +70,9 @@ export const Route = createFileRoute("/guides")({
   }),
   component: () => (
     <Shell>
-      <GuidesPage />
+      <ScopeProvider>
+        <GuidesPage />
+      </ScopeProvider>
     </Shell>
   ),
 });
@@ -204,6 +209,8 @@ function GuidesPage() {
           zakładki.
         </p>
       </header>
+
+      <ScopeSwitch what="nowe instrukcje, wpisy i przepisy" />
 
       <div
         role="tablist"
@@ -461,8 +468,9 @@ function NoteEditor({
     note?.category ?? "cleaning",
   );
   const [body, setBody] = useState(note?.body ?? "");
+  const { scope } = useScope();
   const [visibility, setVisibility] = useState<ItemVisibility>(
-    note?.visibility ?? "public",
+    note?.visibility ?? scope,
   );
 
   const submit = () => {

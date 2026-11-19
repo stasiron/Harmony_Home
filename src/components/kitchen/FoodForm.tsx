@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useHousehold } from "@/context/HouseholdContext";
-import { useRememberedVisibility } from "@/hooks/useKitchenPrefs";
+import { useScope } from "@/context/ScopeContext";
 import { findProduct, suggestPrice } from "@/lib/bills";
 import { FOOD_CATEGORIES, UNITS, type FoodInput } from "@/lib/kitchen";
 import { formatPLN, parsePLN, toInputPLN } from "@/lib/money";
@@ -94,7 +94,6 @@ export function FoodForm({
   withExpiry = false,
   withPrice = false,
   products = [],
-  storageKey,
   placeholder,
   submitLabel = "Dodaj",
 }: {
@@ -103,7 +102,6 @@ export function FoodForm({
   withPrice?: boolean;
   /** Pamięć produktów (podpowiedzi nazw i cen) */
   products?: readonly Product[];
-  storageKey: string;
   placeholder: string;
   submitLabel?: string;
 }) {
@@ -116,7 +114,8 @@ export function FoodForm({
   const [price, setPrice] = useState("");
   // Cena wpisana ręcznie — nie nadpisujemy jej podpowiedzią
   const [priceTouched, setPriceTouched] = useState(false);
-  const [visibility, setVisibility] = useRememberedVisibility(storageKey);
+  // Kto zobaczy — wybór z dużego przełącznika u góry strony
+  const { scope: visibility } = useScope();
 
   const known = useMemo(
     () => (name.trim() ? findProduct(products, name, visibility) : null),
@@ -260,7 +259,6 @@ export function FoodForm({
             />
           </label>
         )}
-        <VisibilityToggle value={visibility} onChange={setVisibility} />
         <Button type="submit" className="ml-auto h-9" disabled={!name.trim()}>
           <Plus className="size-4" />
           {submitLabel}

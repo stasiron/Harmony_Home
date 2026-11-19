@@ -87,6 +87,7 @@ export const PRIVATE_COLLECTIONS = [
   "guides",
   "guideEntries",
   "products",
+  "laundry",
 ] as const;
 
 /**

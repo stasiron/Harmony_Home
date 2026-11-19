@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useReportTab } from "@/lib/reportContext";
+import { ScopeProvider, useScope } from "@/context/ScopeContext";
+import { ScopeSwitch } from "@/components/ScopeSwitch";
 import {
   ChevronDown,
   Download,
@@ -78,7 +80,9 @@ export const Route = createFileRoute("/todo")({
   }),
   component: () => (
     <Shell>
-      <TodoPage />
+      <ScopeProvider>
+        <TodoPage />
+      </ScopeProvider>
     </Shell>
   ),
 });
@@ -103,10 +107,14 @@ function TodoPage() {
   const actorId = seeAsMemberId ?? myProfileId;
 
   const [draft, setDraft] = useState("");
-  // Domyślnie wspólne — „do szuflady” tylko świadomie (prywatne)
-  const [kind, setKind] = useState<"household" | "person" | "private">(
+  // Prywatne albo wspólne decyduje duży przełącznik u góry strony;
+  // przy „Dla wszystkich” wybierasz jeszcze: dla domu czy dla osoby
+  const { scope: pageScope } = useScope();
+  const [sharedKind, setSharedKind] = useState<"household" | "person">(
     "household",
   );
+  const kind: "household" | "person" | "private" =
+    pageScope === "private" ? "private" : sharedKind;
   const scope: TodoScope = kind === "household" ? "household" : "personal";
   const [showOthers, setShowOthers] = useState(false);
   const { hasAccount } = useHousehold();
@@ -295,6 +303,8 @@ function TodoPage() {
         </DropdownMenu>
       </header>
 
+      <ScopeSwitch what="nowe sprawy" />
+
       <div className="space-y-3">
         <div className="hh-scroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           <FolderTab
@@ -375,7 +385,8 @@ function TodoPage() {
         onSubmit={onSubmit}
         className={cn(
           "rounded-2xl border bg-surface p-2 transition-colors",
-          kind === "private" ? "border-warn/50" : "border-border",
+          // Wspólne wyróżnione — trudniej przez pomyłkę pokazać coś wszystkim
+          kind === "private" ? "border-border" : "border-accent/60",
         )}
       >
         <div className="flex flex-col gap-2 md:flex-row md:items-center">
@@ -395,37 +406,33 @@ function TodoPage() {
             aria-label="Nowa sprawa"
           />
           <div className="flex items-center gap-2">
-            <Select
-              value={kind}
-              onValueChange={(v) => setKind(v as typeof kind)}
-            >
-              <SelectTrigger
-                className="h-10 min-w-0 flex-1 rounded-xl md:w-auto md:min-w-[8.5rem] md:flex-none"
-                aria-label="Dla kogo"
+            {kind !== "private" && (
+              <Select
+                value={sharedKind}
+                onValueChange={(v) => setSharedKind(v as typeof sharedKind)}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="household">
-                  <span className="flex items-center gap-2">
-                    <Home className="size-3.5" />
-                    Dla domu
-                  </span>
-                </SelectItem>
-                <SelectItem value="person">
-                  <span className="flex items-center gap-2">
-                    <User className="size-3.5" />
-                    Dla osoby
-                  </span>
-                </SelectItem>
-                <SelectItem value="private" disabled={!hasAccount}>
-                  <span className="flex items-center gap-2">
-                    <Lock className="size-3.5" />
-                    {hasAccount ? "Prywatne" : "Prywatne (konto)"}
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                <SelectTrigger
+                  className="h-10 min-w-0 flex-1 rounded-xl md:w-auto md:min-w-[8.5rem] md:flex-none"
+                  aria-label="Dla kogo"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="household">
+                    <span className="flex items-center gap-2">
+                      <Home className="size-3.5" />
+                      Dla domu
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="person">
+                    <span className="flex items-center gap-2">
+                      <User className="size-3.5" />
+                      Dla osoby
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             {kind === "household" && (
               <Select
                 value={householdMode}
@@ -475,10 +482,14 @@ function TodoPage() {
             </Button>
           </div>
         </div>
-        {kind === "private" && (
-          <p className="px-3 pb-1 pt-2 text-xs text-warn">
+        {kind === "private" ? (
+          <p className="px-3 pb-1 pt-2 text-xs text-muted-foreground">
             <Lock className="mr-1 inline size-3" />
             Tylko Ty to zobaczysz — nikt inny, nawet administrator.
+          </p>
+        ) : (
+          <p className="px-3 pb-1 pt-2 text-xs font-medium text-accent">
+            Zobaczą to wszyscy domownicy.
           </p>
         )}
       </form>

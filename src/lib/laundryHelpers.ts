@@ -1,6 +1,8 @@
-import type { LaundryProgram } from "@/types";
+import type { ItemVisibility, LaundryProgram } from "@/types";
 
 export type LaundryAddInput = {
+  /** Brak = wspólne */
+  visibility?: ItemVisibility;
   name: string;
   mode: string;
   temperature: number;

@@ -1,7 +1,6 @@
 import { Minus, Package, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { VisibilityToggle } from "@/components/kitchen/FoodForm";
 import { PrivateBadge } from "@/components/VisibilityPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useHousehold } from "@/context/HouseholdContext";
 import type { KitchenData } from "@/hooks/useKitchen";
-import { useRememberedVisibility } from "@/hooks/useKitchenPrefs";
+import { useScope } from "@/context/ScopeContext";
 import {
   changeStock,
   daysAgoLabel,
@@ -277,9 +276,7 @@ function SupplyForm({
   const [amount, setAmount] = useState("");
   const [unit, setUnit] = useState("szt");
   const [lowAt, setLowAt] = useState("1");
-  const [visibility, setVisibility] = useRememberedVisibility(
-    "kitchen-supplies-visibility",
-  );
+  const { scope: visibility } = useScope();
 
   const number = (text: string) => {
     const n = Number(text.replace(",", "."));
@@ -359,7 +356,6 @@ function SupplyForm({
             aria-label="Próg „kończy się”"
           />
         </label>
-        <VisibilityToggle value={visibility} onChange={setVisibility} />
         <Button type="submit" className="ml-auto h-9" disabled={!name.trim()}>
           <Plus className="size-4" />
           Dodaj zapas

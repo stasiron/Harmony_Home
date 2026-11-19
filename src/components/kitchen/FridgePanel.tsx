@@ -135,7 +135,6 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
   return (
     <div className="space-y-5">
       <FoodForm
-        storageKey="kitchen-fridge-visibility"
         placeholder="Co jest w lodówce? np. mleko"
         withExpiry
         onAdd={(input) => setFridge((prev) => addToFridge(prev, [input]))}

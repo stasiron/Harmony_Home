@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ScopeProvider } from "@/context/ScopeContext";
+import { ScopeSwitch } from "@/components/ScopeSwitch";
 import { useReportTab } from "@/lib/reportContext";
 import {
   AlarmClock,
@@ -37,7 +39,9 @@ export const Route = createFileRoute("/kitchen")({
   }),
   component: () => (
     <Shell>
-      <KitchenPage />
+      <ScopeProvider>
+        <KitchenPage />
+      </ScopeProvider>
     </Shell>
   ),
 });
@@ -119,6 +123,8 @@ function KitchenPage() {
           Co jest w lodówce, czego brakuje, jakie są zapasy i co ugotować.
         </p>
       </header>
+
+      <ScopeSwitch what="nowe produkty, zapasy i przepisy" />
 
       {/* Kafelki są też zakładkami */}
       <div

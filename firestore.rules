@@ -241,7 +241,7 @@ service cloud.firestore {
           && request.auth.uid == ownerUid
           && collection in [
             'chores', 'zadania', 'todos', 'shopping', 'fridge', 'guides',
-            'guideEntries', 'products'
+            'guideEntries', 'products', 'laundry'
           ]
           && exists(memberPath(hid));
       }
