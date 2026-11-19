@@ -519,6 +519,41 @@ export interface GuestPlan extends ItemMeta {
   id: string;
   when: string; // ISO
   notes: string;
+  /** Krótko: kto przychodzi */
+  title?: string;
+  /** ISO — do kiedy (brak = ok. godziny) */
+  until?: string | null;
+  /** Kto zaprasza (User.id) */
+  hostId?: string | null;
+  guests?: number | null;
+  overnight?: boolean;
+}
+
+/** Nieobecność / wyjazd domownika */
+export interface Absence extends ItemMeta {
+  id: string;
+  profileId: string;
+  /** YYYY-MM-DD, włącznie */
+  from: string;
+  to: string;
+  note: string;
+  /** shift — obowiązki czekają; reassign — robią je pozostali */
+  mode: "shift" | "reassign";
+}
+
+/** Wpis historii: kto i kiedy wykonał obowiązek (tylko dopisywany) */
+export interface Completion extends ItemMeta {
+  id: string;
+  itemId: string;
+  kind: "chore" | "zadanie";
+  name: string;
+  /** User.id; null — nie wiadomo kto (np. tablet bez wyboru osoby) */
+  by: string | null;
+  /** ISO */
+  at: string;
+  minutes: number;
+  /** Waga wg ustawień mieszkania w chwili wykonania */
+  weight: number;
 }
 
 export interface PanicState {

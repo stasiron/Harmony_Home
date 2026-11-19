@@ -121,5 +121,7 @@ export function buildLegacyMigration(
     purchases: [],
     products: [],
     announcements: [],
+    absences: [],
+    completions: [],
   };
 }

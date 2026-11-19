@@ -26,7 +26,7 @@ import {
   minutesInDayWindow,
   topPxForDate,
 } from "@/lib/daySchedule";
-import { effectiveAssignees } from "@/lib/rotation";
+import { useApp } from "@/context/AppContext";
 import { cn } from "@/lib/utils";
 import type { GuestPlan, Task } from "@/types";
 
@@ -124,14 +124,25 @@ function timedItemsForDay(day: Date, bundle: DayBundle): TimedItem[] {
     if (isAllDayEvent(plan.when, null, day)) continue;
     const startDate = new Date(plan.when);
     const start = minutesInDayWindow(startDate, day);
+    // Do `until` (w obrębie dnia), inaczej godzina
+    const untilMs = plan.until ? Date.parse(plan.until) : NaN;
+    const minutes = Number.isFinite(untilMs)
+      ? Math.max(
+          30,
+          Math.min(
+            (untilMs - startDate.getTime()) / 60_000,
+            24 * 60 - startDate.getHours() * 60 - startDate.getMinutes(),
+          ),
+        )
+      : 60;
     items.push({
       key: plan.id,
       start,
-      end: start + 60,
+      end: start + minutes,
       top: topPxForDate(startDate, day),
-      height: heightPxForMinutes(60),
+      height: heightPxForMinutes(minutes),
       time: format(startDate, "HH:mm", { locale: pl }),
-      title: plan.notes || "Plan gości",
+      title: plan.title || plan.notes || "Goście",
       tone: "guest",
     });
   }
@@ -159,6 +170,7 @@ export function CalendarGrid({
   guestsMode: boolean;
   users: { id: string; name: string }[];
 }) {
+  const { assigneesOf } = useApp();
   const scrollRef = useRef<HTMLDivElement>(null);
   const touchRef = useRef<{ x: number; y: number } | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -316,7 +328,7 @@ export function CalendarGrid({
                       key={task.id}
                       label={task.name}
                       sub={
-                        assigneeNamesForTask(users, effectiveAssignees(task)) ||
+                        assigneeNamesForTask(users, assigneesOf(task)) ||
                         undefined
                       }
                       tone={

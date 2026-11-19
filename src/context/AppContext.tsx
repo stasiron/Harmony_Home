@@ -32,7 +32,15 @@ import {
   thresholdStatus,
 } from "@/lib/choreZadaniaStatus";
 import { normalizeAssignedTo } from "@/lib/choreAssignees";
-import { advanceRotation, effectiveAssignees } from "@/lib/rotation";
+import { advanceRotationPast } from "@/lib/rotation";
+import {
+  assigneesWithAbsences,
+  dayKey,
+  effectiveDaysSince,
+  normalizeAbsence,
+} from "@/lib/absence";
+import { recordCompletion } from "@/lib/completions";
+import { zadanieWeight } from "@/config/choreWeight";
 import { resolveChoreWeights } from "@/config/choreWeight";
 import { resolveLinkedZadania } from "@/lib/zadania";
 import { applyScheduleToTask, DEFAULT_SCHEDULE } from "@/lib/choreRecurrence";
@@ -55,6 +63,7 @@ import {
   type LaundryAddInput,
 } from "@/lib/laundryHelpers";
 import type {
+  Absence,
   ChoreRoom,
   GuestPlan,
   IssueStatus,
@@ -89,6 +98,10 @@ interface AppState {
   guestCalendarHint: string | null;
   guestPlans: GuestPlan[];
   panic: PanicState | null;
+  /** Nieobecności i wyjazdy domowników */
+  absences: Absence[];
+  /** Kto ma dziś obowiązek — z kolejką i nieobecnościami */
+  assigneesOf: (item: Task | Zadanie) => string[];
 
   // derived helpers
   daysSince: (iso: string) => number;
@@ -98,11 +111,15 @@ interface AppState {
   alertCount: number;
 
   // actions
-  completeTask: (id: string) => void;
+  completeTask: (id: string, completedBy?: string | null) => void;
   completeZadanie: (id: string, completedBy?: string) => void;
   toggleUserHeavyDay: (userId: string) => void;
   setGuestsMode: (v: boolean) => void;
-  addGuestPlan: (plan: Omit<GuestPlan, "id">) => void;
+  addGuestPlan: (plan: Omit<GuestPlan, "id">) => string;
+  updateGuestPlan: (plan: GuestPlan) => void;
+  removeGuestPlan: (id: string) => void;
+  addAbsence: (absence: Omit<Absence, "id">) => string;
+  removeAbsence: (id: string) => void;
   startPanic: () => void;
   endPanic: () => void;
   /** Zwraca id nowej sprawy (np. do powiadomienia o usterce) */
@@ -338,7 +355,7 @@ function completeRecurringItem<
     recurrence: TaskRecurrence;
     source: Task["source"];
   } & TurnRotation,
->(items: T[], id: string): T[] {
+>(items: T[], id: string, doneBy: string | null): T[] {
   const item = items.find((entry) => entry.id === id);
   if (!item) return items;
   if (item.recurrence === "once" && item.source === "user") {
@@ -346,7 +363,11 @@ function completeRecurringItem<
   }
   return items.map((entry) =>
     entry.id === id
-      ? advanceRotation({ ...entry, lastCompleted: new Date().toISOString() })
+      ? // Na zmianę: tura przechodzi na osobę po tej, która zrobiła
+        advanceRotationPast(
+          { ...entry, lastCompleted: new Date().toISOString() },
+          doneBy,
+        )
       : entry,
   );
 }
@@ -412,6 +433,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     uid,
     sort: byCreatedAt("asc"),
   });
+  const [absences, setAbsences] = useSyncedList<Absence>({
+    householdId,
+    name: "absences",
+    uid,
+    normalize: normalizeAbsence,
+    sort: (a, b) => a.from.localeCompare(b.from),
+  });
   const [devices, setDevices] = useState<SmartHomeDevice[]>([]);
   // Z kalendarza domu (serwer) — tak samo na każdym urządzeniu
   const [calendarGuests, setGuestsMode] = useState(false);
@@ -470,12 +498,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (guestsMode && isGuestsModeMust(zadanie, true)) return "must";
       if (isPanicGuestsMust(zadanie, !!panic?.active)) return "must";
       return thresholdStatus(
-        daysSince(zadanie.lastCompleted),
+        effectiveDaysSince(zadanie, absences, new Date()),
         zadanie.tMin,
         zadanie.tMax,
       );
     },
-    [daysSince, guestsMode, panic],
+    [guestsMode, panic, absences],
   );
 
   const statusOf = useCallback(
@@ -494,13 +522,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (derived) return derived;
       }
 
+      // Przesunięcie: dni wyjazdu przypisanych nie liczą się do zaległości
       return thresholdStatus(
-        daysSince(item.lastCompleted),
+        effectiveDaysSince(item, absences, new Date()),
         item.tMin,
         item.tMax,
       );
     },
-    [daysSince, guestsMode, panic, zadania, zadanieStatusOf, choreWeights],
+    [guestsMode, panic, zadania, zadanieStatusOf, choreWeights, absences],
+  );
+
+  const today = dayKey(new Date());
+  const presentIds = useMemo(
+    () => users.filter((u) => u.active !== false).map((u) => u.id),
+    [users],
+  );
+  const assigneesOf = useCallback(
+    (item: Task | Zadanie) =>
+      assigneesWithAbsences(item as Task, absences, today, presentIds),
+    [absences, today, presentIds],
   );
 
   const visibleZadania = useMemo(() => {
@@ -522,7 +562,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       users.filter((u) => u.heavyDay).map((u) => u.id),
     );
     return tasks.filter((t) => {
-      const assignees = effectiveAssignees(t);
+      const assignees = assigneesOf(t);
       if (
         assignees.length === 0 ||
         !assignees.some((id) => heavyDayUserIds.has(id))
@@ -531,18 +571,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       return statusOf(t) === "must";
     });
-  }, [tasks, panic, statusOf, users]);
+  }, [tasks, panic, statusOf, users, assigneesOf]);
 
   const alertCount = useMemo(
     () => tasks.filter((t) => statusOf(t) === "must").length,
     [tasks, statusOf],
   );
 
-  const completeTask = useCallback(
-    (id: string) => {
-      setTasks((prev) => completeRecurringItem(prev, id));
+  // Historia: kto i kiedy zrobił — do statystyk z wagami
+  const logCompletion = useCallback(
+    (item: Task | Zadanie, kind: "chore" | "zadanie", by: string | null) => {
+      if (!householdId) return;
+      void recordCompletion(householdId, uid, {
+        itemId: item.id,
+        kind,
+        name: item.name,
+        by,
+        at: new Date().toISOString(),
+        minutes: item.estimatedMinutes ?? 0,
+        weight:
+          Math.round(zadanieWeight(item as Zadanie, choreWeights) * 10) / 10,
+      }).catch((err) => console.error("Completion log failed:", err));
     },
-    [setTasks],
+    [householdId, uid, choreWeights],
+  );
+
+  const completeTask = useCallback(
+    (id: string, completedBy?: string | null) => {
+      const item = tasks.find((t) => t.id === id);
+      // Kto zrobił: wskazany, inaczej jedyny przypisany na dziś
+      const current = item ? assigneesOf(item) : [];
+      const doneBy = completedBy ?? (current.length === 1 ? current[0]! : null);
+      if (item) logCompletion(item, "chore", doneBy);
+      setTasks((prev) =>
+        completeRecurringItem(prev, id, doneBy ?? current[0] ?? null),
+      );
+    },
+    [setTasks, tasks, assigneesOf, logCompletion],
   );
 
   const completeZadanie = useCallback(
@@ -553,19 +618,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (item.recurrence === "once" && item.source === "user") {
           return prev.filter((z) => z.id !== id);
         }
+        const current = assigneesOf(item);
+        const doneBy =
+          completedBy ?? (current.length === 1 ? current[0]! : null);
+        logCompletion(item, "zadanie", doneBy);
         return prev.map((z) =>
           z.id === id
-            ? // Na zmianę: tura przechodzi na następną osobę
-              advanceRotation({
-                ...z,
-                lastCompleted: new Date().toISOString(),
-                lastCompletedBy: completedBy,
-              })
+            ? // Na zmianę: tura przechodzi na osobę po tej, która zrobiła
+              advanceRotationPast(
+                {
+                  ...z,
+                  lastCompleted: new Date().toISOString(),
+                  lastCompletedBy: completedBy,
+                },
+                doneBy ?? current[0] ?? null,
+              )
             : z,
         );
       });
     },
-    [setZadania],
+    [setZadania, assigneesOf, logCompletion],
   );
 
   const toggleUserHeavyDay = useCallback(
@@ -581,9 +653,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addGuestPlan = useCallback(
     (plan: Omit<GuestPlan, "id">) => {
-      setGuestPlans((prev) => [...prev, { ...plan, id: crypto.randomUUID() }]);
+      const id = crypto.randomUUID();
+      setGuestPlans((prev) => [...prev, { ...plan, id }]);
+      return id;
     },
     [setGuestPlans],
+  );
+
+  const updateGuestPlan = useCallback(
+    (plan: GuestPlan) =>
+      setGuestPlans((prev) => prev.map((p) => (p.id === plan.id ? plan : p))),
+    [setGuestPlans],
+  );
+
+  const removeGuestPlan = useCallback(
+    (id: string) => setGuestPlans((prev) => prev.filter((p) => p.id !== id)),
+    [setGuestPlans],
+  );
+
+  const addAbsence = useCallback(
+    (absence: Omit<Absence, "id">) => {
+      const id = crypto.randomUUID();
+      setAbsences((prev) => [...prev, { ...absence, id }]);
+      return id;
+    },
+    [setAbsences],
+  );
+
+  const removeAbsence = useCallback(
+    (id: string) => setAbsences((prev) => prev.filter((a) => a.id !== id)),
+    [setAbsences],
   );
 
   const startPanic = useCallback(() => {
@@ -907,6 +1006,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     guestsMode,
     guestCalendarHint,
     guestPlans,
+    absences,
+    assigneesOf,
     panic,
     daysSince,
     statusOf,
@@ -918,6 +1019,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toggleUserHeavyDay,
     setGuestsMode,
     addGuestPlan,
+    updateGuestPlan,
+    removeGuestPlan,
+    addAbsence,
+    removeAbsence,
     startPanic,
     endPanic,
     addTodo,

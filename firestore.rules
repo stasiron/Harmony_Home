@@ -225,6 +225,15 @@ service cloud.firestore {
         allow write: if isAdmin(hid);
       }
 
+      // Historia wykonań (statystyki) — tylko dopisywana: wpis dodaje każdy
+      // domownik (także tablet), zmienić się go nie da, usuwa administrator
+      match /completions/{completionId} {
+        allow read: if isMember(hid);
+        allow create: if isMember(hid)
+          && request.resource.data.createdBy == request.auth.uid;
+        allow delete: if isAdmin(hid);
+      }
+
       // Prywatne obowiązki / zadania / todo / zakupy / lodówka / poradnik —
       // tylko autor (z kontem). Nawet administrator ogólny ich nie widzi.
       match /private/{ownerUid}/{collection}/{itemId} {
@@ -276,7 +285,7 @@ service cloud.firestore {
             'chores', 'zadania', 'todos', 'todoFolders',
             'shopping', 'laundry', 'guestPlans', 'fridge', 'guides',
             'guideTabs', 'guideEntries', 'bills', 'purchases', 'products',
-            'announcements'
+            'announcements', 'absences'
           ];
         }
 

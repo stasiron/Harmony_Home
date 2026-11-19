@@ -10,13 +10,18 @@ import {
 } from "@/lib/firestoreRest.server";
 import { formatPLN, openShare } from "@/lib/money";
 import { digestLines } from "@/lib/digest";
+import {
+  absenceOn,
+  assigneesWithAbsences,
+  normalizeAbsence,
+} from "@/lib/absence";
 import { SUPER_ADMIN_EMAIL } from "@/lib/householdSetup";
 import {
   NOTIFY_CATEGORIES,
   type NotifyCategory,
   type NotifyKind,
 } from "@/lib/notifyTypes";
-import type { Bill, Purchase, Task } from "@/types";
+import type { Absence, Bill, Purchase, Task } from "@/types";
 
 // ─── Konfiguracja ──────────────────────────────────────────────────────────
 
@@ -392,16 +397,20 @@ async function digestForHousehold(
   today: string,
 ): Promise<number> {
   const hid = household.id;
-  const [members, chores, zadania, bills, purchases, names] = await Promise.all(
-    [
+  const [members, chores, zadania, bills, purchases, names, absenceDocs] =
+    await Promise.all([
       membersOf(hid),
       listDocuments(`households/${hid}/chores`),
       listDocuments(`households/${hid}/zadania`),
       listDocuments(`households/${hid}/bills`),
       listDocuments(`households/${hid}/purchases`),
       profileNames(hid),
-    ],
-  );
+      listDocuments(`households/${hid}/absences`),
+    ]);
+  const absences = absenceDocs
+    .map((d) => normalizeAbsence({ ...d.data, id: d.id }))
+    .filter((a): a is Absence => a !== null);
+  const present = [...names.keys()];
   const items = [...chores, ...zadania].map(
     (d) => ({ ...d.data, id: d.id }) as unknown as Task,
   );
@@ -414,7 +423,8 @@ async function digestForHousehold(
   let sent = 0;
   for (const member of members) {
     const pid = member.profileId;
-    if (!pid) continue;
+    // Nieobecny dziś — bez porannego podsumowania
+    if (!pid || absenceOn(absences, pid, today)) continue;
     const lines = digestLines({
       profileId: pid,
       items,
@@ -423,6 +433,9 @@ async function digestForHousehold(
       nameOf: (id) => names.get(id) || "ktoś",
       now,
       today,
+      // Kolejka pomija nieobecnych, „przekaż innym” trafia do obecnych
+      assigneesOf: (item) =>
+        assigneesWithAbsences(item as Task, absences, today, present),
     });
     if (lines.length === 0) continue;
     sent += await sendToUid(member.uid, "chores", {

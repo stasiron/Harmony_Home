@@ -3,7 +3,6 @@ import { pl } from "date-fns/locale";
 import { CheckCircle2, History, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { effectiveAssignees } from "@/lib/rotation";
 import { cn } from "@/lib/utils";
 
 const RECENT_DAYS = 14;
@@ -13,7 +12,8 @@ const RECENT_DAYS = 14;
  * Rozciąga się do dołu ekranu — lista przewija się w środku.
  */
 export function ActivityPanel({ className }: { className?: string }) {
-  const { visibleTasks, visibleZadania, statusOf, users } = useApp();
+  const { visibleTasks, visibleZadania, statusOf, users, assigneesOf } =
+    useApp();
   const [tab, setTab] = useState<"people" | "recent">("people");
 
   const people = useMemo(() => {
@@ -24,9 +24,7 @@ export function ActivityPanel({ className }: { className?: string }) {
     return users
       .filter((u) => u.active !== false)
       .map((u) => {
-        const mine = pending.filter((t) =>
-          effectiveAssignees(t).includes(u.id),
-        );
+        const mine = pending.filter((t) => assigneesOf(t).includes(u.id));
         return {
           user: u,
           must: mine.filter((t) => statusOf(t) === "must").length,
@@ -34,13 +32,11 @@ export function ActivityPanel({ className }: { className?: string }) {
         };
       })
       .sort((a, b) => b.must - a.must || b.suggested - a.suggested);
-  }, [visibleTasks, statusOf, users]);
+  }, [visibleTasks, statusOf, users, assigneesOf]);
 
   const unassigned = visibleTasks.filter((t) => {
     const s = statusOf(t);
-    return (
-      (s === "must" || s === "suggested") && effectiveAssignees(t).length === 0
-    );
+    return (s === "must" || s === "suggested") && assigneesOf(t).length === 0;
   }).length;
 
   const recent = useMemo(() => {

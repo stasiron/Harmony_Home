@@ -32,9 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { dayKey } from "@/lib/absence";
 import { cn } from "@/lib/utils";
 import type { HouseholdMember, User } from "@/types";
-import { effectiveAssignees } from "@/lib/rotation";
 
 export const Route = createFileRoute("/members")({
   head: () => ({
@@ -129,6 +129,7 @@ function MembersPage() {
     removeUser,
     toggleUserHeavyDay,
     statusOf,
+    assigneesOf,
   } = useApp();
   // Domownicy to sprawa całego mieszkania — dodaje administrator (decyzja 3b)
   const { isAdmin, members, me, myProfileId, linkProfile, setMemberProfile } =
@@ -140,7 +141,7 @@ function MembersPage() {
   const selected = users.find((u) => u.id === selectedId);
   const memberTasks = selected
     ? tasks.filter((t) => {
-        if (!effectiveAssignees(t).includes(selected.id)) return false;
+        if (!assigneesOf(t).includes(selected.id)) return false;
         if (selected.heavyDay) return statusOf(t) === "must";
         return true;
       })
@@ -237,8 +238,7 @@ function MembersPage() {
               accounts={accountsOf(user.id)}
               isMe={user.id === myProfileId}
               taskCount={
-                tasks.filter((t) => effectiveAssignees(t).includes(user.id))
-                  .length
+                tasks.filter((t) => assigneesOf(t).includes(user.id)).length
               }
               selected={selectedId === user.id}
               onSelect={() =>
@@ -506,6 +506,11 @@ function MemberCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { absences } = useApp();
+  const today = dayKey(new Date());
+  const away = absences.find(
+    (a) => a.profileId === user.id && a.from <= today && today <= a.to,
+  );
   return (
     <button
       type="button"
@@ -530,7 +535,11 @@ function MemberCard({
           {isMe && <span className="ml-1 text-xs text-primary">(Ty)</span>}
         </div>
         <div className="mt-1 text-xs text-muted-foreground">
-          {user.heavyDay ? (
+          {away ? (
+            <span className="text-warn">
+              Wyjazd do {away.to.slice(5).split("-").reverse().join(".")}
+            </span>
+          ) : user.heavyDay ? (
             <span className="text-warn">Heavy Day</span>
           ) : user.active !== false ? (
             `${taskCount} ${taskCount === 1 ? "obowiązek" : "obowiązków"}`

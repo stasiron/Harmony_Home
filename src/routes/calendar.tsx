@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Shell } from "@/components/Shell";
+import { HouseEvents } from "@/components/calendar/HouseEvents";
 import { HouseholdCalendar } from "@/components/calendar/HouseholdCalendar";
 
 export const Route = createFileRoute("/calendar")({
@@ -34,6 +35,7 @@ function CalendarPage() {
         </p>
       </header>
 
+      <HouseEvents />
       <HouseholdCalendar />
     </div>
   );

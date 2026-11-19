@@ -15,10 +15,10 @@ import {
   readCachedFeed,
   writeCachedFeed,
 } from "@/lib/calendar/feedCache";
+import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { usePersonalIcals } from "@/lib/personalCalendars";
 import { useHousehold } from "@/context/HouseholdContext";
-import { effectiveAssignees } from "@/lib/rotation";
 import {
   choresDueOnDate,
   dateHasChoreDue,
@@ -56,6 +56,7 @@ export function useHouseholdCalendar(
 ) {
   const { icals, ready: icalsReady } = usePersonalIcals();
   const { household } = useHousehold();
+  const { assigneesOf } = useApp();
   const sharedKey = household?.sharedCalendar?.icalUrl ?? "";
   const loadEvents = useServerFn(fetchCalendarEvents);
   const { syncUser } = useAuth();
@@ -65,9 +66,9 @@ export function useHouseholdCalendar(
   const tasks = useMemo(
     () =>
       onlyMine && myProfileId
-        ? allTasks.filter((t) => effectiveAssignees(t).includes(myProfileId))
+        ? allTasks.filter((t) => assigneesOf(t).includes(myProfileId))
         : allTasks,
-    [allTasks, onlyMine, myProfileId],
+    [allTasks, onlyMine, myProfileId, assigneesOf],
   );
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>("3");

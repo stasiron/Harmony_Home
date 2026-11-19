@@ -25,7 +25,6 @@ import type { CalendarFeedEvent } from "@/lib/calendar-feed-types";
 import { useHouseholdCalendar } from "@/hooks/useHouseholdCalendar";
 import { useHousehold } from "@/context/HouseholdContext";
 import { cn } from "@/lib/utils";
-import { effectiveAssignees } from "@/lib/rotation";
 
 function formatEventTime(iso: string) {
   return format(new Date(iso), "HH:mm", { locale: pl });
@@ -359,6 +358,11 @@ function DayDetailPanel({
   guestsMode: boolean;
   users: { id: string; name: string }[];
 }) {
+  const { assigneesOf, absences } = useApp();
+  const dayIso = format(day, "yyyy-MM-dd");
+  const away = absences.filter((a) => a.from <= dayIso && dayIso <= a.to);
+  const nameOf = (id: string | null | undefined) =>
+    users.find((u) => u.id === id)?.name ?? "ktoś";
   return (
     <aside className="space-y-4">
       <header className="rounded-2xl border border-border bg-surface px-5 py-4">
@@ -417,10 +421,7 @@ function DayDetailPanel({
       >
         {chores.map((task) => {
           const status = statusOfTaskOnDate(task, day, guestsMode);
-          const assigneeLabel = assigneeNamesForTask(
-            users,
-            effectiveAssignees(task),
-          );
+          const assigneeLabel = assigneeNamesForTask(users, assigneesOf(task));
           return (
             <article
               key={task.id}
@@ -461,8 +462,36 @@ function DayDetailPanel({
             >
               <time className="text-xs text-muted-foreground">
                 {format(new Date(plan.when), "HH:mm", { locale: pl })}
+                {plan.until &&
+                  ` – ${format(new Date(plan.until), "HH:mm", { locale: pl })}`}
+                {plan.overnight && " · na noc"}
+                {plan.hostId && ` · zaprasza ${nameOf(plan.hostId)}`}
               </time>
-              {plan.notes && <p className="mt-1 text-sm">{plan.notes}</p>}
+              {(plan.title || plan.notes) && (
+                <p className="mt-1 text-sm">{plan.title || plan.notes}</p>
+              )}
+            </article>
+          ))}
+        </DaySection>
+      )}
+
+      {away.length > 0 && (
+        <DaySection title="Nieobecni" count={away.length}>
+          {away.map((a) => (
+            <article
+              key={a.id}
+              className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm"
+            >
+              <p className="font-medium">{nameOf(a.profileId)}</p>
+              <p className="text-xs text-muted-foreground">
+                do{" "}
+                {format(new Date(`${a.to}T12:00:00`), "d MMM", { locale: pl })}{" "}
+                ·{" "}
+                {a.mode === "reassign"
+                  ? "obowiązki robią inni"
+                  : "obowiązki czekają"}
+                {a.note && ` · ${a.note}`}
+              </p>
             </article>
           ))}
         </DaySection>

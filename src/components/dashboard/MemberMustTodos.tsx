@@ -5,15 +5,15 @@ import { useApp } from "@/context/AppContext";
 import { roomLabel } from "@/config/rooms";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
-import { effectiveAssignees } from "@/lib/rotation";
 
 export function MemberMustTodos({ memberId }: { memberId: string }) {
-  const { users, tasks, statusOf, completeTask, daysSince } = useApp();
+  const { users, tasks, statusOf, completeTask, daysSince, assigneesOf } =
+    useApp();
   const member = users.find((u) => u.id === memberId);
 
   const memberTasks = useMemo(
-    () => tasks.filter((task) => effectiveAssignees(task).includes(memberId)),
-    [tasks, memberId],
+    () => tasks.filter((task) => assigneesOf(task).includes(memberId)),
+    [tasks, memberId, assigneesOf],
   );
 
   const mustTodos = useMemo(
@@ -117,7 +117,7 @@ export function MemberMustTodos({ memberId }: { memberId: string }) {
               </div>
               <button
                 type="button"
-                onClick={() => completeTask(task.id)}
+                onClick={() => completeTask(task.id, memberId)}
                 className="shrink-0 rounded-xl border border-alert/30 bg-background/60 px-3 py-1.5 text-xs font-semibold text-alert transition-colors hover:bg-alert/15"
               >
                 Zrobione

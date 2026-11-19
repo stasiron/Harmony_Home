@@ -29,6 +29,8 @@ export const ITEM_COLLECTIONS = [
   "purchases",
   "products",
   "announcements",
+  "absences",
+  "completions",
 ] as const;
 
 export type ItemCollection = (typeof ITEM_COLLECTIONS)[number];

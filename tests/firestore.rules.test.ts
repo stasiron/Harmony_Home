@@ -1066,3 +1066,55 @@ describe("powiadomienia", () => {
     );
   });
 });
+
+describe("nieobecności i historia wykonań", () => {
+  it("nieobecność wpisuje każdy domownik, obcy nie widzi", async () => {
+    const ref = (uid: string, token?: object) =>
+      doc(dbAs(uid, token), "households", HID, "absences", "a1");
+    await assertSucceeds(
+      setDoc(ref("alice"), {
+        profileId: "p1",
+        from: "2026-12-20",
+        to: "2026-12-27",
+        note: "",
+        mode: "reassign",
+        createdBy: "alice",
+      }),
+    );
+    await assertFails(getDoc(ref("bob")));
+  });
+
+  it("historię tylko się dopisuje — zmienić nie można, usuwa admin", async () => {
+    const ref = (uid: string, token?: object) =>
+      doc(dbAs(uid, token), "households", HID, "completions", "c1");
+    await assertSucceeds(
+      setDoc(ref("tablet", anonymous), {
+        itemId: "open",
+        kind: "chore",
+        name: "Open",
+        by: "p1",
+        at: "2026-11-19T10:00:00Z",
+        minutes: 10,
+        weight: 12,
+        createdBy: "tablet",
+      }),
+    );
+    await assertFails(updateDoc(ref("tablet", anonymous), { by: "p2" }));
+    await assertFails(updateDoc(ref("admin"), { weight: 999 }));
+    await assertFails(deleteDoc(ref("alice")));
+    await assertFails(getDoc(ref("bob")));
+    await assertSucceeds(getDoc(ref("alice")));
+    await assertSucceeds(deleteDoc(ref("admin")));
+  });
+
+  it("nie dopisze historii za kogoś innego", async () => {
+    await assertFails(
+      setDoc(doc(dbAs("alice"), "households", HID, "completions", "c2"), {
+        itemId: "open",
+        by: "p1",
+        at: "2026-11-19T10:00:00Z",
+        createdBy: "admin",
+      }),
+    );
+  });
+});

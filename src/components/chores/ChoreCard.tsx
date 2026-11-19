@@ -3,6 +3,7 @@ import type { Task } from "@/types";
 import { useApp } from "@/context/AppContext";
 import { EditChoreDialog } from "@/components/chores/EditChoreDialog";
 import { ZadanieCard } from "@/components/chores/ZadanieCard";
+import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
 import { resolveChoreWeights } from "@/config/choreWeight";
 import { TurnQueueLine } from "@/components/chores/TurnQueueLine";
@@ -13,7 +14,6 @@ import { choreCompletionByAssignee } from "@/lib/choreAssignees";
 import { resolveLinkedZadania } from "@/lib/zadania";
 import { summarizeLinkedZadania } from "@/lib/choreZadaniaStatus";
 import { cn } from "@/lib/utils";
-import { effectiveAssignees } from "@/lib/rotation";
 
 const statusStyles: Record<string, string> = {
   safe: "border-safe/30 bg-safe/5",
@@ -38,12 +38,15 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
     completeTask,
     panic,
     guestsMode,
+    assigneesOf,
   } = useApp();
-  const assignees = effectiveAssignees(task)
+  const assignees = assigneesOf(task)
     .map((id) => users.find((u) => u.id === id))
     .filter((u): u is NonNullable<typeof u> => u !== undefined);
   const status = statusOf(task);
-  const { household } = useHousehold();
+  const { household, myProfileId } = useHousehold();
+  const { seeAsMemberId } = useAuth();
+  const actorId = seeAsMemberId ?? myProfileId;
   const choreWeights = resolveChoreWeights(household?.choreWeights);
   const d = daysSince(task.lastCompleted);
   const importance = resolveImportance(task);
@@ -202,7 +205,15 @@ export function ChoreCard({ task, rank }: { task: Task; rank?: number }) {
         <div className="flex items-center gap-1.5">
           <EditChoreDialog task={task} />
           <button
-            onClick={() => completeTask(task.id)}
+            onClick={() =>
+              // Historia: kto zrobił — ten domownik, jeśli to jego obowiązek
+              completeTask(
+                task.id,
+                actorId && assignees.some((u) => u.id === actorId)
+                  ? actorId
+                  : undefined,
+              )
+            }
             className="flex size-9 items-center justify-center rounded-full bg-foreground/10 text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
             aria-label="Oznacz jako zrobione"
           >

@@ -78,3 +78,17 @@ export function keepTurnForList(
   const index = current ? nextIds.indexOf(current) : -1;
   return index >= 0 ? index : 0;
 }
+
+/**
+ * Tura po wykonaniu przez konkretną osobę z kolejki: następna po niej.
+ * Ważne przy nieobecnościach — zastępca nie dostaje od razu kolejnej tury.
+ */
+export function advanceRotationPast<T extends TurnRotation>(
+  item: T,
+  profileId: string | null | undefined,
+): T {
+  const members = rotationMembers(item);
+  const index = profileId ? members.indexOf(profileId) : -1;
+  if (members.length < 2 || index < 0) return advanceRotation(item);
+  return { ...item, rotationTurn: (index + 1) % members.length };
+}
