@@ -1,4 +1,4 @@
-import { PackageCheck, ShoppingCart, Trash2 } from "lucide-react";
+import { PackageCheck, ShoppingCart, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FilterChip } from "@/components/FilterChip";
@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useHousehold } from "@/context/HouseholdContext";
+import { useScope } from "@/context/ScopeContext";
 import type { KitchenData } from "@/hooks/useKitchen";
 import {
   daysAgoLabel,
+  addMissingToShopping,
   findProduct,
   newPurchase,
   rememberAdded,
@@ -22,6 +24,7 @@ import {
   addToFridge,
   FOOD_CATEGORIES,
   formatAmount,
+  missingIngredients,
   newShoppingItem,
 } from "@/lib/kitchen";
 import { formatPLN, parsePLN, toInputPLN } from "@/lib/money";
@@ -151,6 +154,8 @@ export function ShoppingPanel({ kitchen }: { kitchen: KitchenData }) {
           Moje prywatne
         </FilterChip>
       </div>
+
+      <PlannedRecipes kitchen={kitchen} />
 
       {bought.length > 0 && (
         <div className="flex flex-col gap-3 rounded-2xl border border-safe/40 bg-safe/10 px-4 py-3 sm:flex-row sm:items-center">
@@ -397,5 +402,105 @@ function ShoppingRow({
         </Button>
       )}
     </li>
+  );
+}
+
+/**
+ * Zaplanowane przepisy: w sklepie od razu widać, czego brakuje do każdego
+ * (na bieżąco względem lodówki), i można to dopisać jednym przyciskiem.
+ */
+function PlannedRecipes({ kitchen }: { kitchen: KitchenData }) {
+  const { plans, setPlans, recipes, fridge, shopping, setShopping, products } =
+    kitchen;
+  const { scope } = useScope();
+  if (plans.length === 0) return null;
+
+  return (
+    <section className="space-y-2 rounded-2xl border border-primary/30 bg-primary/5 p-3 sm:p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        Zaplanowane przepisy · {plans.length}
+      </h3>
+      <ul className="space-y-2">
+        {plans.map((plan) => {
+          const recipe = recipes.find((r) => r.id === plan.recipeId);
+          const missing = recipe
+            ? missingIngredients(recipe, fridge, plan.scale)
+            : [];
+          return (
+            <li
+              key={plan.id}
+              className="flex flex-wrap items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm"
+            >
+              <span className="text-xl" aria-hidden>
+                {plan.emoji}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">
+                  {plan.recipeName}
+                  {plan.scale !== 1 && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {Math.round(plan.scale * 100)}%
+                    </span>
+                  )}
+                </p>
+                <p
+                  className={cn(
+                    "truncate text-xs",
+                    missing.length > 0 ? "text-alert" : "text-safe",
+                  )}
+                >
+                  {!recipe
+                    ? "Przepis niedostępny"
+                    : missing.length > 0
+                      ? `Brakuje: ${missing
+                          .map((m) =>
+                            m.amount !== null
+                              ? `${m.name} ${formatAmount(m.amount, m.unit)}`
+                              : m.name,
+                          )
+                          .join(", ")}`
+                      : "Masz wszystko"}
+                </p>
+              </div>
+              {missing.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const { next, added } = addMissingToShopping(
+                      shopping,
+                      missing,
+                      products,
+                      scope,
+                    );
+                    setShopping(next);
+                    toast.success(
+                      added > 0
+                        ? `Dopisano: ${added}`
+                        : "Wszystko już jest na liście",
+                    );
+                  }}
+                >
+                  <ShoppingCart className="size-4" />
+                  Dopisz brakujące
+                </Button>
+              )}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-8 text-muted-foreground"
+                onClick={() =>
+                  setPlans((prev) => prev.filter((p) => p.id !== plan.id))
+                }
+                aria-label={`Usuń plan: ${plan.recipeName}`}
+              >
+                <X className="size-4" />
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

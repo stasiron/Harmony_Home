@@ -7,7 +7,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useId, useMemo } from "react";
 import { toast } from "sonner";
 import { useMemberNames } from "@/hooks/useKitchenPrefs";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DIFFICULTY_LABELS, RECIPE_CATEGORIES, UNITS } from "@/lib/kitchen";
+import {
+  DIFFICULTY_LABELS,
+  productKey,
+  RECIPE_CATEGORIES,
+  UNITS,
+} from "@/lib/kitchen";
 import { saveRecipe } from "@/lib/recipes";
 import { useScope } from "@/context/ScopeContext";
 import { EmojiColorPicker } from "@/components/EmojiColorPicker";
@@ -39,6 +44,8 @@ import type { Recipe } from "@/types";
 
 type IngredientRow = {
   key: string;
+  /** Powiązany produkt z lodówki / pamięci produktów */
+  productId?: string;
   name: string;
   amount: string;
   unit: string;
@@ -59,13 +66,21 @@ export function RecipeEditor({
   authorName,
   recipe,
   onClose,
+  known = [],
 }: {
   householdId: string;
   uid: string;
   authorName: string;
   recipe: Recipe | null;
   onClose: (saved?: Recipe) => void;
+  /** Produkty z lodówki i pamięci produktów — podpowiedzi składników */
+  known?: { name: string; unit: string }[];
 }) {
+  const knownListId = useId();
+  const knownByKey = useMemo(
+    () => new Map(known.map((k) => [productKey(k.name), k])),
+    [known],
+  );
   const members = useMemberNames().filter((m) => !m.anonymous && m.uid !== uid);
   const [name, setName] = useState(recipe?.name ?? "");
   const [emoji, setEmoji] = useState(recipe?.emoji ?? "🍝");
@@ -81,6 +96,7 @@ export function RecipeEditor({
     recipe && recipe.ingredients.length > 0
       ? recipe.ingredients.map((i) => ({
           key: crypto.randomUUID(),
+          productId: i.productId,
           name: i.name,
           amount: i.amount === null ? "" : String(i.amount).replace(".", ","),
           unit: i.unit,
@@ -148,6 +164,7 @@ export function RecipeEditor({
           amount: r.amount.trim() ? num(r.amount, 0) : null,
           unit: r.unit,
           ...(r.optional ? { optional: true } : {}),
+          ...(r.productId ? { productId: r.productId } : {}),
         })),
       steps: steps.map((s) => s.trim()).filter(Boolean),
       notes: notes.trim(),
@@ -267,9 +284,17 @@ export function RecipeEditor({
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">Składniki</h3>
             <p className="text-xs text-muted-foreground">
-              Na podaną liczbę porcji. Bez ilości — „do smaku”. Nazwy jak w
-              lodówce, wtedy po ugotowaniu zdejmiemy je automatycznie.
+              Na podaną liczbę porcji. Bez ilości — „do smaku”. Wybierz z
+              podpowiedzi produkt z lodówki (także taki, którego teraz nie ma) —
+              wtedy po ugotowaniu zdejmiemy go automatycznie.
             </p>
+            {known.length > 0 && (
+              <datalist id={knownListId}>
+                {known.map((k) => (
+                  <option key={k.name} value={k.name} />
+                ))}
+              </datalist>
+            )}
             <div className="space-y-2">
               {rows.map((row) => (
                 <div
@@ -278,12 +303,31 @@ export function RecipeEditor({
                 >
                   <Input
                     value={row.name}
-                    onChange={(e) =>
-                      updateRow(row.key, { name: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      // Znany produkt — powiązanie i jego jednostka
+                      const match = knownByKey.get(productKey(name));
+                      updateRow(row.key, {
+                        name,
+                        productId: match ? productKey(name) : undefined,
+                        ...(match && !row.amount.trim()
+                          ? { unit: match.unit }
+                          : {}),
+                      });
+                    }}
                     placeholder="np. makaron"
-                    className="min-w-0 flex-1 basis-full sm:basis-auto"
+                    className={cn(
+                      "min-w-0 flex-1 basis-full sm:basis-auto",
+                      row.productId && "border-safe/60",
+                    )}
                     aria-label="Składnik"
+                    list={known.length > 0 ? knownListId : undefined}
+                    autoComplete="off"
+                    title={
+                      row.productId
+                        ? "Powiązany z produktem z lodówki"
+                        : undefined
+                    }
                   />
                   <Input
                     value={row.amount}

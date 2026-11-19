@@ -177,6 +177,23 @@ export interface RecipeIngredient {
   unit: string;
   /** Opcjonalny — nie blokuje „możesz ugotować” */
   optional?: boolean;
+  /**
+   * Powiązany produkt (`p-…` z nazwy w lodówce / pamięci produktów) —
+   * dopasowanie do lodówki niezależnie od odmiany nazwy
+   */
+  productId?: string;
+}
+
+/** Zaplanowany przepis — w sklepie widać, czego brakuje */
+export interface RecipePlan extends ItemMeta {
+  id: string;
+  recipeId: string;
+  recipeName: string;
+  emoji: string;
+  /** 1 = 100% przepisu */
+  scale: number;
+  /** YYYY-MM-DD — kiedy gotujemy (opcjonalnie) */
+  plannedFor: string | null;
 }
 
 /**

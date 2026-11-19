@@ -31,6 +31,7 @@ export const ITEM_COLLECTIONS = [
   "announcements",
   "absences",
   "completions",
+  "recipePlans",
 ] as const;
 
 export type ItemCollection = (typeof ITEM_COLLECTIONS)[number];
@@ -88,6 +89,7 @@ export const PRIVATE_COLLECTIONS = [
   "guideEntries",
   "products",
   "laundry",
+  "recipePlans",
 ] as const;
 
 /**

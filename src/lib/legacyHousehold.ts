@@ -123,5 +123,6 @@ export function buildLegacyMigration(
     announcements: [],
     absences: [],
     completions: [],
+    recipePlans: [],
   };
 }

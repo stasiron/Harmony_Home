@@ -1193,3 +1193,34 @@ describe("prywatne pranie", () => {
     );
   });
 });
+
+describe("plany przepisów", () => {
+  it("wspólny plan widzą domownicy, prywatny tylko autor", async () => {
+    const plan = {
+      recipeId: "r1",
+      recipeName: "Gulasz",
+      emoji: "🍲",
+      scale: 0.7,
+      plannedFor: null,
+    };
+    await assertSucceeds(
+      setDoc(doc(dbAs("alice"), "households", HID, "recipePlans", "p1"), {
+        ...plan,
+        createdBy: "alice",
+      }),
+    );
+    await assertSucceeds(
+      getDoc(
+        doc(dbAs("tablet", anonymous), "households", HID, "recipePlans", "p1"),
+      ),
+    );
+    await assertFails(
+      getDoc(doc(dbAs("bob"), "households", HID, "recipePlans", "p1")),
+    );
+    const privatePath = `households/${HID}/private/alice/recipePlans/p2`;
+    await assertSucceeds(
+      setDoc(doc(dbAs("alice"), privatePath), { ...plan, createdBy: "alice" }),
+    );
+    await assertFails(getDoc(doc(dbAs("admin"), privatePath)));
+  });
+});

@@ -7,12 +7,29 @@ import { normalizeProduct, normalizePurchase } from "@/lib/bills";
 import { normalizeFridgeItem, normalizeShoppingItem } from "@/lib/kitchen";
 import { subscribeRecipes } from "@/lib/recipes";
 import type {
+  RecipePlan,
   FridgeItem,
   Product,
   Purchase,
   Recipe,
   ShoppingItem,
 } from "@/types";
+
+function normalizePlan(raw: unknown): RecipePlan | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== "string" || typeof r.recipeId !== "string") return null;
+  const scale = typeof r.scale === "number" && r.scale > 0 ? r.scale : 1;
+  return {
+    ...(r as object),
+    id: r.id,
+    recipeId: r.recipeId,
+    recipeName: typeof r.recipeName === "string" ? r.recipeName : "Przepis",
+    emoji: typeof r.emoji === "string" ? r.emoji : "🍽️",
+    scale,
+    plannedFor: typeof r.plannedFor === "string" ? r.plannedFor : null,
+  } as RecipePlan;
+}
 
 const byName = (a: { name: string }, b: { name: string }) =>
   a.name.localeCompare(b.name, "pl");
@@ -55,6 +72,17 @@ export function useKitchen() {
     normalize: normalizeProduct,
     sort: byName,
   });
+  // Zaplanowane przepisy — w Zakupach widać, czego brakuje
+  const [plans, setPlans] = useVisibilityList<RecipePlan>({
+    householdId,
+    name: "recipePlans",
+    uid,
+    privateOwner,
+    normalize: normalizePlan,
+    sort: (a, b) =>
+      (a.plannedFor ?? "9999").localeCompare(b.plannedFor ?? "9999") ||
+      (a.createdAt ?? "").localeCompare(b.createdAt ?? ""),
+  });
   // Wspólne zakupy — kuchnia tworzy je przy „Kupione”
   const [purchases, setPurchases] = useSyncedList<Purchase>({
     householdId,
@@ -92,6 +120,8 @@ export function useKitchen() {
     setShopping,
     products,
     setProducts,
+    plans,
+    setPlans,
     purchases,
     setPurchases,
     recipes,

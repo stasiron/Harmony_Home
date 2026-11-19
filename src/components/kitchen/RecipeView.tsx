@@ -27,15 +27,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { KitchenData } from "@/hooks/useKitchen";
+import { CookDialog } from "@/components/kitchen/CookDialog";
+import { useScope } from "@/context/ScopeContext";
+import { addMissingToShopping } from "@/lib/bills";
 import {
-  applyDeductions,
   DIFFICULTY_LABELS,
   formatAmount,
   ingredientStatus,
   missingIngredients,
-  newShoppingItem,
-  planCooking,
-  type Deduction,
 } from "@/lib/kitchen";
 import { deleteRecipe } from "@/lib/recipes";
 import { cn } from "@/lib/utils";
@@ -88,7 +87,8 @@ export function RecipeView({
   // Tytuł i opis okna działają tylko w oknie — w kolumnie zwykłe elementy
   const Title = inline ? "h2" : DialogTitle;
   const Description = inline ? "p" : DialogDescription;
-  const { fridge, setFridge, setShopping, uid, householdId } = kitchen;
+  const { fridge, setShopping, uid, householdId } = kitchen;
+  const { scope } = useScope();
   const mine = recipe.createdBy === uid;
   const names = useMemberNames();
   const [servings, setServings] = useState(recipe.servings);
@@ -105,18 +105,20 @@ export function RecipeView({
     .join(", ");
 
   const addMissing = () => {
-    setShopping((prev) => [
-      ...prev,
-      ...missing.map((m) =>
-        newShoppingItem({
-          ...m,
-          category: "other",
-          visibility: "public",
-        }),
-      ),
-    ]);
-    toast.success(`Dopisano do zakupów: ${missing.length}`);
+    const { next, added } = addMissingToShopping(
+      kitchen.shopping,
+      missing,
+      kitchen.products,
+      scope,
+    );
+    setShopping(next);
+    toast.success(
+      added > 0
+        ? `Dopisano do zakupów: ${added}`
+        : "Wszystko brakujące już jest na liście",
+    );
   };
+  const planned = kitchen.plans.some((p) => p.recipeId === recipe.id);
 
   const remove = async () => {
     if (!householdId) return;
@@ -302,24 +304,27 @@ export function RecipeView({
             </>
           )}
         </div>
-        <Button onClick={() => setCooking(true)}>
-          <ChefHat className="size-4" />
-          Ugotowane — zdejmij z lodówki
-        </Button>
+        <div className="flex gap-2">
+          {planned && (
+            <span className="self-center rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
+              Zaplanowany
+            </span>
+          )}
+          <Button onClick={() => setCooking(true)}>
+            <ChefHat className="size-4" />
+            Gotuję / zaplanuj
+          </Button>
+        </div>
       </DialogFooter>
 
       {cooking && (
         <CookDialog
-          deductions={planCooking(recipe, fridge, scale)}
+          recipe={recipe}
+          kitchen={kitchen}
+          initialScale={scale}
           onClose={() => setCooking(false)}
-          onConfirm={(chosen) => {
-            setFridge((prev) => applyDeductions(prev, chosen));
+          onCooked={() => {
             setCooking(false);
-            toast.success(
-              chosen.length > 0
-                ? `Smacznego! Z lodówki zdjęto ${chosen.length} ${chosen.length === 1 ? "pozycję" : "pozycje"}.`
-                : "Smacznego!",
-            );
             onClose();
           }}
         />
@@ -339,84 +344,6 @@ export function RecipeView({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="hh-scroll max-h-[92vh] max-w-3xl overflow-y-auto">
         {body}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/** Potwierdzenie: co dokładnie zniknie z lodówki */
-function CookDialog({
-  deductions,
-  onClose,
-  onConfirm,
-}: {
-  deductions: Deduction[];
-  onClose: () => void;
-  onConfirm: (chosen: Deduction[]) => void;
-}) {
-  const [checked, setChecked] = useState<boolean[]>(() =>
-    deductions.map((d) => d.exact),
-  );
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Co zużyłeś?</DialogTitle>
-          <DialogDescription>
-            Zaznaczone pozycje zdejmiemy z lodówki. Gdy ilości nie da się
-            policzyć, zdecyduj sam — zaznacz, jeśli produkt się skończył.
-          </DialogDescription>
-        </DialogHeader>
-        {deductions.length === 0 ? (
-          <p className="rounded-xl bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-            Żaden składnik nie pasuje do produktów w lodówce — nic nie
-            zdejmujemy.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border rounded-2xl border border-border">
-            {deductions.map((d, i) => (
-              <li key={`${d.itemId}-${i}`}>
-                <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm">
-                  <Checkbox
-                    checked={checked[i]}
-                    onCheckedChange={(v) =>
-                      setChecked((prev) =>
-                        prev.map((c, j) => (j === i ? v === true : c)),
-                      )
-                    }
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">
-                      {d.itemName}
-                    </span>
-                    {d.ingredientName.toLowerCase() !==
-                      d.itemName.toLowerCase() && (
-                      <span className="block truncate text-xs text-muted-foreground">
-                        jako: {d.ingredientName}
-                      </span>
-                    )}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    {d.amount === null
-                      ? "cały produkt"
-                      : `− ${formatAmount(d.amount, d.unit)}`}
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        )}
-        <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Anuluj
-          </Button>
-          <Button
-            onClick={() => onConfirm(deductions.filter((_, i) => checked[i]))}
-          >
-            Zatwierdź
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

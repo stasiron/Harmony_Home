@@ -49,6 +49,16 @@ export function RecipesPanel({ kitchen }: { kitchen: KitchenData }) {
   const open = recipes.find((r) => r.id === openId) ?? null;
   // Duży ekran: przepis zawsze widać obok listy (wybrany albo pierwszy)
   const wide = useIsWide();
+  // Podpowiedzi składników: lodówka (także stałe przy zerze) i pamięć produktów
+  const knownProducts = useMemo(() => {
+    const seen = new Map<string, { name: string; unit: string }>();
+    for (const item of [...kitchen.fridge, ...kitchen.products]) {
+      const key = item.name.trim().toLowerCase();
+      if (!seen.has(key)) seen.set(key, { name: item.name, unit: item.unit });
+    }
+    return [...seen.values()];
+  }, [kitchen.fridge, kitchen.products]);
+  const plannedIds = new Set(kitchen.plans.map((p) => p.recipeId));
   const shown = open ?? visible[0]?.recipe ?? null;
   const myName =
     names.find((n) => n.uid === uid)?.name ?? user?.displayName ?? "";
@@ -174,7 +184,14 @@ export function RecipesPanel({ kitchen }: { kitchen: KitchenData }) {
                         ? "Masz wszystko"
                         : `W lodówce ${have} z ${total} składników`}
                     </span>
-                    <ShareBadge recipe={recipe} />
+                    <span className="flex items-center gap-1">
+                      {plannedIds.has(recipe.id) && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                          Zaplanowany
+                        </span>
+                      )}
+                      <ShareBadge recipe={recipe} />
+                    </span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
@@ -217,6 +234,7 @@ export function RecipesPanel({ kitchen }: { kitchen: KitchenData }) {
           uid={uid}
           authorName={myName}
           recipe={editing === "new" ? null : editing}
+          known={knownProducts}
           onClose={(saved) => {
             setEditing(null);
             if (saved) setOpenId(saved.id);

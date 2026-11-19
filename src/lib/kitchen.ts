@@ -104,6 +104,29 @@ export function foodKey(name: string): string {
     .trim();
 }
 
+/** Klucz produktu z nazwy — ten sam co id w pamięci produktów (`p-…`) */
+export function productKey(name: string): string {
+  const key = foodKey(name).replace(/ /g, "-");
+  return `p-${key || "produkt"}`;
+}
+
+/**
+ * Produkty z lodówki pasujące do składnika: najpierw powiązany produkt
+ * (`productId`), a gdy go nie ma w lodówce — dopasowanie po nazwie.
+ */
+export function ingredientMatches(
+  ingredient: RecipeIngredient,
+  fridge: FridgeItem[],
+): FridgeItem[] {
+  if (ingredient.productId) {
+    const linked = fridge.filter(
+      (f) => productKey(f.name) === ingredient.productId,
+    );
+    if (linked.length > 0) return linked;
+  }
+  return fridge.filter((f) => namesMatch(f.name, ingredient.name));
+}
+
 /**
  * Czy produkt z lodówki to ten składnik: ta sama nazwa albo jedna zawiera
  * drugą jako całe słowa („mleko” ↔ „mleko 3,2%”, „jajka” ↔ „jajka L”).
@@ -296,7 +319,7 @@ export function ingredientStatus(
   scale = 1,
 ): IngredientStatus {
   const needed = scaleIngredient(ingredient, scale);
-  const matches = fridge.filter((f) => namesMatch(f.name, ingredient.name));
+  const matches = ingredientMatches(ingredient, fridge);
   let available: number | null = 0;
   for (const item of matches) {
     if (item.amount === null) {
@@ -377,11 +400,9 @@ export function planCooking(
 
   for (const ingredient of recipe.ingredients) {
     let remaining = scaleIngredient(ingredient, scale);
-    const matches = fridge
-      .filter((f) => namesMatch(f.name, ingredient.name))
-      .sort((a, b) =>
-        (a.expiresOn ?? "9999").localeCompare(b.expiresOn ?? "9999"),
-      );
+    const matches = ingredientMatches(ingredient, fridge).sort((a, b) =>
+      (a.expiresOn ?? "9999").localeCompare(b.expiresOn ?? "9999"),
+    );
     for (const item of matches) {
       if (remaining !== null && remaining <= 1e-9) break;
       const left = (item.amount ?? 0) - (used.get(item.id) ?? 0);
@@ -486,6 +507,9 @@ export function normalizeRecipe(raw: unknown): Recipe | null {
           amount: finite(i.amount),
           unit: normalizeUnit(i.unit),
           optional: i.optional === true,
+          ...(typeof i.productId === "string" && i.productId
+            ? { productId: i.productId }
+            : {}),
         }))
     : [];
   const share = r.share === "all" || r.share === "people" ? r.share : "private";

@@ -1,4 +1,4 @@
-import { convertAmount, foodKey } from "@/lib/kitchen";
+import { convertAmount, foodKey, productKey } from "@/lib/kitchen";
 import { splitByWeights, splitEqual } from "@/lib/money";
 import type {
   Bill,
@@ -9,6 +9,7 @@ import type {
   Purchase,
   PurchaseLine,
   ShoppingCategory,
+  ShoppingItem,
   StockState,
   User,
 } from "@/types";
@@ -260,8 +261,7 @@ export function normalizeProduct(raw: unknown): Product | null {
 
 /** Id dokumentu produktu: „Mozzarella” i „mozzarella ” to ten sam produkt */
 export function productId(name: string): string {
-  const key = foodKey(name).replace(/ /g, "-");
-  return `p-${key || "produkt"}`;
+  return productKey(name);
 }
 
 const visibilityOf = (item: { visibility?: ItemVisibility }) =>
@@ -516,4 +516,46 @@ export function markShare<
     if (action !== "paid") confirmed[person] = at;
   }
   return { ...item, settled, confirmed };
+}
+
+// ─── Brakujące składniki na listę zakupów ─────────────────────────────────
+
+export type MissingLine = { name: string; amount: number | null; unit: string };
+
+/**
+ * Dopisuje brakujące składniki do zakupów: bez duplikatów (to samo, co już
+ * czeka na liście, zostaje), z kategorią i emotką z pamięci produktów.
+ * Zwraca nową listę i ile pozycji doszło.
+ */
+export function addMissingToShopping(
+  shopping: readonly ShoppingItem[],
+  missing: readonly MissingLine[],
+  products: readonly Product[],
+  visibility: ItemVisibility,
+): { next: ShoppingItem[]; added: number } {
+  const next = [...shopping];
+  let added = 0;
+  for (const line of missing) {
+    const waiting = next.some(
+      (s) =>
+        !s.checked &&
+        foodKey(s.name) === foodKey(line.name) &&
+        (s.visibility === "private" ? "private" : "public") === visibility,
+    );
+    if (waiting) continue;
+    const known = findProduct(products, line.name, visibility);
+    next.push({
+      id: crypto.randomUUID(),
+      name: line.name,
+      amount: line.amount,
+      unit: line.unit,
+      category: known?.category ?? "other",
+      checked: false,
+      ...(known?.emoji ? { emoji: known.emoji } : {}),
+      ...(known?.color ? { color: known.color } : {}),
+      ...(visibility === "private" ? { visibility: "private" as const } : {}),
+    });
+    added++;
+  }
+  return { next, added };
 }

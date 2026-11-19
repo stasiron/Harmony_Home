@@ -241,7 +241,7 @@ service cloud.firestore {
           && request.auth.uid == ownerUid
           && collection in [
             'chores', 'zadania', 'todos', 'shopping', 'fridge', 'guides',
-            'guideEntries', 'products', 'laundry'
+            'guideEntries', 'products', 'laundry', 'recipePlans'
           ]
           && exists(memberPath(hid));
       }
@@ -285,7 +285,7 @@ service cloud.firestore {
             'chores', 'zadania', 'todos', 'todoFolders',
             'shopping', 'laundry', 'guestPlans', 'fridge', 'guides',
             'guideTabs', 'guideEntries', 'bills', 'purchases', 'products',
-            'announcements', 'absences'
+            'announcements', 'absences', 'recipePlans'
           ];
         }
 
