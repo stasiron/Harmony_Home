@@ -143,6 +143,8 @@ export type CreateHouseholdInput = {
   profileNames: string[];
   /** Który z nich to twórca — null: nikt */
   myProfileIndex: number | null;
+  /** Preset z opcjami (studenckie): wybrane obowiązki */
+  choreIds?: string[];
   floorPlan: FloorPlanUpload | null;
   weatherLocation?: WeatherLocation | null;
 };
@@ -163,8 +165,11 @@ export async function createHousehold(
   const now = new Date();
   const nowIso = now.toISOString();
   const householdId = doc(collection(db, "households")).id;
-  const preset = buildPresetItems(input.presetId, user.uid, now);
   const profiles = buildProfiles(input.profileNames, user.uid, now);
+  const preset = buildPresetItems(input.presetId, user.uid, now, {
+    choreIds: input.choreIds,
+    profileIds: profiles.map((p) => p.id),
+  });
   const myProfile =
     input.myProfileIndex === null ? null : profiles[input.myProfileIndex];
 

@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { CopyFloorPlanPromptButton } from "@/components/household/NoFloorPlan";
 import { LoginDialog } from "@/components/auth/LoginDialog";
@@ -136,6 +138,42 @@ export function CreateHouseholdCard({ onCreated }: { onCreated?: () => void }) {
 
   const [name, setName] = useState("");
   const [presetId, setPresetId] = useState<HouseholdPresetId>("family");
+  // Preset z opcjami (studenckie): wybrane obowiązki
+  const [choreIds, setChoreIds] = useState<string[] | null>(null);
+  const presetOptions = HOUSEHOLD_PRESETS.find(
+    (p) => p.id === presetId,
+  )?.options;
+  const selectedChores =
+    choreIds ??
+    presetOptions?.chores.filter((c) => c.defaultOn).map((c) => c.def.id) ??
+    [];
+
+  /** Suwak liczby osób: tyle pól na imiona (zachowuje wpisane) */
+  const setPeopleCount = (count: number) => {
+    setProfiles((prev) =>
+      prev.length >= count
+        ? prev.slice(0, count)
+        : [...prev, ...Array.from({ length: count - prev.length }, () => "")],
+    );
+    setMyIndex((current) =>
+      current !== null && current >= count ? null : current,
+    );
+  };
+
+  const choosePreset = (id: HouseholdPresetId) => {
+    setPresetId(id);
+    setChoreIds(null);
+    const options = HOUSEHOLD_PRESETS.find((p) => p.id === id)?.options;
+    // Liczba pól na imiona w granicach presetu (2–5)
+    if (options) {
+      setPeopleCount(
+        Math.min(
+          options.people.max,
+          Math.max(options.people.min, profiles.length),
+        ),
+      );
+    }
+  };
   const [profiles, setProfiles] = useState<string[]>(() => [firstName, ""]);
   const [myIndex, setMyIndex] = useState<number | null>(firstName ? 0 : null);
   const [floorPlan, setFloorPlan] = useState<FloorPlanUpload | null>(null);
@@ -200,6 +238,7 @@ export function CreateHouseholdCard({ onCreated }: { onCreated?: () => void }) {
         name,
         presetId,
         profileNames: named,
+        ...(presetOptions ? { choreIds: selectedChores } : {}),
         myProfileIndex:
           myProfileIndex === null || myProfileIndex < 0 ? null : myProfileIndex,
         floorPlan,
@@ -243,7 +282,7 @@ export function CreateHouseholdCard({ onCreated }: { onCreated?: () => void }) {
             <button
               key={preset.id}
               type="button"
-              onClick={() => setPresetId(preset.id)}
+              onClick={() => choosePreset(preset.id)}
               aria-pressed={presetId === preset.id}
               className={cn(
                 "rounded-2xl border px-4 py-3 text-left transition-colors",
@@ -254,12 +293,63 @@ export function CreateHouseholdCard({ onCreated }: { onCreated?: () => void }) {
             >
               <span className="block font-semibold">{preset.name}</span>
               <span className="mt-0.5 block text-xs text-muted-foreground">
-                {preset.description} · {preset.chores.length} obowiązków
+                {preset.description} ·{" "}
+                {preset.id === presetId && presetOptions
+                  ? selectedChores.length
+                  : preset.chores.length}{" "}
+                obowiązków
               </span>
             </button>
           ))}
         </div>
       </div>
+
+      {presetOptions && (
+        <div className="space-y-3 rounded-2xl border border-border bg-surface/60 p-4">
+          <div className="space-y-2">
+            <Label>
+              Ile osób mieszka? <strong>{profiles.length}</strong>
+            </Label>
+            <Slider
+              min={presetOptions.people.min}
+              max={presetOptions.people.max}
+              step={1}
+              value={[profiles.length]}
+              onValueChange={([value]) => value && setPeopleCount(value)}
+              aria-label="Liczba osób"
+            />
+            <p className="text-xs text-muted-foreground">
+              Każdy dostanie swój pokój na planie, a wspólne obowiązki będą
+              krążyć „na zmianę” między wszystkich.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Wspólne obowiązki</Label>
+            <ul className="grid gap-1.5 sm:grid-cols-2">
+              {presetOptions.chores.map(({ def }) => {
+                const on = selectedChores.includes(def.id);
+                return (
+                  <li key={def.id}>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-sm hover:bg-muted/40">
+                      <Checkbox
+                        checked={on}
+                        onCheckedChange={() =>
+                          setChoreIds(
+                            on
+                              ? selectedChores.filter((id) => id !== def.id)
+                              : [...selectedChores, def.id],
+                          )
+                        }
+                      />
+                      {def.name}
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label>Domownicy</Label>

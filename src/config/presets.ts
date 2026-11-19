@@ -196,6 +196,48 @@ const CHORES = {
     importance: 3,
     schedule: weeks(1),
   },
+  freezer: {
+    id: "preset-freezer",
+    name: "Rozmroź zamrażarkę",
+    description: "Wyjmij jedzenie, rozmroź, wytrzyj do sucha",
+    room: "kitchen",
+    minutes: 40,
+    importance: 2,
+    schedule: weeks(10),
+  },
+  oven: {
+    id: "preset-oven",
+    name: "Piekarnik i mikrofalówka",
+    room: "kitchen",
+    minutes: 20,
+    importance: 3,
+    schedule: weeks(2),
+  },
+  hood: {
+    id: "preset-hood",
+    name: "Okap i filtr",
+    room: "kitchen",
+    minutes: 20,
+    importance: 2,
+    schedule: weeks(6),
+  },
+  generalClean: {
+    id: "preset-general-clean",
+    name: "Generalne sprzątanie części wspólnych",
+    description: "Wszyscy razem: kuchnia, łazienka, przedpokój, okna",
+    room: "whole",
+    minutes: 90,
+    importance: 3,
+    schedule: weeks(4),
+  },
+  hallway: {
+    id: "preset-hallway",
+    name: "Przedpokój: buty, kurtki, podłoga",
+    room: "hallway",
+    minutes: 15,
+    importance: 3,
+    schedule: weeks(1),
+  },
   table: {
     id: "preset-table",
     name: "Nakryj i sprzątnij stół",
@@ -263,6 +305,47 @@ export type HouseholdPreset = {
   description: string;
   chores: ChoreDef[];
   zones: ZoneDef[];
+  /**
+   * Preset do skonfigurowania w kreatorze: liczba osób (suwak) i obowiązki
+   * do zaznaczenia. Pokoje i kolejki liczą się z liczby osób.
+   */
+  options?: PresetOptions;
+};
+
+export type PresetChoreOption = {
+  def: ChoreDef;
+  /** Zaznaczony domyślnie */
+  defaultOn: boolean;
+};
+
+export type PresetOptions = {
+  people: { min: number; max: number; default: number };
+  chores: PresetChoreOption[];
+};
+
+/**
+ * Mieszkanie studenckie: wspólne części robią wszyscy po kolei, każdy
+ * sprząta swój pokój sam (dlatego bez pościeli i prania — to prywatne).
+ */
+const STUDENT_OPTIONS: PresetOptions = {
+  people: { min: 2, max: 5, default: 3 },
+  chores: [
+    { def: CHORES.trash, defaultOn: true },
+    { def: CHORES.recycling, defaultOn: true },
+    { def: CHORES.dishes, defaultOn: true },
+    { def: CHORES.sharedKitchen, defaultOn: true },
+    { def: CHORES.counters, defaultOn: true },
+    { def: CHORES.bathroom, defaultOn: true },
+    { def: CHORES.vacuum, defaultOn: true },
+    { def: CHORES.floors, defaultOn: true },
+    { def: CHORES.hallway, defaultOn: false },
+    { def: CHORES.fridge, defaultOn: true },
+    { def: CHORES.supplies, defaultOn: true },
+    { def: CHORES.oven, defaultOn: false },
+    { def: CHORES.hood, defaultOn: false },
+    { def: CHORES.freezer, defaultOn: false },
+    { def: CHORES.generalClean, defaultOn: true },
+  ],
 };
 
 export const HOUSEHOLD_PRESETS: HouseholdPreset[] = [
@@ -307,14 +390,10 @@ export const HOUSEHOLD_PRESETS: HouseholdPreset[] = [
   {
     id: "student",
     name: "Studenckie",
-    description: "Współlokatorzy — wspólna kuchnia i łazienka, własne pokoje",
-    chores: [
-      ...BASE,
-      CHORES.floors,
-      CHORES.recycling,
-      CHORES.supplies,
-      CHORES.sharedKitchen,
-    ],
+    description:
+      "Współlokatorzy (2–5 osób) — wspólna kuchnia i łazienka, własne pokoje",
+    chores: STUDENT_OPTIONS.chores.filter((c) => c.defaultOn).map((c) => c.def),
+    options: STUDENT_OPTIONS,
     zones: [
       {
         id: "zone-shared",
@@ -396,13 +475,67 @@ function flattenZones(defs: ZoneDef[], parentId: string | null): HomeZone[] {
   });
 }
 
+export type PresetChoices = {
+  /** Wybrane obowiązki (id z opcji presetu); brak = domyślne */
+  choreIds?: string[];
+  /** Domownicy (User.id) — pokoje i kolejki „na zmianę” */
+  profileIds?: string[];
+};
+
+/** Strefy presetu z pokojem na każdą osobę („Pokój 1…N”) */
+function zonesFor(preset: HouseholdPreset, people: number): ZoneDef[] {
+  if (!preset.options) return preset.zones;
+  return preset.zones.map((zone) =>
+    zone.id === "zone-rooms"
+      ? {
+          ...zone,
+          children: Array.from({ length: people }, (_, i) => ({
+            id: `zone-room-${i + 1}`,
+            name: `Pokój ${i + 1}`,
+            // Stała lista pokoi w kodzie ma tylko dwie sypialnie (ChoreRoom);
+            // kolejne pokoje działają przez strefy, bez typu pokoju
+            ...(i === 0
+              ? { room: "bedroom" as const }
+              : i === 1
+                ? { room: "bedroom2" as const }
+                : {}),
+          })),
+        }
+      : zone,
+  );
+}
+
 /** Elementy presetu gotowe do zapisu w nowym mieszkaniu */
 export function buildPresetItems(
   presetId: HouseholdPresetId,
   createdBy: string,
   now = new Date(),
+  choices: PresetChoices = {},
 ): { chores: Task[]; zadania: Zadanie[]; zones: HomeZone[] } {
-  const preset = presetById(presetId);
+  const base = presetById(presetId);
+  const options = base.options;
+  const people = choices.profileIds ?? [];
+  const peopleCount = options
+    ? Math.min(
+        options.people.max,
+        Math.max(options.people.min, people.length || options.people.default),
+      )
+    : 0;
+  const chosen = options
+    ? options.chores
+        .filter((c) =>
+          choices.choreIds ? choices.choreIds.includes(c.def.id) : c.defaultOn,
+        )
+        .map((c) => c.def)
+    : base.chores;
+  const preset: HouseholdPreset = {
+    ...base,
+    chores: chosen,
+    zones: zonesFor(base, peopleCount),
+  };
+  // Wspólne obowiązki na zmianę między wszystkich, tury rozłożone,
+  // żeby pierwszego dnia nie wszystko spadło na jedną osobę
+  const rotate = Boolean(options) && people.length >= 2;
   const lastCompleted = now.toISOString();
   // Rosnące createdAt — zachowuje kolejność z presetu po syncu
   const stamp = (index: number) =>
@@ -421,7 +554,10 @@ export function buildPresetItems(
           room: def.room,
           category: roomCategory(def.room),
           estimatedMinutes: def.minutes,
-          assignedTo: [],
+          assignedTo: rotate ? people : [],
+          ...(rotate
+            ? { rotation: people, rotationTurn: index % people.length }
+            : {}),
           ...(zoneId ? { zoneId, mapShape: "zone" as const } : {}),
           recurrence: "recurring",
           schedule: def.schedule,

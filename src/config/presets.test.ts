@@ -34,6 +34,37 @@ describe("presety mieszkań", () => {
     });
   }
 
+  it("studenckie: pokój na osobę, wspólne na zmianę z rozłożonymi turami", () => {
+    const people = ["a", "b", "c", "d"];
+    const { chores, zones } = buildPresetItems("student", "uid-1", new Date(), {
+      profileIds: people,
+    });
+    const rooms = zones.filter((z) => z.parentId === "zone-rooms");
+    expect(rooms.map((r) => r.name)).toEqual([
+      "Pokój 1",
+      "Pokój 2",
+      "Pokój 3",
+      "Pokój 4",
+    ]);
+    for (const chore of chores) {
+      expect(chore.rotation).toEqual(people);
+      expect(chore.assignedTo).toEqual(people);
+    }
+    // Tury nie zaczynają się wszystkie od pierwszej osoby
+    expect(new Set(chores.map((c) => c.rotationTurn)).size).toBe(4);
+    // Prywatne sprawy (pościel, pranie) nie są wspólnym obowiązkiem
+    expect(chores.some((c) => c.id === "preset-bedding")).toBe(false);
+  });
+
+  it("studenckie: wybrane obowiązki i granice liczby osób", () => {
+    const { chores, zones } = buildPresetItems("student", "uid-1", new Date(), {
+      choreIds: ["preset-trash", "preset-freezer"],
+      profileIds: ["a", "b", "c", "d", "e", "f"],
+    });
+    expect(chores.map((c) => c.id)).toEqual(["preset-trash", "preset-freezer"]);
+    expect(zones.filter((z) => z.parentId === "zone-rooms")).toHaveLength(5);
+  });
+
   it("rodzina pierze co 3 dni", () => {
     const { chores } = buildPresetItems("family", "uid-1");
     expect(chores.find((c) => c.id === "preset-laundry")?.schedule).toEqual({
