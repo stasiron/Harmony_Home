@@ -76,12 +76,18 @@ export function RecipeView({
   kitchen,
   onClose,
   onEdit,
+  inline = false,
 }: {
   recipe: Recipe;
   kitchen: KitchenData;
   onClose: () => void;
   onEdit: () => void;
+  /** Duży ekran: w prawej kolumnie zamiast okna */
+  inline?: boolean;
 }) {
+  // Tytuł i opis okna działają tylko w oknie — w kolumnie zwykłe elementy
+  const Title = inline ? "h2" : DialogTitle;
+  const Description = inline ? "p" : DialogDescription;
   const { fridge, setFridge, setShopping, uid, householdId } = kitchen;
   const mine = recipe.createdBy === uid;
   const names = useMemberNames();
@@ -124,201 +130,215 @@ export function RecipeView({
     }
   };
 
+  const body = (
+    <>
+      <DialogHeader>
+        <div className="flex items-start gap-4">
+          <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-primary/10 text-4xl">
+            {recipe.emoji}
+          </span>
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {recipe.category}
+              <ShareBadge recipe={recipe} />
+              {!mine && recipe.authorName && (
+                <span>· od {recipe.authorName}</span>
+              )}
+            </div>
+            <Title className="text-2xl font-semibold leading-tight">
+              {recipe.name}
+            </Title>
+            {recipe.description ? (
+              <Description className="text-sm text-muted-foreground">
+                {recipe.description}
+              </Description>
+            ) : (
+              <Description className="sr-only">Przepis</Description>
+            )}
+          </div>
+        </div>
+      </DialogHeader>
+
+      <div className="flex flex-wrap gap-2">
+        <MetaChip icon={<Clock className="size-3.5" />}>
+          {recipe.prepMinutes + recipe.cookMinutes} min
+          <span className="text-muted-foreground">
+            {" "}
+            ({recipe.prepMinutes} + {recipe.cookMinutes})
+          </span>
+        </MetaChip>
+        <MetaChip icon={<Gauge className="size-3.5" />}>
+          {DIFFICULTY_LABELS[recipe.difficulty]}
+        </MetaChip>
+        <div className="inline-flex items-center gap-1 rounded-xl border border-border px-1.5 py-1 text-sm">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            disabled={servings <= 1}
+            onClick={() => setServings((s) => s - 1)}
+            aria-label="Mniej porcji"
+          >
+            <Minus className="size-3.5" />
+          </Button>
+          <span className="min-w-20 text-center tabular-nums">
+            {servings}{" "}
+            {servings === 1 ? "porcja" : servings < 5 ? "porcje" : "porcji"}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            onClick={() => setServings((s) => s + 1)}
+            aria-label="Więcej porcji"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Składniki
+          </h3>
+          <ul className="divide-y divide-border rounded-2xl border border-border bg-surface">
+            {statuses.map((s) => (
+              <li
+                key={s.ingredient.name}
+                className="flex items-center gap-2 px-3 py-2 text-sm"
+              >
+                {s.enough ? (
+                  <Check className="size-4 shrink-0 text-safe" />
+                ) : (
+                  <X
+                    className={cn(
+                      "size-4 shrink-0",
+                      s.ingredient.optional
+                        ? "text-muted-foreground"
+                        : "text-alert",
+                    )}
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate">
+                  {s.ingredient.name}
+                  {s.ingredient.optional && (
+                    <span className="text-muted-foreground"> (opcj.)</span>
+                  )}
+                </span>
+                <span className="shrink-0 tabular-nums text-muted-foreground">
+                  {s.needed === null
+                    ? "do smaku"
+                    : formatAmount(s.needed, s.ingredient.unit)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {missing.length > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={addMissing}
+            >
+              <ShoppingCart className="size-4" />
+              Brakujące do zakupów ({missing.length})
+            </Button>
+          ) : (
+            <p className="text-xs text-safe">Masz wszystko w lodówce.</p>
+          )}
+        </section>
+
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Przygotowanie
+          </h3>
+          {recipe.steps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Brak kroków.</p>
+          ) : (
+            <ol className="space-y-3">
+              {recipe.steps.map((step, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
+                    {i + 1}
+                  </span>
+                  <p className="whitespace-pre-line pt-0.5 text-sm leading-relaxed">
+                    {step}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          )}
+          {recipe.notes && (
+            <p className="rounded-xl bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+              💡 {recipe.notes}
+            </p>
+          )}
+        </section>
+      </div>
+
+      {mine && recipe.share === "people" && sharedNames && (
+        <p className="text-xs text-muted-foreground">
+          Udostępniony: {sharedNames}
+        </p>
+      )}
+
+      <DialogFooter className="gap-2 sm:justify-between">
+        <div className="flex gap-2">
+          {mine && (
+            <>
+              <Button
+                variant="ghost"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => void remove()}
+              >
+                <Trash2 className="size-4" />
+                Usuń
+              </Button>
+              <Button variant="outline" onClick={onEdit}>
+                <Pencil className="size-4" />
+                Edytuj
+              </Button>
+            </>
+          )}
+        </div>
+        <Button onClick={() => setCooking(true)}>
+          <ChefHat className="size-4" />
+          Ugotowane — zdejmij z lodówki
+        </Button>
+      </DialogFooter>
+
+      {cooking && (
+        <CookDialog
+          deductions={planCooking(recipe, fridge, scale)}
+          onClose={() => setCooking(false)}
+          onConfirm={(chosen) => {
+            setFridge((prev) => applyDeductions(prev, chosen));
+            setCooking(false);
+            toast.success(
+              chosen.length > 0
+                ? `Smacznego! Z lodówki zdjęto ${chosen.length} ${chosen.length === 1 ? "pozycję" : "pozycje"}.`
+                : "Smacznego!",
+            );
+            onClose();
+          }}
+        />
+      )}
+    </>
+  );
+
+  if (inline) {
+    return (
+      <section className="hh-scroll space-y-5 rounded-3xl border border-border bg-surface p-5 shadow-elevated lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
+        {body}
+      </section>
+    );
+  }
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="hh-scroll max-h-[92vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start gap-4">
-            <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-primary/10 text-4xl">
-              {recipe.emoji}
-            </span>
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                {recipe.category}
-                <ShareBadge recipe={recipe} />
-                {!mine && recipe.authorName && (
-                  <span>· od {recipe.authorName}</span>
-                )}
-              </div>
-              <DialogTitle className="text-2xl leading-tight">
-                {recipe.name}
-              </DialogTitle>
-              {recipe.description ? (
-                <DialogDescription>{recipe.description}</DialogDescription>
-              ) : (
-                <DialogDescription className="sr-only">
-                  Przepis
-                </DialogDescription>
-              )}
-            </div>
-          </div>
-        </DialogHeader>
-
-        <div className="flex flex-wrap gap-2">
-          <MetaChip icon={<Clock className="size-3.5" />}>
-            {recipe.prepMinutes + recipe.cookMinutes} min
-            <span className="text-muted-foreground">
-              {" "}
-              ({recipe.prepMinutes} + {recipe.cookMinutes})
-            </span>
-          </MetaChip>
-          <MetaChip icon={<Gauge className="size-3.5" />}>
-            {DIFFICULTY_LABELS[recipe.difficulty]}
-          </MetaChip>
-          <div className="inline-flex items-center gap-1 rounded-xl border border-border px-1.5 py-1 text-sm">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              disabled={servings <= 1}
-              onClick={() => setServings((s) => s - 1)}
-              aria-label="Mniej porcji"
-            >
-              <Minus className="size-3.5" />
-            </Button>
-            <span className="min-w-20 text-center tabular-nums">
-              {servings}{" "}
-              {servings === 1 ? "porcja" : servings < 5 ? "porcje" : "porcji"}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              onClick={() => setServings((s) => s + 1)}
-              aria-label="Więcej porcji"
-            >
-              <Plus className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          <section className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Składniki
-            </h3>
-            <ul className="divide-y divide-border rounded-2xl border border-border bg-surface">
-              {statuses.map((s) => (
-                <li
-                  key={s.ingredient.name}
-                  className="flex items-center gap-2 px-3 py-2 text-sm"
-                >
-                  {s.enough ? (
-                    <Check className="size-4 shrink-0 text-safe" />
-                  ) : (
-                    <X
-                      className={cn(
-                        "size-4 shrink-0",
-                        s.ingredient.optional
-                          ? "text-muted-foreground"
-                          : "text-alert",
-                      )}
-                    />
-                  )}
-                  <span className="min-w-0 flex-1 truncate">
-                    {s.ingredient.name}
-                    {s.ingredient.optional && (
-                      <span className="text-muted-foreground"> (opcj.)</span>
-                    )}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    {s.needed === null
-                      ? "do smaku"
-                      : formatAmount(s.needed, s.ingredient.unit)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {missing.length > 0 ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={addMissing}
-              >
-                <ShoppingCart className="size-4" />
-                Brakujące do zakupów ({missing.length})
-              </Button>
-            ) : (
-              <p className="text-xs text-safe">Masz wszystko w lodówce.</p>
-            )}
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Przygotowanie
-            </h3>
-            {recipe.steps.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Brak kroków.</p>
-            ) : (
-              <ol className="space-y-3">
-                {recipe.steps.map((step, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-                      {i + 1}
-                    </span>
-                    <p className="whitespace-pre-line pt-0.5 text-sm leading-relaxed">
-                      {step}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            )}
-            {recipe.notes && (
-              <p className="rounded-xl bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                💡 {recipe.notes}
-              </p>
-            )}
-          </section>
-        </div>
-
-        {mine && recipe.share === "people" && sharedNames && (
-          <p className="text-xs text-muted-foreground">
-            Udostępniony: {sharedNames}
-          </p>
-        )}
-
-        <DialogFooter className="gap-2 sm:justify-between">
-          <div className="flex gap-2">
-            {mine && (
-              <>
-                <Button
-                  variant="ghost"
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => void remove()}
-                >
-                  <Trash2 className="size-4" />
-                  Usuń
-                </Button>
-                <Button variant="outline" onClick={onEdit}>
-                  <Pencil className="size-4" />
-                  Edytuj
-                </Button>
-              </>
-            )}
-          </div>
-          <Button onClick={() => setCooking(true)}>
-            <ChefHat className="size-4" />
-            Ugotowane — zdejmij z lodówki
-          </Button>
-        </DialogFooter>
-
-        {cooking && (
-          <CookDialog
-            deductions={planCooking(recipe, fridge, scale)}
-            onClose={() => setCooking(false)}
-            onConfirm={(chosen) => {
-              setFridge((prev) => applyDeductions(prev, chosen));
-              setCooking(false);
-              toast.success(
-                chosen.length > 0
-                  ? `Smacznego! Z lodówki zdjęto ${chosen.length} ${chosen.length === 1 ? "pozycję" : "pozycje"}.`
-                  : "Smacznego!",
-              );
-              onClose();
-            }}
-          />
-        )}
+        {body}
       </DialogContent>
     </Dialog>
   );

@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useHousehold } from "@/context/HouseholdContext";
 import type { KitchenData } from "@/hooks/useKitchen";
 import { DIFFICULTY_LABELS, recipeAvailability } from "@/lib/kitchen";
+import { useIsWide } from "@/hooks/use-wide";
 import { cn } from "@/lib/utils";
 import type { Recipe } from "@/types";
 
@@ -46,6 +47,9 @@ export function RecipesPanel({ kitchen }: { kitchen: KitchenData }) {
   });
 
   const open = recipes.find((r) => r.id === openId) ?? null;
+  // Duży ekran: przepis zawsze widać obok listy (wybrany albo pierwszy)
+  const wide = useIsWide();
+  const shown = open ?? visible[0]?.recipe ?? null;
   const myName =
     names.find((n) => n.uid === uid)?.name ?? user?.displayName ?? "";
 
@@ -119,59 +123,86 @@ export function RecipesPanel({ kitchen }: { kitchen: KitchenData }) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map(({ recipe, have, total, ready }) => (
-            <button
-              key={recipe.id}
-              type="button"
-              onClick={() => setOpenId(recipe.id)}
-              className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 text-left transition-colors hover:border-primary/40"
-            >
-              <div className="flex items-start gap-3">
-                <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-2xl transition-transform group-hover:scale-105">
-                  {recipe.emoji}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold leading-tight">
-                    {recipe.name}
-                  </p>
-                  <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="size-3" />
-                    {recipe.prepMinutes + recipe.cookMinutes} min ·{" "}
-                    {DIFFICULTY_LABELS[recipe.difficulty]} · {recipe.servings}{" "}
-                    porc.
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span
-                    className={cn(
-                      ready ? "text-safe" : "text-muted-foreground",
-                    )}
-                  >
-                    {ready
-                      ? "Masz wszystko"
-                      : `W lodówce ${have} z ${total} składników`}
+        <div
+          className={cn(
+            wide &&
+              "grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-6",
+          )}
+        >
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-3",
+              wide ? "" : "sm:grid-cols-2 xl:grid-cols-3",
+            )}
+          >
+            {visible.map(({ recipe, have, total, ready }) => (
+              <button
+                key={recipe.id}
+                type="button"
+                onClick={() => setOpenId(recipe.id)}
+                className={cn(
+                  "group flex flex-col gap-3 rounded-2xl border bg-surface p-4 text-left transition-colors hover:border-primary/40",
+                  wide && shown?.id === recipe.id
+                    ? "border-primary/60 ring-2 ring-primary/15"
+                    : "border-border",
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-2xl transition-transform group-hover:scale-105">
+                    {recipe.emoji}
                   </span>
-                  <ShareBadge recipe={recipe} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold leading-tight">
+                      {recipe.name}
+                    </p>
+                    <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="size-3" />
+                      {recipe.prepMinutes + recipe.cookMinutes} min ·{" "}
+                      {DIFFICULTY_LABELS[recipe.difficulty]} · {recipe.servings}{" "}
+                      porc.
+                    </p>
+                  </div>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      ready ? "bg-safe" : "bg-primary/60",
-                    )}
-                    style={{ width: `${total ? (have / total) * 100 : 0}%` }}
-                  />
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span
+                      className={cn(
+                        ready ? "text-safe" : "text-muted-foreground",
+                      )}
+                    >
+                      {ready
+                        ? "Masz wszystko"
+                        : `W lodówce ${have} z ${total} składników`}
+                    </span>
+                    <ShareBadge recipe={recipe} />
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        ready ? "bg-safe" : "bg-primary/60",
+                      )}
+                      style={{ width: `${total ? (have / total) * 100 : 0}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
+
+          {wide && shown && editing === null && (
+            <RecipeView
+              inline
+              recipe={shown}
+              kitchen={kitchen}
+              onClose={() => setOpenId(null)}
+              onEdit={() => setEditing(shown)}
+            />
+          )}
         </div>
       )}
 
-      {open && editing === null && (
+      {!wide && open && editing === null && (
         <RecipeView
           recipe={open}
           kitchen={kitchen}

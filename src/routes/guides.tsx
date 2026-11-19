@@ -40,6 +40,7 @@ import { useHousehold } from "@/context/HouseholdContext";
 import { useVisibilityList } from "@/hooks/useVisibilityList";
 import { FilterChip } from "@/components/FilterChip";
 import { useScope } from "@/context/ScopeContext";
+import { useIsWide } from "@/hooks/use-wide";
 import { cn } from "@/lib/utils";
 import type {
   GuideCategory,
@@ -299,6 +300,8 @@ function NotesPanel({
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<GuideNote | "new" | null>(null);
   const [reading, setReading] = useState<GuideNote | null>(null);
+  // Duży ekran: instrukcja zawsze widoczna obok listy
+  const wide = useIsWide();
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -375,37 +378,65 @@ function NotesPanel({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((note) => {
-            const cat = categoryInfo(note.category);
-            return (
-              <button
-                key={note.id}
-                type="button"
-                onClick={() => setReading(note)}
-                className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-5 text-left transition-colors hover:border-primary/40"
-              >
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{cat.emoji}</span>
-                  {cat.label}
-                  {note.visibility === "private" && (
-                    <PrivateBadge className="ml-auto" />
+        <div
+          className={cn(
+            wide &&
+              "grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-6",
+          )}
+        >
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-3",
+              !wide && "sm:grid-cols-2 xl:grid-cols-3",
+            )}
+          >
+            {visible.map((note) => {
+              const cat = categoryInfo(note.category);
+              const selected =
+                wide && (reading?.id ?? visible[0]?.id) === note.id;
+              return (
+                <button
+                  key={note.id}
+                  type="button"
+                  onClick={() => setReading(note)}
+                  className={cn(
+                    "flex flex-col gap-2 rounded-2xl border bg-surface p-5 text-left transition-colors hover:border-primary/40",
+                    selected
+                      ? "border-primary/60 ring-2 ring-primary/15"
+                      : "border-border",
                   )}
-                </div>
-                <h3 className="text-lg font-semibold leading-tight">
-                  {note.title}
-                </h3>
-                <p className="line-clamp-4 whitespace-pre-line text-sm text-muted-foreground">
-                  {note.body || "—"}
-                </p>
-              </button>
-            );
-          })}
+                >
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{cat.emoji}</span>
+                    {cat.label}
+                    {note.visibility === "private" && (
+                      <PrivateBadge className="ml-auto" />
+                    )}
+                  </div>
+                  <h3 className="text-lg font-semibold leading-tight">
+                    {note.title}
+                  </h3>
+                  <p className="line-clamp-4 whitespace-pre-line text-sm text-muted-foreground">
+                    {note.body || "—"}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          {wide && (
+            <NoteReader
+              note={
+                visible.find((n) => n.id === reading?.id) ?? visible[0] ?? null
+              }
+              onEdit={(n) => setEditing(n)}
+              onRemove={remove}
+            />
+          )}
         </div>
       )}
 
       <Dialog
-        open={reading !== null}
+        open={!wide && reading !== null}
         onOpenChange={(o) => !o && setReading(null)}
       >
         <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
@@ -451,6 +482,48 @@ function NotesPanel({
         />
       )}
     </div>
+  );
+}
+
+/** Instrukcja w prawej kolumnie (duży ekran) */
+function NoteReader({
+  note,
+  onEdit,
+  onRemove,
+}: {
+  note: GuideNote | null;
+  onEdit: (note: GuideNote) => void;
+  onRemove: (note: GuideNote) => void;
+}) {
+  if (!note) return null;
+  const cat = categoryInfo(note.category);
+  return (
+    <section className="hh-scroll space-y-4 rounded-3xl border border-border bg-surface p-6 shadow-elevated lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
+      <div className="space-y-1">
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          {cat.emoji} {cat.label}
+          {note.visibility === "private" && <PrivateBadge />}
+        </p>
+        <h2 className="text-2xl font-semibold">{note.title}</h2>
+      </div>
+      <p className="whitespace-pre-line text-sm leading-relaxed">
+        {note.body || "—"}
+      </p>
+      <div className="flex justify-between gap-2 border-t border-border pt-4">
+        <Button
+          variant="ghost"
+          className="text-muted-foreground hover:text-destructive"
+          onClick={() => onRemove(note)}
+        >
+          <Trash2 className="size-4" />
+          Usuń
+        </Button>
+        <Button variant="outline" onClick={() => onEdit(note)}>
+          <Pencil className="size-4" />
+          Edytuj
+        </Button>
+      </div>
+    </section>
   );
 }
 

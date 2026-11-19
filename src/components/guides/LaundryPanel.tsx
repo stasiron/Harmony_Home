@@ -39,16 +39,16 @@ export function LaundryPanel() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-6 lg:space-y-0">
       <form
         onSubmit={onSubmit}
-        className="space-y-4 rounded-3xl border border-border bg-surface p-6 shadow-elevated"
+        className="space-y-4 rounded-3xl border border-border bg-surface p-6 shadow-elevated lg:sticky lg:top-4"
       >
         <div className="flex items-center gap-2 text-sm font-semibold">
           <Shirt className="size-4 text-primary" />
           Nowa pozycja
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
           <Field label="Ubrania / materiały">
             <Input
               value={name}
