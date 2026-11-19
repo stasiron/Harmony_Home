@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/select";
 import { useHousehold } from "@/context/HouseholdContext";
 import { useScope } from "@/context/ScopeContext";
+import { EmojiColorPicker } from "@/components/EmojiColorPicker";
+import { Checkbox } from "@/components/ui/checkbox";
+import { suggestEmoji } from "@/config/foodEmoji";
 import { findProduct, suggestPrice } from "@/lib/bills";
 import { FOOD_CATEGORIES, UNITS, type FoodInput } from "@/lib/kitchen";
 import { formatPLN, parsePLN, toInputPLN } from "@/lib/money";
@@ -93,6 +96,7 @@ export function FoodForm({
   onAdd,
   withExpiry = false,
   withPrice = false,
+  withStaple = false,
   products = [],
   placeholder,
   submitLabel = "Dodaj",
@@ -100,6 +104,8 @@ export function FoodForm({
   onAdd: (input: FoodFormInput) => void;
   withExpiry?: boolean;
   withPrice?: boolean;
+  /** Lodówka: pole „Stały produkt” */
+  withStaple?: boolean;
   /** Pamięć produktów (podpowiedzi nazw i cen) */
   products?: readonly Product[];
   placeholder: string;
@@ -114,6 +120,9 @@ export function FoodForm({
   const [price, setPrice] = useState("");
   // Cena wpisana ręcznie — nie nadpisujemy jej podpowiedzią
   const [priceTouched, setPriceTouched] = useState(false);
+  const [emoji, setEmoji] = useState<string | null>(null);
+  const [color, setColor] = useState<string | null>(null);
+  const [staple, setStaple] = useState(false);
   // Kto zobaczy — wybór z dużego przełącznika u góry strony
   const { scope: visibility } = useScope();
 
@@ -130,12 +139,16 @@ export function FoodForm({
     ? suggestPrice(memory, parseAmount(amount), unit)
     : null;
 
-  // Znany produkt — jednostka i kategoria jak ostatnio
+  // Znany produkt — jednostka, kategoria, emotka i kolor jak ostatnio
   useEffect(() => {
     if (!known) return;
     setUnit(known.unit);
     setCategory(known.category);
+    if (known.emoji) setEmoji(known.emoji);
+    if (known.color) setColor(known.color);
   }, [known]);
+  // Bez wybranej emotki — podpowiedź z nazwy („mozzarella” → 🧀)
+  const shownEmoji = emoji ?? suggestEmoji(name);
 
   useEffect(() => {
     if (!priceTouched)
@@ -157,6 +170,9 @@ export function FoodForm({
       category,
       visibility,
       expiresOn: expiresOn || null,
+      emoji: shownEmoji,
+      color,
+      ...(withStaple && staple ? { staple: true } : {}),
       ...(withPrice ? { price: parsePLN(price) } : {}),
     });
     setName("");
@@ -164,6 +180,9 @@ export function FoodForm({
     setExpiresOn("");
     setPrice("");
     setPriceTouched(false);
+    setEmoji(null);
+    setColor(null);
+    setStaple(false);
   };
 
   return (
@@ -172,15 +191,23 @@ export function FoodForm({
       className="space-y-3 rounded-2xl border border-border bg-surface p-3 sm:p-4"
     >
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={placeholder}
-          className="h-11 flex-1"
-          aria-label="Nazwa produktu"
-          list={names.length > 0 ? listId : undefined}
-          autoComplete="off"
-        />
+        <div className="flex flex-1 gap-2">
+          <EmojiColorPicker
+            emoji={shownEmoji}
+            color={color}
+            onEmoji={setEmoji}
+            onColor={setColor}
+          />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={placeholder}
+            className="h-11 flex-1"
+            aria-label="Nazwa produktu"
+            list={names.length > 0 ? listId : undefined}
+            autoComplete="off"
+          />
+        </div>
         {names.length > 0 && (
           <datalist id={listId}>
             {names.map((n) => (
@@ -247,6 +274,18 @@ export function FoodForm({
           <span className="text-xs text-muted-foreground">
             ostatnio {formatPLN(memory.lastPrice)}
           </span>
+        )}
+        {withStaple && (
+          <label
+            className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-xs"
+            title="Zostaje na liście także przy 0 — po zakupach dokładasz „+”"
+          >
+            <Checkbox
+              checked={staple}
+              onCheckedChange={(v) => setStaple(v === true)}
+            />
+            Stały produkt
+          </label>
         )}
         {withExpiry && (
           <label className="flex items-center gap-2 text-xs text-muted-foreground">

@@ -64,7 +64,7 @@ export function ExpiryBadge({ expiresOn }: { expiresOn: string | null }) {
 export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
   const { fridge, setFridge, setShopping } = kitchen;
   const { canEditItem } = useHousehold();
-  const [scope, setScope] = useState<Scope>("all");
+  const [scope, setScope] = useState<Scope | "staple">("all");
   const [search, setSearch] = useState("");
 
   const visible = useMemo(() => {
@@ -72,7 +72,9 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
     return fridge.filter(
       (item) =>
         (scope === "all" ||
-          (scope === "private") === (item.visibility === "private")) &&
+          (scope === "staple"
+            ? item.staple
+            : (scope === "private") === (item.visibility === "private"))) &&
         (!q || item.name.toLowerCase().includes(q)),
     );
   }, [fridge, scope, search]);
@@ -106,6 +108,8 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
             unit: item.unit,
             category: item.category,
             visibility,
+            emoji: item.emoji,
+            color: item.color,
           }),
           reason,
         },
@@ -115,9 +119,12 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
   };
 
   const changeAmount = (item: FridgeItem, delta: number) => {
-    const next = Math.round(((item.amount ?? 0) + delta) * 100) / 100;
+    const raw = Math.round(((item.amount ?? 0) + delta) * 100) / 100;
+    // Stały produkt zostaje przy zerze (z oznaczeniem „Brak”)
+    const next = item.staple ? Math.max(0, raw) : raw;
+    if (item.staple && (item.amount ?? 0) <= 0 && delta < 0) return;
     setFridge((prev) =>
-      next <= 0
+      next <= 0 && !item.staple
         ? prev.filter((f) => f.id !== item.id)
         : prev.map((f) => (f.id === item.id ? { ...f, amount: next } : f)),
     );
@@ -137,6 +144,8 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
       <FoodForm
         placeholder="Co jest w lodówce? np. mleko"
         withExpiry
+        withStaple
+        products={kitchen.products}
         onAdd={(input) => setFridge((prev) => addToFridge(prev, [input]))}
       />
 
@@ -177,6 +186,12 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
           >
             Moje prywatne
           </FilterChip>
+          <FilterChip
+            active={scope === "staple"}
+            onClick={() => setScope("staple")}
+          >
+            Stałe
+          </FilterChip>
         </div>
       </div>
 
@@ -208,18 +223,38 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
                     return (
                       <li
                         key={item.id}
-                        className="flex items-center gap-2 px-3 py-2.5 sm:px-4"
+                        className={cn(
+                          "flex items-center gap-2 border-l-4 px-3 py-2.5 sm:px-4",
+                          item.staple &&
+                            (item.amount ?? 0) <= 0 &&
+                            "opacity-70",
+                        )}
+                        style={{
+                          borderLeftColor: item.color
+                            ? `var(--${item.color})`
+                            : "transparent",
+                        }}
                       >
+                        {item.emoji && (
+                          <span className="text-xl" aria-hidden>
+                            {item.emoji}
+                          </span>
+                        )}
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="truncate font-medium">
                               {item.name}
                             </span>
                             {item.visibility === "private" && <PrivateBadge />}
+                            {item.staple && (item.amount ?? 0) <= 0 && (
+                              <span className="rounded-full bg-alert/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-alert">
+                                Brak
+                              </span>
+                            )}
                             <ExpiryBadge expiresOn={item.expiresOn} />
                           </div>
                         </div>
-                        {item.amount !== null ? (
+                        {item.amount !== null || item.staple ? (
                           <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
@@ -233,7 +268,7 @@ export function FridgePanel({ kitchen }: { kitchen: KitchenData }) {
                               <Minus className="size-3.5" />
                             </Button>
                             <span className="min-w-14 text-center text-sm tabular-nums">
-                              {formatAmount(item.amount, item.unit)}
+                              {formatAmount(item.amount ?? 0, item.unit)}
                             </span>
                             <Button
                               variant="ghost"

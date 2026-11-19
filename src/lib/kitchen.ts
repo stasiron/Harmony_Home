@@ -172,7 +172,19 @@ export type FoodInput = {
   unit: string;
   category: ShoppingCategory;
   visibility: ItemVisibility;
+  emoji?: string | null;
+  color?: string | null;
+  /** Tylko lodówka: stały produkt */
+  staple?: boolean;
 };
+
+/** Emotka i kolor tylko, gdy są — bez pustych pól w dokumencie */
+function looks(input: { emoji?: string | null; color?: string | null }) {
+  return {
+    ...(input.emoji ? { emoji: input.emoji } : {}),
+    ...(input.color ? { color: input.color } : {}),
+  };
+}
 
 function visibilityField(visibility: ItemVisibility) {
   return visibility === "private" ? { visibility: "private" as const } : {};
@@ -186,6 +198,7 @@ export function newShoppingItem(input: FoodInput): ShoppingItem {
     unit: normalizeUnit(input.unit),
     category: input.category,
     checked: false,
+    ...looks(input),
     ...visibilityField(input.visibility),
   };
 }
@@ -200,6 +213,9 @@ export function newFridgeItem(
     unit: normalizeUnit(input.unit),
     category: input.category,
     expiresOn: input.expiresOn || null,
+    ...looks(input),
+    // Stały produkt bez ilości startuje od 0 — „+” po zakupach
+    ...(input.staple ? { staple: true, amount: input.amount ?? 0 } : {}),
     ...visibilityField(input.visibility),
   };
 }
@@ -214,6 +230,25 @@ export function addToFridge(
 ): FridgeItem[] {
   const next = [...fridge];
   for (const item of items) {
+    // Stały produkt: kupione zawsze dokłada się do niego (bez ilości: +1)
+    const stapleIndex = next.findIndex(
+      (f) =>
+        f.staple &&
+        foodKey(f.name) === foodKey(item.name) &&
+        (f.visibility ?? "public") === item.visibility,
+    );
+    if (stapleIndex >= 0) {
+      const staple = next[stapleIndex]!;
+      const added =
+        item.amount !== null
+          ? (convertAmount(item.amount, item.unit, staple.unit) ?? 1)
+          : 1;
+      next[stapleIndex] = {
+        ...staple,
+        amount: Math.round(((staple.amount ?? 0) + added) * 1000) / 1000,
+      };
+      continue;
+    }
     const index = next.findIndex(
       (f) =>
         foodKey(f.name) === foodKey(item.name) &&
@@ -397,6 +432,16 @@ export function applyDeductions(
   return fridge.flatMap((item) => {
     if (!take.has(item.id)) return [item];
     const amount = take.get(item.id);
+    // Stały produkt zostaje — schodzi najwyżej do zera
+    if (item.staple) {
+      if (amount == null || item.amount === null)
+        return [{ ...item, amount: 0 }];
+      const left = Math.max(
+        0,
+        Math.round((item.amount - amount) * 1000) / 1000,
+      );
+      return [{ ...item, amount: left }];
+    }
     if (amount == null || item.amount === null) return [];
     const left = Math.round((item.amount - amount) * 1000) / 1000;
     return left <= 1e-9 ? [] : [{ ...item, amount: left }];

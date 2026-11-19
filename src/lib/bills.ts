@@ -375,6 +375,8 @@ export function rememberAdded(
     unit: string;
     category: ShoppingCategory;
     visibility: ItemVisibility;
+    emoji?: string | null;
+    color?: string | null;
   },
   now: string,
 ): Product[] {
@@ -383,8 +385,12 @@ export function rememberAdded(
     (p) => p.id === id && visibilityOf(p) === item.visibility,
   );
   const next = [...products];
+  const looks = {
+    ...(item.emoji ? { emoji: item.emoji } : {}),
+    ...(item.color ? { color: item.color } : {}),
+  };
   if (index >= 0) {
-    next[index] = { ...next[index]!, lastAddedAt: now };
+    next[index] = { ...next[index]!, lastAddedAt: now, ...looks };
   } else {
     next.push({
       id,
@@ -395,6 +401,7 @@ export function rememberAdded(
       lastAmount: null,
       lastBoughtAt: null,
       lastAddedAt: now,
+      ...looks,
       ...(item.visibility === "private" ? { visibility: "private" } : {}),
     });
   }

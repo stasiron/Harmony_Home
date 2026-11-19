@@ -22,10 +22,18 @@ import {
   stockLabel,
   stockStateOf,
 } from "@/lib/bills";
-import { foodKey, formatAmount, newShoppingItem, UNITS } from "@/lib/kitchen";
+import {
+  FOOD_CATEGORIES,
+  foodKey,
+  formatAmount,
+  newShoppingItem,
+  UNITS,
+} from "@/lib/kitchen";
+import { EmojiColorPicker } from "@/components/EmojiColorPicker";
+import { suggestEmoji } from "@/config/foodEmoji";
 import { formatPLN } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import type { Product, StockState } from "@/types";
+import type { Product, ShoppingCategory, StockState } from "@/types";
 
 const SUGGESTIONS = [
   "Papier toaletowy",
@@ -75,6 +83,8 @@ export function SuppliesPanel({ kitchen }: { kitchen: KitchenData }) {
           unit: product.unit,
           category: product.category,
           visibility,
+          emoji: product.emoji,
+          color: product.color,
         }),
         reason: state,
         price: product.lastPrice,
@@ -159,8 +169,18 @@ export function SuppliesPanel({ kitchen }: { kitchen: KitchenData }) {
             return (
               <li
                 key={`${visibilityOf(product)}-${product.id}`}
-                className="flex flex-wrap items-center gap-3 px-3 py-3 sm:px-4"
+                className="flex flex-wrap items-center gap-3 border-l-4 px-3 py-3 sm:px-4"
+                style={{
+                  borderLeftColor: product.color
+                    ? `var(--${product.color})`
+                    : "transparent",
+                }}
               >
+                {product.emoji && (
+                  <span className="text-xl" aria-hidden>
+                    {product.emoji}
+                  </span>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="truncate font-medium">{product.name}</span>
@@ -276,7 +296,11 @@ function SupplyForm({
   const [amount, setAmount] = useState("");
   const [unit, setUnit] = useState("szt");
   const [lowAt, setLowAt] = useState("1");
+  const [category, setCategory] = useState<ShoppingCategory>("household");
+  const [emoji, setEmoji] = useState<string | null>(null);
+  const [color, setColor] = useState<string | null>(null);
   const { scope: visibility } = useScope();
+  const shownEmoji = emoji ?? suggestEmoji(name);
 
   const number = (text: string) => {
     const n = Number(text.replace(",", "."));
@@ -289,8 +313,10 @@ function SupplyForm({
     const product: Product = {
       id: productId(name),
       name: name.trim(),
-      category: "household",
+      category,
       unit,
+      ...(shownEmoji ? { emoji: shownEmoji } : {}),
+      ...(color ? { color } : {}),
       lastPrice: null,
       lastAmount: null,
       lastBoughtAt: null,
@@ -303,6 +329,8 @@ function SupplyForm({
     onAdd({ ...product, stock: stockStateOf(product) });
     setName("");
     setAmount("");
+    setEmoji(null);
+    setColor(null);
   };
 
   const missing = SUGGESTIONS.filter(
@@ -315,13 +343,22 @@ function SupplyForm({
       className="space-y-3 rounded-2xl border border-border bg-surface p-3 sm:p-4"
     >
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Zapas, np. papier toaletowy"
-          className="h-11 flex-1"
-          aria-label="Nazwa zapasu"
-        />
+        <div className="flex flex-1 gap-2">
+          <EmojiColorPicker
+            emoji={shownEmoji}
+            color={color}
+            onEmoji={setEmoji}
+            onColor={setColor}
+            fallback="📦"
+          />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Zapas, np. papier toaletowy"
+            className="h-11 flex-1"
+            aria-label="Nazwa zapasu"
+          />
+        </div>
         <div className="flex gap-2">
           <Input
             value={amount}
@@ -346,6 +383,21 @@ function SupplyForm({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <Select
+          value={category}
+          onValueChange={(v) => setCategory(v as ShoppingCategory)}
+        >
+          <SelectTrigger className="h-9 w-auto min-w-36" aria-label="Kategoria">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FOOD_CATEGORIES.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           Kończy się przy
           <Input

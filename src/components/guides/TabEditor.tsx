@@ -19,23 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EmojiColorPicker } from "@/components/EmojiColorPicker";
 import { FIELD_TYPES, hasOptions, newField } from "@/lib/guideTabs";
 import type { GuideField, GuideFieldType, GuideTab } from "@/types";
-
-const EMOJIS = [
-  "📁",
-  "🔧",
-  "🧴",
-  "🪴",
-  "🚗",
-  "🐾",
-  "💊",
-  "🧰",
-  "📺",
-  "🎮",
-  "🧒",
-  "💡",
-];
 
 /** Tworzenie i edycja własnej zakładki: nazwa, ikona, pola */
 export function TabEditor({
@@ -142,18 +128,11 @@ export function TabEditor({
 
         <div className="space-y-5">
           <div className="flex gap-2">
-            <Select value={emoji} onValueChange={setEmoji}>
-              <SelectTrigger className="h-11 w-16 text-xl" aria-label="Ikona">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="min-w-0">
-                {EMOJIS.map((e) => (
-                  <SelectItem key={e} value={e} className="text-xl">
-                    {e}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EmojiColorPicker
+              emoji={emoji}
+              onEmoji={(next) => setEmoji(next ?? "📁")}
+              fallback="📁"
+            />
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}

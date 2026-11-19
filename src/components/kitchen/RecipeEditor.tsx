@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DIFFICULTY_LABELS, RECIPE_CATEGORIES, UNITS } from "@/lib/kitchen";
 import { saveRecipe } from "@/lib/recipes";
 import { useScope } from "@/context/ScopeContext";
+import { EmojiColorPicker } from "@/components/EmojiColorPicker";
 import { cn } from "@/lib/utils";
 import type { Recipe } from "@/types";
 
@@ -43,21 +44,6 @@ type IngredientRow = {
   unit: string;
   optional: boolean;
 };
-
-const EMOJIS = [
-  "🍝",
-  "🥘",
-  "🍲",
-  "🥗",
-  "🍳",
-  "🥞",
-  "🍕",
-  "🍰",
-  "🥪",
-  "🍜",
-  "🐟",
-  "🍗",
-];
 
 const newRow = (): IngredientRow => ({
   key: crypto.randomUUID(),
@@ -199,18 +185,11 @@ export function RecipeEditor({
           {/* Podstawy */}
           <div className="space-y-3">
             <div className="flex gap-2">
-              <Select value={emoji} onValueChange={setEmoji}>
-                <SelectTrigger className="h-11 w-16 text-xl" aria-label="Ikona">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="min-w-0">
-                  {EMOJIS.map((e) => (
-                    <SelectItem key={e} value={e} className="text-xl">
-                      {e}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmojiColorPicker
+                emoji={emoji}
+                onEmoji={(next) => setEmoji(next ?? "🍝")}
+                fallback="🍝"
+              />
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}

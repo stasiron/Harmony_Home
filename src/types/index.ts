@@ -227,6 +227,9 @@ export interface ShoppingItem extends ItemMeta {
   price?: number | null;
   /** Dlaczego na liście: zapas się kończy albo go brak */
   reason?: StockState | null;
+  emoji?: string | null;
+  /** Token koloru etykiety, np. "tag-3" */
+  color?: string | null;
 }
 
 /** Stan zapasu: wystarczy / kończy się / brak */
@@ -254,6 +257,8 @@ export interface Product extends ItemMeta {
   /** Przy tej ilości lub mniej — „kończy się” */
   lowAt?: number | null;
   stock?: StockState;
+  emoji?: string | null;
+  color?: string | null;
 }
 
 /** Wbudowane rodzaje rachunków + własne */
@@ -339,6 +344,13 @@ export interface FridgeItem extends ItemMeta {
   unit: string;
   /** Termin przydatności, YYYY-MM-DD */
   expiresOn: string | null;
+  /**
+   * Stały produkt (np. mozzarella): zostaje na liście także przy 0 —
+   * po zakupach tylko dokładasz „+”, zamiast wpisywać go od nowa
+   */
+  staple?: boolean;
+  emoji?: string | null;
+  color?: string | null;
 }
 
 /** Wpis w Poradniku — „jak to zrobić” (sprzątanie, sprzęty, kuchnia…) */

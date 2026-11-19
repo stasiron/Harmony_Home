@@ -79,7 +79,7 @@ function KitchenPage() {
     {
       id: "fridge",
       label: "Lodówka",
-      value: fridge.length,
+      value: fridge.filter((f) => !f.staple || (f.amount ?? 0) > 0).length,
       hint:
         stats.expiring > 0
           ? `${stats.expiring} z krótkim terminem`

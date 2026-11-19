@@ -92,6 +92,8 @@ export function ShoppingPanel({ kitchen }: { kitchen: KitchenData }) {
               unit: s.unit,
               category: s.category,
               visibility: isPrivate(s) ? "private" : "public",
+              emoji: s.emoji,
+              color: s.color,
             })),
         ),
       );
@@ -300,13 +302,23 @@ function ShoppingRow({
   };
 
   return (
-    <li className="flex items-center gap-3 px-3 py-2.5 sm:px-4">
+    <li
+      className="flex items-center gap-3 border-l-4 px-3 py-2.5 sm:px-4"
+      style={{
+        borderLeftColor: item.color ? `var(--${item.color})` : "transparent",
+      }}
+    >
       <Checkbox
         checked={item.checked}
         onCheckedChange={onToggle}
         aria-label={`Kupione: ${item.name}`}
         className="size-5"
       />
+      {item.emoji && (
+        <span className="text-xl" aria-hidden>
+          {item.emoji}
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span
