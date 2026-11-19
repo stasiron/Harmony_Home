@@ -1,3 +1,4 @@
+import { FeatureGate } from "@/components/FeatureGate";
 import { Luggage, Pencil, Trash2, UserPlus } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
@@ -87,14 +88,18 @@ export function HouseEvents() {
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => setGuestDialog("new")}>
-          <UserPlus className="size-4" />
-          Zapowiedz gościa
-        </Button>
-        <Button variant="outline" onClick={() => setAbsenceDialog("new")}>
-          <Luggage className="size-4" />
-          Nie ma mnie / wyjazd
-        </Button>
+        <FeatureGate feature="btn:guest">
+          <Button variant="outline" onClick={() => setGuestDialog("new")}>
+            <UserPlus className="size-4" />
+            Zapowiedz gościa
+          </Button>
+        </FeatureGate>
+        <FeatureGate feature="btn:away">
+          <Button variant="outline" onClick={() => setAbsenceDialog("new")}>
+            <Luggage className="size-4" />
+            Nie ma mnie / wyjazd
+          </Button>
+        </FeatureGate>
       </div>
 
       {upcoming.length > 0 && (

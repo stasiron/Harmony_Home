@@ -1,3 +1,4 @@
+import { FeatureGate } from "@/components/FeatureGate";
 import { useRouterState } from "@tanstack/react-router";
 import { Bug, Crosshair, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -93,16 +94,18 @@ export function BugReportButton() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setMode("picking")}
-        className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground"
-        aria-label="Zgłoś błąd"
-        title="Zgłoś błąd"
-      >
-        <Bug className="size-3.5" strokeWidth={1.75} />
-        <span>Zgłoś błąd</span>
-      </button>
+      <FeatureGate feature="btn:bugReport">
+        <button
+          type="button"
+          onClick={() => setMode("picking")}
+          className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-muted-foreground/70 transition-colors hover:bg-muted/50 hover:text-foreground"
+          aria-label="Zgłoś błąd"
+          title="Zgłoś błąd"
+        >
+          <Bug className="size-3.5" strokeWidth={1.75} />
+          <span>Zgłoś błąd</span>
+        </button>
+      </FeatureGate>
 
       {mode === "picking" && (
         <div

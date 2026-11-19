@@ -12,7 +12,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { TabFlag } from "@/components/FeatureGate";
 import { Shell } from "@/components/Shell";
+import { useGatedTabs } from "@/hooks/useFeature";
 import { FridgePanel } from "@/components/kitchen/FridgePanel";
 import { RecipesPanel } from "@/components/kitchen/RecipesPanel";
 import { ShoppingPanel } from "@/components/kitchen/ShoppingPanel";
@@ -112,6 +114,8 @@ function KitchenPage() {
     },
   ];
 
+  const { visible: visibleTiles, active } = useGatedTabs("kitchen", tiles, tab);
+
   return (
     <div className="space-y-6 md:space-y-8">
       <header>
@@ -131,54 +135,64 @@ function KitchenPage() {
         role="tablist"
         className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4"
       >
-        {tiles.map(({ id, label, value, hint, icon: Icon, tone }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={cn(
-              "flex flex-col gap-2 rounded-2xl border p-3 text-left transition-all sm:flex-row sm:items-center sm:gap-4 sm:rounded-3xl sm:p-5",
-              tab === id
-                ? "border-primary/50 bg-primary/10 ring-2 ring-primary/15"
-                : "border-border bg-surface hover:border-primary/30",
-            )}
-          >
-            <span
+        {visibleTiles.map(
+          ({ id, label, value, hint, icon: Icon, tone, view }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active === id}
+              disabled={view.state === "locked"}
+              onClick={() => setTab(id)}
               className={cn(
-                "grid size-9 shrink-0 place-items-center rounded-xl sm:size-12 sm:rounded-2xl",
-                tone === "warn"
-                  ? "bg-warn/20 text-warn"
-                  : tab === id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-background/50 text-primary",
+                view.state === "locked" && "cursor-not-allowed opacity-45",
+                "flex flex-col gap-2 rounded-2xl border p-3 text-left transition-all sm:flex-row sm:items-center sm:gap-4 sm:rounded-3xl sm:p-5",
+                active === id
+                  ? "border-primary/50 bg-primary/10 ring-2 ring-primary/15"
+                  : "border-border bg-surface hover:border-primary/30",
               )}
             >
-              <Icon className="size-4 sm:size-6" strokeWidth={1.7} />
-            </span>
-            <span className="min-w-0">
-              <span className="flex items-baseline gap-2">
-                <span className="truncate text-sm font-semibold sm:text-lg">
-                  {label}
-                </span>
-                <span className="text-lg font-light tabular-nums sm:text-2xl">
-                  {value}
-                </span>
+              <span
+                className={cn(
+                  "grid size-9 shrink-0 place-items-center rounded-xl sm:size-12 sm:rounded-2xl",
+                  tone === "warn"
+                    ? "bg-warn/20 text-warn"
+                    : active === id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background/50 text-primary",
+                )}
+              >
+                <Icon className="size-4 sm:size-6" strokeWidth={1.7} />
               </span>
-              <span className="hidden truncate text-xs text-muted-foreground sm:block">
-                {hint}
+              <span className="min-w-0">
+                <span className="flex items-baseline gap-2">
+                  <span className="truncate text-sm font-semibold sm:text-lg">
+                    {label}
+                  </span>
+                  <span className="text-lg font-light tabular-nums sm:text-2xl">
+                    {value}
+                  </span>
+                </span>
+                <span className="hidden truncate text-xs text-muted-foreground sm:block">
+                  {hint}
+                </span>
+                <TabFlag view={view} />
               </span>
-            </span>
-          </button>
-        ))}
+            </button>
+          ),
+        )}
       </div>
 
+      {active === null && (
+        <p className="rounded-2xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
+          Te zakładki są jeszcze w przygotowaniu.
+        </p>
+      )}
       <div role="tabpanel">
-        {tab === "fridge" && <FridgePanel kitchen={kitchen} />}
-        {tab === "shopping" && <ShoppingPanel kitchen={kitchen} />}
-        {tab === "supplies" && <SuppliesPanel kitchen={kitchen} />}
-        {tab === "recipes" && <RecipesPanel kitchen={kitchen} />}
+        {active === "fridge" && <FridgePanel kitchen={kitchen} />}
+        {active === "shopping" && <ShoppingPanel kitchen={kitchen} />}
+        {active === "supplies" && <SuppliesPanel kitchen={kitchen} />}
+        {active === "recipes" && <RecipesPanel kitchen={kitchen} />}
       </div>
     </div>
   );

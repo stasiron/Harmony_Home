@@ -1,4 +1,11 @@
-import { doc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import {
+  doc,
+  onSnapshot,
+  setDoc,
+  updateDoc,
+  type Unsubscribe,
+} from "firebase/firestore";
+import { parseFeatureFlags, type FeatureFlags } from "@/config/features";
 import { getFirestoreDb } from "@/lib/firebase";
 import { guardWriteBudget } from "@/lib/householdSync";
 
@@ -9,10 +16,13 @@ import { guardWriteBudget } from "@/lib/householdSync";
 export type GlobalConfig = {
   /** Miła informacja przed logowaniem Google (ekrany Google, alternatywy) */
   googleLoginNotice: boolean;
+  /** Funkcje zablokowane / ukryte we wszystkich mieszkaniach */
+  features: FeatureFlags;
 };
 
 export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = {
   googleLoginNotice: true,
+  features: {},
 };
 
 export function parseGlobalConfig(raw: unknown): GlobalConfig {
@@ -25,6 +35,7 @@ export function parseGlobalConfig(raw: unknown): GlobalConfig {
       typeof data.googleLoginNotice === "boolean"
         ? data.googleLoginNotice
         : DEFAULT_GLOBAL_CONFIG.googleLoginNotice,
+    features: parseFeatureFlags(data.features),
   };
 }
 
@@ -47,4 +58,16 @@ export async function saveGlobalConfig(
   if (!db) throw new Error("Firestore unavailable");
   guardWriteBudget();
   await setDoc(doc(db, "config", "global"), patch, { merge: true });
+}
+
+/** Cała mapa naraz — merge zostawiłby usunięte klucze */
+export async function saveGlobalFeatures(
+  features: FeatureFlags,
+): Promise<void> {
+  const db = getFirestoreDb();
+  if (!db) throw new Error("Firestore unavailable");
+  guardWriteBudget();
+  await updateDoc(doc(db, "config", "global"), { features }).catch(() =>
+    setDoc(doc(db, "config", "global"), { features }, { merge: true }),
+  );
 }

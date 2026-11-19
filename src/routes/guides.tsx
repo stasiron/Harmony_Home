@@ -1,3 +1,5 @@
+import { TabFlag } from "@/components/FeatureGate";
+import { useGatedTabs } from "@/hooks/useFeature";
 import { createFileRoute } from "@tanstack/react-router";
 import { ScopeProvider } from "@/context/ScopeContext";
 import { ScopeSwitch } from "@/components/ScopeSwitch";
@@ -173,6 +175,11 @@ function GuidesPage() {
         count: entries.filter((e) => e.tabId === t.id).length,
       })),
     ];
+  const { visible: visibleTabs, active } = useGatedTabs(
+    "guides",
+    tabs,
+    current,
+  );
 
   const saveTab = (saved: GuideTab) => {
     setCustomTabs((prev) =>
@@ -217,16 +224,18 @@ function GuidesPage() {
         role="tablist"
         className="hh-scroll -mx-4 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
       >
-        {tabs.map(({ id, label, icon, count }) => (
+        {visibleTabs.map(({ id, label, icon, count, view }) => (
           <button
             key={id}
             type="button"
             role="tab"
-            aria-selected={current === id}
+            aria-selected={active === id}
+            disabled={view.state === "locked"}
             onClick={() => setTab(id)}
             className={cn(
+              view.state === "locked" && "cursor-not-allowed opacity-45",
               "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-colors",
-              current === id
+              active === id
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-surface text-muted-foreground hover:text-foreground",
             )}
@@ -237,12 +246,13 @@ function GuidesPage() {
               <span
                 className={cn(
                   "rounded-full px-1.5 text-xs tabular-nums",
-                  current === id ? "bg-primary-foreground/20" : "bg-muted",
+                  active === id ? "bg-primary-foreground/20" : "bg-muted",
                 )}
               >
                 {count}
               </span>
             )}
+            <TabFlag view={view} />
           </button>
         ))}
         <button
@@ -255,10 +265,10 @@ function GuidesPage() {
         </button>
       </div>
 
-      {current === "notes" && <NotesPanel notes={notes} setNotes={setNotes} />}
-      {current === "recipes" && <GuideRecipes />}
-      {current === "laundry" && <LaundryPanel />}
-      {activeCustom && (
+      {active === "notes" && <NotesPanel notes={notes} setNotes={setNotes} />}
+      {active === "recipes" && <GuideRecipes />}
+      {active === "laundry" && <LaundryPanel />}
+      {activeCustom && active === activeCustom.id && (
         <CustomTabPanel
           tab={activeCustom}
           entries={entries}

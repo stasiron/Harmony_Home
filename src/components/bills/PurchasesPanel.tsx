@@ -1,3 +1,4 @@
+import { FeatureGate } from "@/components/FeatureGate";
 import { BellRing, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -30,10 +31,12 @@ export function PurchasesPanel({ data }: { data: BillsData }) {
           Zakupy z Kuchni z ceną trafiają tu same. Inne wydatki dla domu dodasz
           ręcznie.
         </p>
-        <Button onClick={() => setAdding(true)}>
-          <Plus className="size-4" />
-          Dodaj wydatek
-        </Button>
+        <FeatureGate feature="btn:expense">
+          <Button onClick={() => setAdding(true)}>
+            <Plus className="size-4" />
+            Dodaj wydatek
+          </Button>
+        </FeatureGate>
       </div>
 
       {purchases.length === 0 ? (
@@ -171,24 +174,26 @@ function PurchaseCard({
             </span>
           )}
           {canRequest && (
-            <Button
-              size="sm"
-              variant={requested ? "ghost" : "outline"}
-              className="ml-auto"
-              onClick={() => {
-                onChange({
-                  ...purchase,
-                  refundRequestedAt: new Date().toISOString(),
-                });
-                notify(householdId, "refund", purchase.id);
-                toast.success(
-                  `Poproszono o zwrot ${formatPLN(open)} — domownicy zobaczą to w Rachunkach`,
-                );
-              }}
-            >
-              <BellRing className="size-4" />
-              {requested ? "Przypomnij" : "Poproś o zwrot"}
-            </Button>
+            <FeatureGate feature="btn:refund" className="ml-auto">
+              <Button
+                size="sm"
+                variant={requested ? "ghost" : "outline"}
+                className="ml-auto"
+                onClick={() => {
+                  onChange({
+                    ...purchase,
+                    refundRequestedAt: new Date().toISOString(),
+                  });
+                  notify(householdId, "refund", purchase.id);
+                  toast.success(
+                    `Poproszono o zwrot ${formatPLN(open)} — domownicy zobaczą to w Rachunkach`,
+                  );
+                }}
+              >
+                <BellRing className="size-4" />
+                {requested ? "Przypomnij" : "Poproś o zwrot"}
+              </Button>
+            </FeatureGate>
           )}
         </div>
       )}

@@ -677,6 +677,8 @@ export interface HouseholdMeta {
   features?: {
     /** Kalendarze Google z src/config/calendars — tylko pierwsze mieszkanie */
     legacyCalendar?: boolean;
+    /** Zablokowane / ukryte funkcje (src/config/features.ts) */
+    flags?: Partial<Record<string, "on" | "locked" | "hidden">>;
   };
 }
 

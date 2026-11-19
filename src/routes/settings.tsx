@@ -1,3 +1,6 @@
+import { TabFlag } from "@/components/FeatureGate";
+import { FeatureFlagsCard } from "@/components/settings/FeatureFlagsCard";
+import { useGatedTabs } from "@/hooks/useFeature";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -114,10 +117,12 @@ function SettingsPage() {
     { id: "bills", label: "Rachunki", icon: Receipt, show: !!household },
     { id: "reports", label: "Zgłoszenia", icon: Bug, show: superAdmin },
   ];
-  const visibleTabs = tabs.filter((t) => t.show);
-  const current = visibleTabs.some((t) => t.id === section)
-    ? section
-    : "account";
+  const { visible: visibleTabs, active } = useGatedTabs(
+    "settings",
+    tabs.filter((t) => t.show),
+    section,
+  );
+  const current: Section = active ?? "account";
   useReportTab(`Ustawienia: ${current}`);
 
   return (
@@ -138,13 +143,15 @@ function SettingsPage() {
         aria-label="Kategorie ustawień"
         className="hh-scroll -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0"
       >
-        {visibleTabs.map(({ id, label, icon: Icon }) => (
+        {visibleTabs.map(({ id, label, icon: Icon, view }) => (
           <button
             key={id}
             type="button"
+            disabled={view.state === "locked"}
             onClick={() => setSection(id)}
             aria-current={current === id ? "page" : undefined}
             className={cn(
+              view.state === "locked" && "cursor-not-allowed opacity-45",
               "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3.5 py-2 text-sm font-medium transition-colors",
               current === id
                 ? "border-primary bg-primary text-primary-foreground"
@@ -153,6 +160,7 @@ function SettingsPage() {
           >
             <Icon className="size-4" />
             {label}
+            <TabFlag view={view} />
           </button>
         ))}
       </nav>
@@ -167,6 +175,7 @@ function SettingsPage() {
         {current === "account" && (
           <Group>
             <SuperAdminCard />
+            <FeatureFlagsCard scope="global" />
             <GoogleAccountCard />
             <NotificationsCard />
           </Group>
@@ -175,6 +184,7 @@ function SettingsPage() {
         {household && current === "household" && (
           <Group>
             <HouseholdSettingsCard />
+            <FeatureFlagsCard scope="household" />
             <RemindersCard />
           </Group>
         )}

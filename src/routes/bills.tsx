@@ -11,7 +11,9 @@ import { useMemo, useState } from "react";
 import { BalancePanel } from "@/components/bills/BalancePanel";
 import { MonthPanel } from "@/components/bills/MonthPanel";
 import { PurchasesPanel } from "@/components/bills/PurchasesPanel";
+import { TabFlag } from "@/components/FeatureGate";
 import { Shell } from "@/components/Shell";
+import { useGatedTabs } from "@/hooks/useFeature";
 import { useBills } from "@/hooks/useBills";
 import { usePeople } from "@/hooks/usePeople";
 import { monthKey } from "@/lib/bills";
@@ -107,6 +109,8 @@ function BillsPage() {
     },
   ];
 
+  const { visible: visibleTiles, active } = useGatedTabs("bills", tiles, tab);
+
   return (
     <div className="space-y-6 md:space-y-8">
       <header>
@@ -126,52 +130,68 @@ function BillsPage() {
         </p>
       )}
 
-      <div role="tablist" className="grid grid-cols-3 gap-2 sm:gap-3">
-        {tiles.map(({ id, label, value, hint, icon: Icon, tone }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={cn(
-              "flex flex-col gap-2 rounded-2xl border p-3 text-left transition-all sm:flex-row sm:items-center sm:gap-4 sm:rounded-3xl sm:p-5",
-              tab === id
-                ? "border-primary/50 bg-primary/10 ring-2 ring-primary/15"
-                : "border-border bg-surface hover:border-primary/30",
-            )}
-          >
-            <span
+      <div
+        role="tablist"
+        className="grid gap-2 sm:gap-3"
+        style={{
+          gridTemplateColumns: `repeat(${Math.max(1, visibleTiles.length)}, minmax(0, 1fr))`,
+        }}
+      >
+        {visibleTiles.map(
+          ({ id, label, value, hint, icon: Icon, tone, view }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active === id}
+              disabled={view.state === "locked"}
+              onClick={() => setTab(id)}
               className={cn(
-                "grid size-9 shrink-0 place-items-center rounded-xl sm:size-12 sm:rounded-2xl",
-                tone === "warn"
-                  ? "bg-warn/20 text-warn"
-                  : tab === id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-background/50 text-primary",
+                view.state === "locked" && "cursor-not-allowed opacity-45",
+                "flex flex-col gap-2 rounded-2xl border p-3 text-left transition-all sm:flex-row sm:items-center sm:gap-4 sm:rounded-3xl sm:p-5",
+                active === id
+                  ? "border-primary/50 bg-primary/10 ring-2 ring-primary/15"
+                  : "border-border bg-surface hover:border-primary/30",
               )}
             >
-              <Icon className="size-4 sm:size-6" strokeWidth={1.7} />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold sm:text-lg">
-                {label}
+              <span
+                className={cn(
+                  "grid size-9 shrink-0 place-items-center rounded-xl sm:size-12 sm:rounded-2xl",
+                  tone === "warn"
+                    ? "bg-warn/20 text-warn"
+                    : active === id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background/50 text-primary",
+                )}
+              >
+                <Icon className="size-4 sm:size-6" strokeWidth={1.7} />
               </span>
-              <span className="block truncate text-sm font-light tabular-nums sm:text-xl">
-                {value}
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold sm:text-lg">
+                  {label}
+                </span>
+                <span className="block truncate text-sm font-light tabular-nums sm:text-xl">
+                  {value}
+                </span>
+                <span className="hidden truncate text-xs text-muted-foreground sm:block">
+                  {hint}
+                </span>
+                <TabFlag view={view} />
               </span>
-              <span className="hidden truncate text-xs text-muted-foreground sm:block">
-                {hint}
-              </span>
-            </span>
-          </button>
-        ))}
+            </button>
+          ),
+        )}
       </div>
 
+      {active === null && (
+        <p className="rounded-2xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground">
+          Te zakładki są jeszcze w przygotowaniu.
+        </p>
+      )}
       <div role="tabpanel">
-        {tab === "month" && <MonthPanel data={data} />}
-        {tab === "purchases" && <PurchasesPanel data={data} />}
-        {tab === "balance" && <BalancePanel data={data} />}
+        {active === "month" && <MonthPanel data={data} />}
+        {active === "purchases" && <PurchasesPanel data={data} />}
+        {active === "balance" && <BalancePanel data={data} />}
       </div>
     </div>
   );

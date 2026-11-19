@@ -551,6 +551,17 @@ export async function updateHouseholdMeta(
   await updateDoc(doc(requireDb(), "households", householdId), patch);
 }
 
+/** Zablokowane / ukryte funkcje mieszkania — tylko to pole, `legacyCalendar` zostaje */
+export async function setHouseholdFeatureFlags(
+  householdId: string,
+  flags: Partial<Record<string, "on" | "locked" | "hidden">>,
+) {
+  guardWriteBudget();
+  await updateDoc(doc(requireDb(), "households", householdId), {
+    "features.flags": flags,
+  });
+}
+
 /** PANIC (goście) — każdy domownik, także tablet bez konta */
 export async function setHouseholdPanic(
   householdId: string,
