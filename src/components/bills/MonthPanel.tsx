@@ -1,5 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, Receipt, Trash2 } from "lucide-react";
+import {
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  Receipt,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BillIcon } from "@/components/bills/BillLook";
@@ -19,7 +25,9 @@ import { usePeople } from "@/hooks/usePeople";
 import {
   billId,
   billShares,
+  canSettleBills,
   dueDateFor,
+  isFullySettled,
   isDueInMonth,
   monthKey,
   monthLabel,
@@ -28,6 +36,8 @@ import {
   periodLabel,
   shiftMonth,
   markShare,
+  setPaidAmount,
+  settleAll,
 } from "@/lib/bills";
 import { formatPLN, openShare, parsePLN, toInputPLN } from "@/lib/money";
 import { notify } from "@/lib/push";
@@ -45,8 +55,9 @@ function today() {
 export function MonthPanel({ data }: { data: BillsData }) {
   const { bills, setBills, settings } = data;
   const { isAdmin } = useHousehold();
-  const { active, nameOf } = usePeople();
+  const { active, nameOf, actorId } = usePeople();
   const [month, setMonth] = useState(() => monthKey());
+  const manage = canSettleBills(settings, actorId, isAdmin);
 
   const enabled = settings.types.filter((t) => t.enabled);
   const monthBills = bills.filter((b) => b.month === month);
@@ -135,6 +146,7 @@ export function MonthPanel({ data }: { data: BillsData }) {
               type={type}
               month={month}
               bill={monthBills.find((b) => b.typeId === type.id) ?? null}
+              manage={manage}
               onSave={(next) => saveBill(next, billId(month, type.id))}
             />
           ))}
@@ -145,6 +157,7 @@ export function MonthPanel({ data }: { data: BillsData }) {
               look={settings.types.find((t) => t.id === bill.typeId)}
               month={month}
               bill={bill}
+              manage={manage}
               onSave={(next) => saveBill(next, bill.id)}
             />
           ))}
@@ -202,6 +215,7 @@ function BillCard({
   look,
   month,
   bill,
+  manage,
   onSave,
 }: {
   type: BillTypeConfig | null;
@@ -209,6 +223,8 @@ function BillCard({
   look?: BillTypeConfig;
   month: string;
   bill: Bill | null;
+  /** Administrator / opiekun rachunków — zatwierdza wpłaty */
+  manage: boolean;
   onSave: (bill: Bill | null) => void;
 }) {
   const { users, active } = usePeople();
@@ -224,11 +240,7 @@ function BillCard({
     : null;
   const dueOn = bill?.dueOn ?? (type ? dueDateFor(month, type.dueDay) : null);
   const overdue = Boolean(bill && !bill.paidBy && dueOn && dueOn < today());
-  const allSettled =
-    bill?.paidBy &&
-    Object.keys(bill.shares).every(
-      (id) => id === bill.paidBy || bill.settled[id],
-    );
+  const allSettled = bill ? isFullySettled(bill) : false;
 
   const commitAmount = (text: string) => {
     const amount = text.trim() ? parsePLN(text) : null;
@@ -255,6 +267,20 @@ function BillCard({
       Object.fromEntries(
         Object.entries(map ?? {}).filter(([personId]) => unchanged(personId)),
       );
+    // Wpłacone pieniądze nie znikają: kto miał zamkniętą starą część, ma ją
+    // teraz jako wpłatę częściową (albo dalej zamkniętą, gdy wystarczy)
+    const payments: Record<string, number> = {};
+    for (const personId of Object.keys(shares)) {
+      if (unchanged(personId)) {
+        const partial = bill?.payments?.[personId];
+        if (partial) payments[personId] = partial;
+        continue;
+      }
+      const before = bill?.settled[personId]
+        ? (bill.shares[personId] ?? 0)
+        : (bill?.payments?.[personId] ?? 0);
+      if (before > 0) payments[personId] = before;
+    }
     onSave({
       // Istniejący rachunek: zostają createdBy, createdAt, locked… (reguły
       // nie pozwolą zmienić twórcy, a set bez merge by go usunął)
@@ -269,6 +295,7 @@ function BillCard({
       shares,
       settled: keep(bill?.settled),
       ...(bill?.confirmed ? { confirmed: keep(bill.confirmed) } : {}),
+      payments,
     });
   };
 
@@ -298,17 +325,37 @@ function BillCard({
             </p>
           </div>
         </div>
-        {bill && canEditItem(bill) && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-muted-foreground hover:text-destructive"
-            onClick={() => onSave(null)}
-            aria-label={`Usuń rachunek ${name}`}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        )}
+        <div className="flex shrink-0 items-center gap-1">
+          {bill &&
+            manage &&
+            !allSettled &&
+            Object.keys(bill.shares).length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => {
+                  onSave(settleAll(bill));
+                  toast.success(`${name}: rozliczone`);
+                }}
+                title="Każda część wpłacona i zatwierdzona"
+              >
+                <CheckCheck className="size-4" />
+                Rozlicz
+              </Button>
+            )}
+          {bill && canEditItem(bill) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted-foreground hover:text-destructive"
+              onClick={() => onSave(null)}
+              aria-label={`Usuń rachunek ${name}`}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -347,14 +394,32 @@ function BillCard({
             <span className="text-muted-foreground">Zapłacił(a):</span>
             <Select
               value={bill.paidBy ?? NOBODY}
-              onValueChange={(value) =>
+              onValueChange={(value) => {
+                const paidBy = value === NOBODY ? null : value;
+                // Opiekun zbierał wpłaty, zanim ktoś zapłacił całość — zostają
+                // (poza częścią samego płacącego). Zmiana płacącego zeruje.
+                if (!bill.paidBy && paidBy) {
+                  const drop = <V,>(map: Record<string, V> | undefined) =>
+                    Object.fromEntries(
+                      Object.entries(map ?? {}).filter(([id]) => id !== paidBy),
+                    );
+                  onSave({
+                    ...bill,
+                    paidBy,
+                    settled: drop(bill.settled),
+                    confirmed: drop(bill.confirmed),
+                    payments: drop(bill.payments),
+                  });
+                  return;
+                }
                 onSave({
                   ...bill,
-                  paidBy: value === NOBODY ? null : value,
+                  paidBy,
                   settled: {},
                   confirmed: {},
-                })
-              }
+                  payments: {},
+                });
+              }}
             >
               <SelectTrigger
                 className="h-8 w-auto min-w-40"
@@ -385,9 +450,14 @@ function BillCard({
             shares={bill.shares}
             settled={bill.settled}
             confirmed={bill.confirmed}
+            payments={bill.payments}
             paidBy={bill.paidBy}
+            manage={manage}
             onAction={(person, action) =>
               onSave(markShare(bill, person, action))
+            }
+            onSetPaid={(person, amount) =>
+              onSave(setPaidAmount(bill, person, amount))
             }
           />
           <SharesEditor bill={bill} onSave={onSave} />
@@ -395,6 +465,8 @@ function BillCard({
             <p className="text-xs text-muted-foreground">
               Gdy ktoś zapłaci całość, wybierz go wyżej — reszta zobaczy, ile mu
               oddać.
+              {manage &&
+                " Zbierasz pieniądze sam(a)? Zaznaczaj wpłaty przy osobach."}
             </p>
           )}
         </>
@@ -487,6 +559,9 @@ function SharesEditor({
       ),
       confirmed: Object.fromEntries(
         Object.entries(bill.confirmed ?? {}).filter(([id]) => id in shares),
+      ),
+      payments: Object.fromEntries(
+        Object.entries(bill.payments ?? {}).filter(([id]) => id in shares),
       ),
     });
     setOpen(false);

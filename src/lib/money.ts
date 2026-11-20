@@ -81,13 +81,16 @@ export type SharedCost = {
   shares: Record<string, number>;
   /** profileId → kiedy oddał(a) swoją część */
   settled?: Record<string, string>;
+  /** profileId → ile już wpłacił(a) z niezamkniętej części (grosze) */
+  payments?: Record<string, number>;
 };
 
 /** Ile `debtor` jest jeszcze winien płacącemu za ten koszt */
 export function openShare(cost: SharedCost, debtor: string): number {
   if (!cost.paidBy || debtor === cost.paidBy) return 0;
   if (cost.settled?.[debtor]) return 0;
-  return cost.shares[debtor] ?? 0;
+  const share = cost.shares[debtor] ?? 0;
+  return Math.max(0, share - (cost.payments?.[debtor] ?? 0));
 }
 
 export type PairDebt = {

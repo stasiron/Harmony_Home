@@ -1288,6 +1288,28 @@ describe("domknięcia: potwierdzenia, ogłoszenia, dziennik powiadomień", () =>
     await assertFails(updateDoc(ref, { paidBy: "p2" }));
   });
 
+  it("wpłatę częściową na zablokowanym rachunku wpisze domownik, kwoty nie", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), "households", HID, "bills", "2026-11_rent"),
+        {
+          typeId: "rent",
+          name: "Czynsz",
+          month: "2026-11",
+          amount: 3000,
+          paidBy: "p1",
+          shares: { p1: 1500, p2: 1500 },
+          settled: {},
+          createdBy: "admin",
+          locked: true,
+        },
+      );
+    });
+    const ref = doc(dbAs("alice"), "households", HID, "bills", "2026-11_rent");
+    await assertSucceeds(updateDoc(ref, { payments: { p2: 500 } }));
+    await assertFails(updateDoc(ref, { amount: 100 }));
+  });
+
   it("zablokowanego ogłoszenia nie przypnie ani nie usunie ktoś inny", async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(

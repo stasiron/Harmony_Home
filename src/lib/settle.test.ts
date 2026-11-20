@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { markShare } from "@/lib/bills";
+import {
+  canSettleBills,
+  isFullySettled,
+  markShare,
+  paidSoFar,
+  setPaidAmount,
+  settleAll,
+} from "@/lib/bills";
 import {
   netFor,
+  openShare,
   pairBalances,
   simplifyTransfers,
   type SharedCost,
@@ -33,6 +41,56 @@ describe("oddawanie i potwierdzanie", () => {
     const undone = markShare(received, "bob", "undo");
     expect(undone.settled.bob).toBeUndefined();
     expect(undone.confirmed.bob).toBeUndefined();
+  });
+});
+
+describe("rozliczanie przez opiekuna rachunków", () => {
+  const bill = {
+    id: "b1",
+    paidBy: "ala" as string | null,
+    shares: { ala: 1000, bob: 1000, cela: 1000 },
+    settled: {} as Record<string, string>,
+    confirmed: {} as Record<string, string>,
+    payments: {} as Record<string, number>,
+  };
+
+  it("wpłata częściowa zmniejsza dług, całość zamyka i potwierdza", () => {
+    const part = setPaidAmount(bill, "bob", 400, "t1");
+    expect(part.payments?.bob).toBe(400);
+    expect(part.settled.bob).toBeUndefined();
+    expect(openShare(part, "bob")).toBe(600);
+    expect(paidSoFar(part, "bob")).toBe(400);
+    const full = setPaidAmount(part, "bob", 1000, "t2");
+    expect(full.settled.bob).toBe("t2");
+    expect(full.confirmed?.bob).toBe("t2");
+    expect(full.payments?.bob).toBeUndefined();
+    expect(openShare(full, "bob")).toBe(0);
+    const zero = setPaidAmount(full, "bob", 0);
+    expect(zero.settled.bob).toBeUndefined();
+    expect(openShare(zero, "bob")).toBe(1000);
+  });
+
+  it("„Rozlicz” zamyka wszystkie części poza płacącym", () => {
+    const partial = setPaidAmount(bill, "cela", 300, "t0");
+    const done = settleAll(partial, "t1");
+    expect(isFullySettled(done)).toBe(true);
+    expect(done.settled.ala).toBeUndefined();
+    expect(done.confirmed?.bob).toBe("t1");
+    expect(done.payments?.cela).toBeUndefined();
+    expect(netFor([done], "ala")).toBe(0);
+  });
+
+  it("bez płacącego też da się zbierać wpłaty", () => {
+    const done = settleAll({ ...bill, paidBy: null }, "t1");
+    expect(isFullySettled(done)).toBe(true);
+    expect(Object.keys(done.settled)).toHaveLength(3);
+  });
+
+  it("opiekun z ustawień albo administrator", () => {
+    const settings = { types: [], managers: ["bob"] };
+    expect(canSettleBills(settings, "bob", false)).toBe(true);
+    expect(canSettleBills(settings, "cela", false)).toBe(false);
+    expect(canSettleBills(settings, null, true)).toBe(true);
   });
 });
 

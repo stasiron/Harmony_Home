@@ -314,6 +314,8 @@ export interface BillPeriod {
 
 export interface BillSettings {
   types: BillTypeConfig[];
+  /** Kto (User.id) rozlicza rachunki obok administratorów: zatwierdza wpłaty */
+  managers?: string[];
 }
 
 /** Rachunek za dany miesiąc (`bills/{month}_{typeId}`) */
@@ -335,6 +337,8 @@ export interface Bill extends ItemMeta {
   settled: Record<string, string>;
   /** User.id → kiedy płacący potwierdził, że pieniądze doszły */
   confirmed?: Record<string, string>;
+  /** User.id → ile już wpłacił(a), gdy nie całość (grosze) */
+  payments?: Record<string, number>;
 }
 
 export interface PurchaseLine {

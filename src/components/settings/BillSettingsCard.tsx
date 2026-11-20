@@ -39,11 +39,18 @@ export function BillSettingsCard() {
     [household?.billSettings],
   );
   const [types, setTypes] = useState<BillTypeConfig[]>(saved.types);
+  const [managers, setManagers] = useState<string[]>(saved.managers ?? []);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => setTypes(saved.types), [saved]);
+  useEffect(() => {
+    setTypes(saved.types);
+    setManagers(saved.managers ?? []);
+  }, [saved]);
 
-  const dirty = JSON.stringify(types) !== JSON.stringify(saved.types);
+  const dirty =
+    JSON.stringify(types) !== JSON.stringify(saved.types) ||
+    JSON.stringify([...managers].sort()) !==
+      JSON.stringify([...(saved.managers ?? [])].sort());
 
   const patch = (id: string, change: Partial<BillTypeConfig>) =>
     setTypes((prev) =>
@@ -53,7 +60,7 @@ export function BillSettingsCard() {
   const save = async () => {
     setBusy(true);
     try {
-      await setBillSettings({ types });
+      await setBillSettings({ types, managers });
       toast.success("Rachunki zapisane");
     } catch (err) {
       console.error(err);
@@ -260,6 +267,41 @@ export function BillSettingsCard() {
         ))}
       </ul>
 
+      <div className="space-y-2 rounded-2xl border border-border bg-surface/60 px-4 py-3 text-sm">
+        <div>
+          <h3 className="font-medium">Kto rozlicza rachunki</h3>
+          <p className="text-xs text-muted-foreground">
+            Oprócz administratorów — ta osoba zatwierdza wpłaty, wpisuje, ile
+            kto wpłacił, i zaznacza rachunek jako rozliczony.
+          </p>
+        </div>
+        {active.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Dodaj domowników, żeby kogoś wybrać.
+          </p>
+        ) : (
+          <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+            {active.map((u) => (
+              <li key={u.id} className="flex items-center gap-2">
+                <Checkbox
+                  checked={managers.includes(u.id)}
+                  disabled={!isAdmin}
+                  onCheckedChange={() =>
+                    setManagers((prev) =>
+                      prev.includes(u.id)
+                        ? prev.filter((id) => id !== u.id)
+                        : [...prev, u.id],
+                    )
+                  }
+                  aria-label={`${u.name} rozlicza rachunki`}
+                />
+                <span>{u.name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {isAdmin && (
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
@@ -291,7 +333,13 @@ export function BillSettingsCard() {
       {isAdmin && (
         <div className="flex justify-end gap-2">
           {dirty && (
-            <Button variant="ghost" onClick={() => setTypes(saved.types)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setTypes(saved.types);
+                setManagers(saved.managers ?? []);
+              }}
+            >
               Cofnij zmiany
             </Button>
           )}

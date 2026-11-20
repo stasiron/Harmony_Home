@@ -58,7 +58,10 @@ export function resolveBillSettings(
     ...(byId.get(def.id) ?? {}),
   }));
   const custom = saved.filter((t) => t.kind === "custom");
-  return { types: [...builtins, ...custom] };
+  const managers = Array.isArray(settings?.managers)
+    ? settings.managers.filter((id) => typeof id === "string" && id)
+    : [];
+  return { types: [...builtins, ...custom], managers };
 }
 
 export function newCustomBillType(name: string): BillTypeConfig {
@@ -239,6 +242,7 @@ export function normalizeBill(raw: unknown): Bill | null {
     shares: shareMap(r.shares),
     settled: stringMap(r.settled),
     confirmed: stringMap(r.confirmed),
+    payments: shareMap(r.payments),
   } as Bill;
 }
 
@@ -557,7 +561,7 @@ export function newPurchase(
  * - paid — dłużnik (albo ktoś za niego) zaznacza „oddane”,
  * - confirm — płacący potwierdza, że pieniądze doszły,
  * - received — płacący sam zaznacza „otrzymane” (od razu potwierdzone),
- * - undo — cofnięcie obu.
+ * - undo — cofnięcie obu (i wpłaty częściowej).
  * „Oddane” liczy się w saldzie od razu; potwierdzenie to informacja dla
  * domowników, że płacący naprawdę dostał pieniądze.
  */
@@ -567,6 +571,7 @@ export function markShare<
   T extends {
     settled: Record<string, string>;
     confirmed?: Record<string, string>;
+    payments?: Record<string, number>;
   },
 >(
   item: T,
@@ -579,11 +584,90 @@ export function markShare<
   if (action === "undo") {
     delete settled[person];
     delete confirmed[person];
-  } else {
-    settled[person] ??= at;
-    if (action !== "paid") confirmed[person] = at;
+    return withoutPayment({ ...item, settled, confirmed }, person);
   }
-  return { ...item, settled, confirmed };
+  settled[person] ??= at;
+  if (action !== "paid") confirmed[person] = at;
+  return withoutPayment({ ...item, settled, confirmed }, person);
+}
+
+function withoutPayment<T extends { payments?: Record<string, number> }>(
+  item: T,
+  person: string,
+): T {
+  if (!item.payments || !(person in item.payments)) return item;
+  const payments = { ...item.payments };
+  delete payments[person];
+  return { ...item, payments };
+}
+
+type Settleable = {
+  paidBy: string | null;
+  shares: Record<string, number>;
+  settled: Record<string, string>;
+  confirmed?: Record<string, string>;
+  payments?: Record<string, number>;
+};
+
+/** Czy rachunek może rozliczać ta osoba: administrator albo opiekun rachunków */
+export function canSettleBills(
+  settings: BillSettings,
+  actorId: string | null,
+  isAdmin: boolean,
+): boolean {
+  return isAdmin || Boolean(actorId && settings.managers?.includes(actorId));
+}
+
+/**
+ * Opiekun rachunków wpisuje, ile ktoś wpłacił: całość (lub więcej) zamyka
+ * część i od razu ją potwierdza, mniej — zostaje jako wpłata częściowa,
+ * zero — czyści wszystko.
+ */
+export function setPaidAmount<T extends Settleable>(
+  item: T,
+  person: string,
+  amount: number,
+  at = new Date().toISOString(),
+): T {
+  const share = item.shares[person] ?? 0;
+  if (amount <= 0) return markShare(item, person, "undo");
+  if (amount >= share) return markShare(item, person, "received", at);
+  const settled = { ...item.settled };
+  const confirmed = { ...(item.confirmed ?? {}) };
+  delete settled[person];
+  delete confirmed[person];
+  return {
+    ...item,
+    settled,
+    confirmed,
+    payments: { ...(item.payments ?? {}), [person]: amount },
+  };
+}
+
+/** Ile osoba już wpłaciła: cała część, gdy zamknięta, inaczej wpłata częściowa */
+export function paidSoFar(item: Settleable, person: string): number {
+  if (item.settled[person]) return item.shares[person] ?? 0;
+  return Math.min(item.payments?.[person] ?? 0, item.shares[person] ?? 0);
+}
+
+/** Wszystkie części poza płacącym zamknięte */
+export function isFullySettled(item: Settleable): boolean {
+  const people = Object.keys(item.shares).filter((id) => id !== item.paidBy);
+  return people.length > 0 && people.every((id) => item.settled[id]);
+}
+
+/** „Rozliczone” jednym kliknięciem — każda część wpłacona i potwierdzona */
+export function settleAll<T extends Settleable>(
+  item: T,
+  at = new Date().toISOString(),
+): T {
+  let next = item;
+  for (const person of Object.keys(item.shares)) {
+    if (person === item.paidBy) continue;
+    if (next.settled[person] && next.confirmed?.[person]) continue;
+    next = markShare(next, person, "received", at);
+  }
+  return next;
 }
 
 // ─── Brakujące składniki na listę zakupów ─────────────────────────────────

@@ -421,12 +421,12 @@ service cloud.firestore {
         function progressOnly() {
           // rotationTurn — „na zmianę”: odhaczenie przesuwa turę
           // amount — zużycie z lodówki po ugotowaniu przepisu
-          // settled, refundRequestedAt — rozliczenia rachunków i wspólnych zakupów
+          // settled, confirmed, payments, refundRequestedAt — rozliczenia rachunków i zakupów
           // stock, stockAmount, lastBoughtAt — zużycie i uzupełnienie zapasów
           return changedOnly([
             'lastCompleted', 'lastCompletedBy', 'done', 'completedBy', 'checked',
             'rotationTurn', 'amount', 'settled', 'stock', 'stockAmount',
-            'lastBoughtAt', 'refundRequestedAt', 'issueStatus', 'confirmed'
+            'lastBoughtAt', 'refundRequestedAt', 'issueStatus', 'confirmed', 'payments'
           ])
             // amount = zużycie w kuchni; kwoty rachunku tak nie zmienisz
             && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['amount'])
